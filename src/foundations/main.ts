@@ -161,10 +161,14 @@ const ISLAND = {
 type IslandKey = keyof typeof ISLAND
 function island() {
   const isl = h('div', { class: 'isl', role: 'img', 'aria-label': 'Island preview' })
-  const ears = h('div', { class: 'isl-ears', 'aria-hidden': 'true' })
   const inner = h('div', { class: 'isl-in' })
   isl.append(inner)
-  const stage = h('div', { class: 'isl-stage' }, isl, ears)
+  const wrap = h('div', { class: 'isl-wrap' },
+    h('div', { class: 'isl-glow', 'aria-hidden': 'true' }),
+    h('div', { class: 'isl-ear l', 'aria-hidden': 'true' }), h('div', { class: 'isl-ear r', 'aria-hidden': 'true' }),
+    isl,
+    h('div', { class: 'isl-key', 'aria-hidden': 'true' }))
+  const stage = h('div', { class: 'isl-stage' }, wrap)
   const content: Record<IslandKey, () => Node[]> = {
     resting: () => [],
     compact: () => [h('span', {}, 'PA shift'), h('i', {}, '1:42')],
@@ -174,10 +178,9 @@ function island() {
   }
   const set = (k: IslandKey) => {
     const s = ISLAND[k]
-    isl.style.width = `${s.w}px`
-    isl.style.height = `${s.h}px`
-    isl.style.borderRadius = `0 0 ${s.r}px ${s.r}px`
-    ears.style.width = `min(${s.w}px, 100%)`
+    wrap.style.width = `${s.w}px`
+    wrap.style.height = `${s.h}px`
+    wrap.style.borderRadius = `0 0 ${s.r}px ${s.r}px`
     isl.classList.toggle('expanded', k === 'expanded')
     isl.classList.toggle('alert', k === 'alert')
     inner.style.opacity = '0'
@@ -204,7 +207,7 @@ function typeSection() {
 }
 
 function iconSection() {
-  const grid = (fill: boolean) => h('div', { class: 'icon-grid' }, ...ICONS.map((n) => h('div', { class: 'icon-cell' }, icon(n, fill), h('span', {}, fill ? `${n}-fill` : n))))
+  const grid = (fill: boolean) => h('div', { class: 'icon-grid' }, ...ICONS.map((n) => h('div', { class: 'icon-cell' }, icon(n, fill), h('span', { class: 'icon-name' }, fill ? `${n}-fill` : n))))
   return h('section', { class: 'f-sec' },
     h('h2', {}, 'Icons'),
     h('p', { class: 'f-note' }, 'Phosphor. Regular is inactive, fill is active. 24 px.'),

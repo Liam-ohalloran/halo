@@ -92,7 +92,7 @@ Add a `/components` page showing each one, and the `/motion` page from HALO.md 3
 **Done when**
 - [ ] Liam can sign in on laptop and phone
 - [ ] Seed data shows in Supabase table editor
-- [ ] No secret keys anywhere in the repo (`git grep -i "service_role"` returns nothing)
+- [ ] No secret keys anywhere in the repo (a `git grep -i` for the service role key's name returns nothing)
 
 ---
 

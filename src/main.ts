@@ -136,8 +136,28 @@ function booting() {
 async function start() {
   // Home is the card 01 island. The old draft tabs stay reachable at ?legacy=1 until cards 06 to 08 replace them.
   if (!params.has('legacy') && !params.has('mock')) {
+    // Signed out: sign-in screen. Signed in: the island. The session persists across reloads.
+    const { data } = await supabase.auth.getSession()
+    const linkError = new URLSearchParams(location.hash.slice(1)).get('error_description')
     const { mountHome } = await import('./components/home')
-    return void mountHome(app)
+    const { mountSignIn, mountSignedInNote } = await import('./components/signin')
+    const render = (signedIn: boolean, email = '') => {
+      if (signedIn) {
+        document.documentElement.classList.remove('signin')
+        mountHome(app)
+        mountSignedInNote(app, supabase, email)
+      } else {
+        mountSignIn(app, supabase, linkError ? "That link didn't work. Send a new one." : undefined)
+      }
+    }
+    let current = Boolean(data.session)
+    render(current, data.session?.user.email ?? '')
+    supabase.auth.onAuthStateChange((_e, session) => {
+      const next = Boolean(session)
+      if (next !== current) { current = next; render(next, session?.user.email ?? '') }
+    })
+    if (location.hash) history.replaceState(null, '', location.pathname + location.search)
+    return
   }
   booting()
 

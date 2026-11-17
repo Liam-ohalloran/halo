@@ -9,7 +9,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "icons": "node scripts/icons.mjs",
-    "shots": "node scripts/shots.mjs"
+    "shots": "node scripts/shots.mjs",
+    "shots:legacy": "node scripts/shots-legacy.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0"

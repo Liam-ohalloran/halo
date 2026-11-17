@@ -1,0 +1,48 @@
+/* Halo design tokens. Source of truth: HALO.md section 3.2 */
+:root {
+  /* colour */
+  --island: #000000;
+  --text-1: #FFFFFF;
+  --text-2: rgba(235, 235, 245, 0.60);
+  --text-3: rgba(235, 235, 245, 0.30);
+  --fill-1: rgba(255, 255, 255, 0.16);   /* tracks, dividers */
+  --fill-2: rgba(255, 255, 255, 0.08);   /* inset containers */
+  --accent: #FFB547;                     /* Halo gold: focus rings, toggles on */
+
+  /* content colours (only used for content) */
+  --shift: #FF9F0A;
+  --study: #BF5AF2;
+  --pay: #30D158;
+  --alert: #FF9F0A;
+  --live: #FF453A;
+  --sixers: #4C8DFF;
+  /* --celtics-or-opponent: team colour comes from data at runtime */
+
+  /* subject colours */
+  --hb: #FF6482;
+  --chem: #BF5AF2;
+  --meth: #0A84FF;
+  --spec: #64D2FF;
+  --english: #FFD60A;
+  --religion: #AC8E68;
+
+  /* spacing: 4 px base, 8 px rhythm */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 20px;
+  --s6: 24px;
+  --s8: 32px;
+
+  /* type scale (px): nothing else */
+  --fs-11: 11px;
+  --fs-13: 13px;
+  --fs-15: 15px;
+  --fs-17: 17px;
+  --fs-21: 21px;
+  --fs-28: 28px;
+
+  /* font: decided in card 02 */
+  --font: "Segoe UI Variable Display", "Segoe UI Variable Text", system-ui, sans-serif;
+}

@@ -1,50 +1,28 @@
-// Headless screenshots of every state at NotchPixel panel size and iPhone size (dev fixtures).
+// Headless screenshots at the two HALO.md test sizes, saved to screenshots/<card>/.
+// Usage: npm run shots -- 01   (card number defaults to 01)
 import { createServer } from 'vite'
-import { chromium, devices } from 'playwright'
+import { chromium } from 'playwright'
 import { mkdirSync } from 'node:fs'
 
-const server = await createServer({ server: { port: 5199, strictPort: true }, logLevel: 'error' })
-await server.listen()
-const base = 'http://localhost:5199/halo/'
-mkdirSync('shots', { recursive: true })
+const card = process.argv[2] ?? '01'
+const dir = `screenshots/${card}`
+mkdirSync(dir, { recursive: true })
 
-const sizes = {
-  panel: { viewport: { width: 400, height: 460 }, deviceScaleFactor: 2 },
-  iphone: { ...devices['iPhone 15'] },
-}
-const states = [
-  ['now', 'full', 'now'], ['pay', 'full', 'pay'], ['study', 'full', 'study'], ['study-running', 'running', 'study'],
-  ['empty-now', 'empty', 'now'], ['empty-pay', 'empty', 'pay'], ['empty-study', 'empty', 'study'],
-  ['loading', 'loading', 'now'], ['error', 'error', 'now'], ['signin', 'signedout', 'now'], ['boot', 'boot', 'now'],
-]
+const server = await createServer({ server: { port: 5198, strictPort: true }, logLevel: 'error' })
+await server.listen()
+const sizes = { 'notchpixel-680x420': [680, 420], 'iphone-390x844': [390, 844] }
 const browser = await chromium.launch()
 const errors = []
-for (const [size, opts] of Object.entries(sizes)) {
-  const ctx = await browser.newContext({ ...opts, colorScheme: 'dark', reducedMotion: 'no-preference' })
-  for (const [name, mock, tab] of states) {
-    const page = await ctx.newPage()
-    page.on('pageerror', (e) => errors.push(`${size}/${name}: ${e.message}`))
-    page.on('console', (m) => m.type() === 'error' && errors.push(`${size}/${name}: ${m.text()}`))
-    await page.goto(`${base}?mock=${mock}&tab=${tab}`)
-    await page.waitForTimeout(1300)
-    await page.screenshot({ path: `shots/${size}-${name}.png` })
-    await page.close()
-  }
-  // Interaction check: switch tabs and start/stop the timer.
+for (const [name, [width, height]] of Object.entries(sizes)) {
+  const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 2, colorScheme: 'dark' })
   const page = await ctx.newPage()
-  page.on('pageerror', (e) => errors.push(`${size}/interact: ${e.message}`))
-  await page.goto(`${base}?mock=full&tab=now`)
-  await page.click('#tab-study'); await page.waitForTimeout(600)
-  await page.click('text=Start focus'); await page.waitForTimeout(1500)
-  await page.click('text=Stop & log'); await page.waitForTimeout(700)
-  await page.screenshot({ path: `shots/${size}-study-logged.png` })
-  await page.click('#tab-pay'); await page.waitForTimeout(500)
-  await page.click('[aria-label="Previous week"]'); await page.waitForTimeout(700)
-  await page.screenshot({ path: `shots/${size}-pay-lastweek.png` })
-  const mem = await page.evaluate(() => performance.memory?.usedJSHeapSize)
-  console.log(size, 'JS heap MB', mem ? (mem / 1048576).toFixed(1) : 'n/a')
+  page.on('pageerror', (e) => errors.push(`${name}: ${e.message}`))
+  page.on('console', (m) => m.type() === 'error' && errors.push(`${name}: ${m.text()}`))
+  await page.goto('http://localhost:5198/halo/')
+  await page.waitForTimeout(600)
+  await page.screenshot({ path: `${dir}/${name}.png` })
   await ctx.close()
 }
 await browser.close()
 await server.close()
-console.log(errors.length ? 'ERRORS:\n' + errors.join('\n') : 'no console errors')
+console.log(errors.length ? 'ERRORS:\n' + errors.join('\n') : `saved to ${dir}`)

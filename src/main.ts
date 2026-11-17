@@ -134,6 +134,11 @@ function booting() {
 }
 
 async function start() {
+  // Home is the card 01 island. The old draft tabs stay reachable at ?legacy=1 until cards 06 to 08 replace them.
+  if (!params.has('legacy') && !params.has('mock')) {
+    const { mountHome } = await import('./components/home')
+    return void mountHome(app)
+  }
   booting()
 
   // Dev-only fixtures for design review (stripped from production builds).

@@ -1,16 +1,9 @@
-import { createClient } from '@supabase/supabase-js'
 import type { Backend, Settings, Shift, StudySession, Test } from './types'
 import { DEFAULT_SETTINGS } from './types'
+import { supabase } from './lib/supabase'
 
-// Publishable key: safe in the browser. RLS (owner only) protects every table.
-// Never put a secret/service-role key here; anything secret belongs in an edge function.
-const SUPABASE_URL = 'https://brqrszaljxeduelpuyty.supabase.co'
-const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_l4fAmC7JOhbHTd3sGsmX-w_DiAyDKe5'
-
-export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
-  realtime: { params: { eventsPerSecond: 2 } },
-})
+// The client lives in lib/supabase.ts. Re-exported for the older draft views.
+export { supabase }
 
 const SHIFT_COLS = 'id,title,station,starts_at,ends_at,is_public_holiday'
 const SESSION_COLS = 'id,subject,started_at,ended_at,minutes'

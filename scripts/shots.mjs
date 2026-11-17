@@ -1,10 +1,11 @@
 // Headless screenshots at the two HALO.md test sizes, saved to screenshots/<card>/.
-// Usage: npm run shots -- 01   (card number defaults to 01)
+// Usage: npm run shots -- 02 foundations/   (card number defaults to 01, page path defaults to the home page)
 import { createServer } from 'vite'
 import { chromium } from 'playwright'
 import { mkdirSync } from 'node:fs'
 
 const card = process.argv[2] ?? '01'
+const route = process.argv[3] ?? ''
 const dir = `screenshots/${card}`
 mkdirSync(dir, { recursive: true })
 
@@ -18,9 +19,9 @@ for (const [name, [width, height]] of Object.entries(sizes)) {
   const page = await ctx.newPage()
   page.on('pageerror', (e) => errors.push(`${name}: ${e.message}`))
   page.on('console', (m) => m.type() === 'error' && errors.push(`${name}: ${m.text()}`))
-  await page.goto('http://localhost:5198/halo/')
-  await page.waitForTimeout(600)
-  await page.screenshot({ path: `${dir}/${name}.png` })
+  await page.goto('http://localhost:5198/halo/' + route)
+  await page.waitForTimeout(1200)
+  await page.screenshot({ path: `${dir}/${name}.png`, fullPage: route !== '' })
   await ctx.close()
 }
 await browser.close()

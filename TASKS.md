@@ -31,13 +31,13 @@ Cards marked 🆓 have parts you can hand to free ChatGPT, Gemini or your local 
 
 ---
 
-## Card 02 · Foundations page (pick the font) 🆓
+## Card 02 · Foundations page 🆓
 **Model:** Sonnet · **Size:** medium · **REVIEW WITH OPUS**
 
-**Goal:** a `/foundations` page Liam uses to pick the font and approve icons and components.
+**Goal:** a `/foundations` page Liam uses to approve the type, icons and components. The font is already chosen: **Onest**.
 
 **Build**
-1. **Type**: three columns, same specimen in each. Fonts: `Segoe UI Variable` (system, Windows only), `Instrument Sans` (Google Fonts), `Onest` (Google Fonts). Specimen per column on a black card:
+1. **Type**: self-host Onest, then show this specimen on a black card with the light spill glow behind it (HALO.md 3.1b):
    - Title 21/700: `MONTAGEM REBOLA`
    - Secondary 15/500: `ATLXS`
    - Compact pill row: `PA shift` 15/700 and `1:42` 17/700 amber
@@ -46,14 +46,12 @@ Cards marked 🆓 have parts you can hand to free ChatGPT, Gemini or your local 
    - Body 15/400: `Your next shift starts in 1 hour 42 minutes. Leave by 5:05.`
 2. **Icons**: 16 Phosphor icons in two rows, regular (inactive) and fill (active), 24 px white on black: music-notes, clock, book-open, basketball, bell, wallet, house, sliders-horizontal, play, pause, skip-forward, skip-back, heart, speaker-high, moon, sparkle. Copy SVGs from `@phosphor-icons/core` into `public/icons/`.
 3. **Components**: every component from HALO.md 3.4 shown in all 5 states side by side (rest, hover, pressed, focus-visible, disabled), plus a live row where they actually work.
-4. A segmented control at the top that switches the whole page between the 3 fonts.
-
-**Free AI can do:** the specimen text and the list of Phosphor file names.
+**Free AI can do:** the list of Phosphor file names.
 
 **Done when**
 - [ ] Page live at `/halo/foundations`
-- [ ] Screenshots of each font choice saved
-- [ ] Bring the screenshots to Opus, who locks the font and fixes anything that looks off
+- [ ] Screenshots saved
+- [ ] Bring the screenshots to Opus, who approves or fixes the components
 
 ---
 

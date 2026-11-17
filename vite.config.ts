@@ -1,7 +1,9 @@
 import { defineConfig } from 'vite'
+import { resolve } from 'node:path'
 
 // Served from https://liam-ohalloran.github.io/halo/
 export default defineConfig({
   base: '/halo/',
-  build: { target: 'es2022', cssMinify: true, sourcemap: false },
+  build: {
+    rollupOptions: { input: { main: resolve(__dirname, 'index.html'), foundations: resolve(__dirname, 'foundations/index.html') } }, target: 'es2022', cssMinify: true, sourcemap: false },
 })

@@ -62,6 +62,45 @@ These come from Apple's Live Activities guidelines, WWDC23 "Design dynamic Live 
 - **Concentric corners:** inner radius = outer radius minus padding. Even margins all round. Nothing pokes into the rounded edge.
 - Separate blocks with an inset rounded container or a thick line, never content running to the edge.
 
+### 3.1b Light spill (signature look, never drop this)
+
+The island is black, but it **glows**. The content's colour spills as soft light onto whatever is behind it:
+- Three stacked falloffs from the island edge: tight (~26 px), medium (~110 px) and wide (~300 px), added together and tone mapped so it never clips.
+- Colour taken from the content: album art colours for music, team colours split left and right for a live game, amber for shifts, purple for study.
+- A slow breathing pulse (about 14% brightness, ~4 s cycle). Music pulses faster, roughly with the beat.
+- A thin travelling highlight along the key line.
+- Reference: boards "Hero · Expanded Now Playing" and "Compact states" in the Halo v1 Design canvas. Match them.
+- v1 (inside NotchPixel): the glow is drawn inside Halo's own panel only.
+- v2 (native): a transparent, click-through overlay window draws the glow onto the real desktop.
+- Pauses when hidden. Turned down to a static glow under Reduce motion or Battery saver.
+
+### 3.1c Music card (expanded) — learned from NotchPixel
+
+The one exception to the pure black island. When music is expanded:
+- **Background = the album cover**: blurred (~60 px) and stretched into soft streaks, with a dark scrim on top that adapts to the cover's brightness so all text stays at 4.5:1 or better.
+- **Edge glow** in the cover's main colour (light spill, 3.1b).
+- **Cover art 88 px**, radius 20, on the left. Source badge (Spotify etc.) overlaps its bottom right corner, no container of its own.
+- **Title** 19/700, **artist** 15/500 at 60% white. Long titles scroll slowly (marquee) with faded edges and a 2 s pause at the start. Never cut a word at both ends.
+- **Controls** previous, play or pause, next: large Phosphor fill icons, no circles, right side.
+- **Progress** = a wave line tinted with the cover's accent colour, a solid playhead, flat when paused. Elapsed and remaining times in Onest tabular, 13/600, 60% white.
+- **Volume slider** in the card under the progress bar.
+- Tab icons along the top, active tab = a small dot under it.
+- Compact music pill stays black: cover 26 px on the left, visualiser bars tinted with the cover colour on the right.
+
+### 3.1d Controls panel (v2, needs the native app) — learned from NotchPixel
+
+Keep NotchPixel's layout, fix its look. Black panel, no purple haze, no sparkle dots.
+- **Left:** two tall sliders, brightness and volume, 96 × 180, radius 28. Fill rises white from the bottom. Icon inside at the bottom changes with level (sun rays grow, speaker waves add). Percentage on top in Onest 15/700 tabular. Drag or scroll to change, value uses NumberRoll.
+- **Right:** 3 × 2 tile grid, tiles 120 × 84, radius 22 (concentric with the panel). Tiles: Wi-Fi, Bluetooth, Night light, Focus, Mute, Battery.
+  - **Off:** `--fill-2` background, white outline icon (Phosphor regular), label 15/600, state 13/500 at 60% white.
+  - **On:** tile fills with its own colour (Wi-Fi and Bluetooth `#0A84FF`, Night light `#FF9F0A`, Focus `#BF5AF2`, Mute `#FF453A`), icon switches to Phosphor fill.
+  - Battery tile shows percent, charging state and time left, green `#30D158` when charging.
+  - Press = scale 0.96 spring. Right-click or hold opens detail: Wi-Fi network list, Bluetooth devices with battery, focus options.
+- **Bottom:** power mode segmented control (Battery, Balanced, Performance) with icons, sliding selection.
+- **Extras (Yes list):** audio output switch (speakers, headphones) and per-app volume as a second page of the panel.
+- Tile order can be rearranged in Settings.
+- Text contrast 4.5:1 everywhere, including "On" and "Off".
+
 ### 3.2 Tokens
 
 ```css
@@ -93,7 +132,7 @@ These come from Apple's Live Activities guidelines, WWDC23 "Design dynamic Live 
 11, 13, 15, 17, 21, 28   /* nothing else */
 ```
 
-- **Font:** decided in task 02. Until then use `"Segoe UI Variable Display", "Segoe UI Variable Text", system-ui`. Never Inter.
+- **Font:** **Onest** (Google Fonts, weights 400, 500, 600, 700, 800). Stack: `'Onest', system-ui, sans-serif`. Self-host the woff2 files in `public/fonts/` so it works offline. Never Inter.
 - **Numbers:** always `font-variant-numeric: tabular-nums`. Numbers that change roll (animate digit by digit), never jump.
 - **Weights inside the island:** 500 minimum. Titles 700.
 - **Text contrast:** 4.5:1 minimum, including secondary text.
@@ -145,7 +184,7 @@ Empty, loading (skeleton shimmer, not spinners), error (one plain sentence + ret
 
 - Under 80 MB RAM and under 1% CPU when idle.
 - Animations and any WebGL/Three.js pause when the island is closed or the tab is hidden (`visibilitychange`).
-- Three.js is allowed only for: wallpaper light spill and album art glow in the hero view. Never for basic UI.
+- WebGL (Three.js or a single fragment shader) is used for the light spill and album art glow only. Never for basic UI.
 
 ## 4. Pay rules (for the Pay panel)
 

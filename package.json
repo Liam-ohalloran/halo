@@ -16,6 +16,8 @@
     "@supabase/supabase-js": "^2.119.0"
   },
   "devDependencies": {
+    "@fontsource/onest": "^5.3.1",
+    "@phosphor-icons/core": "^2.1.1",
     "playwright": "^1.65.1",
     "typescript": "^5.9.3",
     "vite": "^6.4.6"

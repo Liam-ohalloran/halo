@@ -34,3 +34,6 @@ html.signin, html.signin body { background: #0b0b10; margin: 0; }
 .signin-msg { min-height: 18px; margin: 0; font-size: var(--fs-13); font-weight: 500; color: var(--text-2); }
 .signin-msg.err { color: #FF8A80; }
 @media (prefers-reduced-motion: reduce) { .signin-btn { transition: none; } }
+.signed-note { position: fixed; left: 0; right: 0; bottom: var(--s6); display: flex; flex-direction: column; align-items: center; gap: var(--s1); font-family: 'Onest', system-ui, sans-serif; }
+.signed-who { font-size: var(--fs-13); font-weight: 500; color: var(--text-2); }
+.signed-note .signin-link { align-self: center; }

@@ -115,3 +115,14 @@ export function mountSignIn(app: HTMLElement, client: SupabaseClient, notice?: s
 
   showEmail()
 }
+
+/** Small signed-in note under the island so it is obvious the session worked. */
+export function mountSignedInNote(app: HTMLElement, client: SupabaseClient, email: string): void {
+  const note = el('div', 'signed-note')
+  const who = el('span', 'signed-who', `Signed in as ${email}`)
+  const out = el('button', 'signin-link', 'Sign out')
+  out.type = 'button'
+  out.addEventListener('click', () => void client.auth.signOut())
+  note.append(who, out)
+  app.append(note)
+}

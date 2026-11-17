@@ -1,2 +1,29 @@
-# halo
-Halo — a personal Dynamic Island layer for NotchPixel + iPhone PWA
+# Halo
+
+A personal Dynamic Island layer: one compact web panel for [NotchPixel](https://notchpixel.com) on Windows 11 ("Add a site"), and the same page as an iPhone home-screen PWA.
+
+**Live:** https://liam-ohalloran.github.io/halo/
+
+## Tabs
+
+- **Now**: the current or next shift and the next test, with live countdowns.
+- **Pay**: hours and gross for a Monday to Sunday pay week, from `shifts` and the rates in `settings`. Shifts that cross midnight are split so each part gets its own day's rate. Sunday and public holiday rates are `weekday_rate × multiplier`.
+- **Study**: a focus timer that writes to `study_sessions` per subject, plus today's totals.
+
+## Stack
+
+Vite + TypeScript, no UI framework. Supabase (auth by magic link, Postgres with owner-only RLS, realtime on `shifts`). Only the publishable key ships to the browser; anything secret goes in a Supabase edge function.
+
+## Develop
+
+```sh
+npm install
+npm run dev          # http://localhost:5173/halo/
+npm run shots        # headless screenshots of every state at panel and iPhone size -> shots/
+```
+
+Dev-only fixtures: add `?mock=full|empty|loading|error|running|signedout` to the dev URL. They are stripped from production builds.
+
+## Deploy
+
+Pushing to `main` builds and deploys to GitHub Pages via `.github/workflows/pages.yml`.

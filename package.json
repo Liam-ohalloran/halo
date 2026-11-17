@@ -1,0 +1,22 @@
+{
+  "name": "halo",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Halo: a personal Dynamic Island layer for NotchPixel, plus an iPhone PWA",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "icons": "node scripts/icons.mjs",
+    "shots": "node scripts/shots.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.119.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.65.1",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.6"
+  }
+}

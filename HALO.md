@@ -80,7 +80,7 @@ The one exception to the pure black island. When music is expanded:
 - **Background = the album cover**: blurred (~60 px) and stretched into soft streaks, with a dark scrim on top that adapts to the cover's brightness so all text stays at 4.5:1 or better.
 - **Edge glow** in the cover's main colour (light spill, 3.1b).
 - **Cover art 88 px**, radius 20, on the left. Source badge (Spotify etc.) overlaps its bottom right corner, no container of its own.
-- **Title** 19/700, **artist** 15/500 at 60% white. Long titles scroll slowly (marquee) with faded edges and a 2 s pause at the start. Never cut a word at both ends.
+- **Title** 21/700, **artist** 15/500 at 60% white. Long titles scroll slowly (marquee) with faded edges and a 2 s pause at the start. Never cut a word at both ends.
 - **Controls** previous, play or pause, next: large Phosphor fill icons, no circles, right side.
 - **Progress** = a wave line tinted with the cover's accent colour, a solid playhead, flat when paused. Elapsed and remaining times in Onest tabular, 13/600, 60% white.
 - **Volume slider** in the card under the progress bar.
@@ -100,6 +100,26 @@ Keep NotchPixel's layout, fix its look. Black panel, no purple haze, no sparkle 
 - **Extras (Yes list):** audio output switch (speakers, headphones) and per-app volume as a second page of the panel.
 - Tile order can be rearranged in Settings.
 - Text contrast 4.5:1 everywhere, including "On" and "Off".
+
+### 3.1e Tab bar (top of the open island)
+
+Left to right. Phosphor icons, regular when inactive, fill plus a 4 px dot underneath when active. A thin divider before Settings. Liam can hide and reorder tabs in Settings; at most 8 visible.
+
+| # | Tab | Icon | Contains |
+|---|---|---|---|
+| 1 | Now | `house` | Next shift (ring, leave-by), next test, today's timeline, morning hello and briefing, rain nudge |
+| 2 | Music | `music-notes` | Music card (3.1c), top tracks |
+| 3 | Study | `book-open` | Timer, subject balance, due tonight, exam week ring, formula sheet peek, snip to Claude |
+| 4 | Pay | `wallet` | This week's pay, payday countdown, earnings history, savings goal |
+| 5 | Sixers | `basketball` | Live or next game, post-game card, standings strip, Maxey tracker, bench clock |
+| 6 | Claude | `sparkle` | Ask Claude, explain selection, clipboard actions, draft in your voice, voice to task |
+| 7 | Alerts | `bell` | Last 24 notifications (PC, phone, Blink covers, new marks), clear all |
+| 8 | Shelf | `tray` | Dropped files, clipboard history, send to and from phone, quick notes |
+| 9 | Widgets | `squares-four` | Chess puzzle and rating, daily games hub, L-plate log, device health, gift ideas, weather |
+| 10 | Controls | `sliders-horizontal` | Controls panel (3.1d), v2 only |
+| — | Settings | `gear-six` | Opens the Settings window |
+
+Opens on the last tab used, or Music while something is playing (setting).
 
 ### 3.2 Tokens
 
@@ -147,7 +167,7 @@ Keep NotchPixel's layout, fix its look. Black panel, no purple haze, no sparkle 
 | Alert banner | 520 | 84 | 34 |
 | Expanded (Now Playing etc.) | 660 | 200 | 48 |
 
-Expanded padding: 22 top, 26 right, 22 bottom, 24 left. Album art 78 px, radius 20.
+Expanded padding: 22 top, 26 right, 22 bottom, 24 left. Album art 88 px, radius 20 (see 3.1c).
 
 ### 3.4 Components (build once, reuse everywhere)
 
@@ -165,10 +185,25 @@ Every interactive component has **5 states designed**: rest, hover, pressed, foc
 
 ### 3.5 Motion
 
-- Spring physics for every open, close and resize. Island **morphs** size; it never cross-fades between sizes.
-- Suggested spring: stiffness 400, damping 32 (snappy, slight overshoot). Expand ~450 ms, collapse ~350 ms.
-- Content swaps keep shared elements in place and move them; other elements fade and scale (0.96 → 1).
-- Every animation under 2 seconds. `prefers-reduced-motion` = no bounce, no pulse, fades only.
+**The pull-out (open) is the most important animation in Halo. It must feel like liquid being pulled down from the screen edge. Spend time here.**
+
+Open sequence (hover past the open delay, or click):
+1. **0–90 ms:** compact content fades out and scales to 0.94 with a 4 px blur. The island does a tiny anticipation squash (scaleX 1.03, scaleY 0.97).
+2. **60–520 ms:** the shape springs to its expanded size, anchored to the top edge so it grows downward and outward. Width, height and corner radius all animate together on one spring (stiffness 380, damping 28, mass 1, about 6% overshoot). The ears stay attached the whole time.
+3. **The light spill grows with the shape**, same spring, so the glow pours out with it.
+4. **From ~55% of the shape motion:** expanded content staggers in. Each row fades in, rises 6 px and scales 0.98 → 1, clearing a 4 px blur, 30 ms apart, tab bar first.
+
+Close: the reverse, about 30% faster (stiffness 420, damping 32), content gone before the shape finishes shrinking.
+
+Rules:
+- Springs must be **interruptible**: leaving mid-open reverses smoothly from wherever the shape is, never snapping or restarting.
+- **Tab switch:** the island's height springs to the new tab's content height (no scrollbars where avoidable). Content slides 12 px left or right depending on tab order, with a quick cross-blur. The active dot slides along under the icons.
+- **Compact state change** (e.g. music → shift): width springs to the new size, old content blurs out and new content blurs in.
+- **Alerts:** the island stretches to the banner size with a slightly bouncier spring (damping 22) and a single glow flare, holds, then settles back.
+- Numbers roll, never jump. Every animation under 2 seconds.
+- 60 fps minimum, 120 fps on high refresh screens. Animate transform and opacity only, never layout properties, in v1. In v2 drive the native window size from the same spring.
+- `prefers-reduced-motion` or Reduce motion: no squash, no overshoot, no blur, 200 ms fades and size changes only.
+- Build a `/motion` test page with buttons for every transition and a slow-motion (×0.25) toggle so it can be tuned frame by frame.
 
 ### 3.6 Every state designed
 
@@ -189,7 +224,7 @@ Empty, loading (skeleton shimmer, not spinners), error (one plain sentence + ret
 ## 4. Pay rules (for the Pay panel)
 
 - Pay week runs **Monday to Sunday**.
-- Read rates from the `settings` table, never hardcode. Current values to seed: base ~$17.89/hr (includes casual loading and Crew Coach allowance), Sunday ×1.25, public holiday ×2.
+- Read rates from the `settings` table, never hardcode. Current values to seed: base ~$17.89/hr (includes casual loading and Crew Coach allowance) as both `weekday_rate` and `saturday_rate` until Liam's payslip says otherwise, Sunday ×1.25, public holiday ×2.
 - **30 minutes unpaid break on any shift over 5 hours.**
 - Tax estimate: 15 cents per dollar earned over $350 in the week.
 - Show: hours, gross, after-tax estimate, and each shift with its hours and pay.

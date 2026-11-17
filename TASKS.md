@@ -21,7 +21,7 @@ Cards marked 🆓 have parts you can hand to free ChatGPT, Gemini or your local 
 3. Vite + TypeScript project. Folders: `src/components`, `src/panels`, `src/lib`, `src/styles`, `public/icons`.
 4. `src/styles/tokens.css` with every token from HALO.md section 3.2 as CSS variables.
 5. GitHub Actions workflow that builds and deploys to GitHub Pages on push to `main`. Set Vite `base` to `/halo/`.
-6. Home page shows a black 300 × 40 resting island at the top centre with the ears, on a `#0b0b10` background. Nothing else.
+6. Home page shows a black 200 × 34 resting island (HALO.md 3.3) at the top centre with the ears, on a `#0b0b10` background. Nothing else.
 7. Install Playwright and add `npm run shots` that saves screenshots at 680 × 420 and 390 × 844 to `screenshots/<card>/`.
 
 **Done when**
@@ -44,7 +44,7 @@ Cards marked 🆓 have parts you can hand to free ChatGPT, Gemini or your local 
    - Numbers 28/700 tabular: `16:48   $187.85   98–94`
    - Label 11/700 uppercase tracked: `NEXT SHIFT`
    - Body 15/400: `Your next shift starts in 1 hour 42 minutes. Leave by 5:05.`
-2. **Icons**: 16 Phosphor icons in two rows, regular (inactive) and fill (active), 24 px white on black: music-notes, clock, book-open, basketball, bell, wallet, house, sliders-horizontal, play, pause, skip-forward, skip-back, heart, speaker-high, moon, sparkle. Copy SVGs from `@phosphor-icons/core` into `public/icons/`.
+2. **Icons**: 16 Phosphor icons in two rows, regular (inactive) and fill (active), 24 px white on black: music-notes, clock, book-open, basketball, bell, wallet, house, sliders-horizontal, play, pause, skip-forward, skip-back, heart, speaker-high, moon, sparkle. Copy SVGs from `@phosphor-icons/core` into `public/icons/`, plus regular and fill of every tab icon in HALO.md 3.1e (adds `tray`, `squares-four`, `gear-six`).
 3. **Components**: every component from HALO.md 3.4 shown in all 5 states side by side (rest, hover, pressed, focus-visible, disabled), plus a live row where they actually work.
 **Free AI can do:** the list of Phosphor file names.
 
@@ -68,7 +68,10 @@ Cards marked 🆓 have parts you can hand to free ChatGPT, Gemini or your local 
 - `Skeleton` (shimmer), `EmptyState`, `ErrorState` (sentence + retry)
 - `Icon` (loads Phosphor SVG by name and weight)
 
-Add a `/components` page showing each one.
+- `TabBar` (HALO.md 3.1e: icons, sliding active dot, hide and reorder ready)
+- `LightSpill` (HALO.md 3.1b glow, one fragment shader, pauses when hidden)
+
+Add a `/components` page showing each one, and the `/motion` page from HALO.md 3.5 with a ×0.25 slow-motion toggle. The pull-out must match 3.5 step by step. **REVIEW WITH OPUS** (send a screen recording of `/motion` at normal and slow speed).
 
 **Done when**
 - [ ] All components on `/components` with every state
@@ -118,7 +121,7 @@ Add a `/components` page showing each one.
 **Build** the expanded **Now** view:
 - Next shift: title, time, leave-by time (setting: travel minutes, default 25), countdown ring in `--shift`.
 - Next test: subject chip, title, date, days left, study minutes this week for that subject.
-- Today timeline: today's TickTick-sourced items in time order.
+- Today timeline: today's shifts, tests and study sessions from Supabase in time order (card 05 only syncs shifts and tests, so nothing else yet).
 - Compact pill states: "shift soon" (within 2 hours), resting.
 - Empty, loading, error states.
 

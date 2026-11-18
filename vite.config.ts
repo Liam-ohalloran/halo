@@ -10,6 +10,7 @@ export default defineConfig({
       foundations: resolve(__dirname, 'foundations/index.html'),
       components: resolve(__dirname, 'components/index.html'),
       motion: resolve(__dirname, 'motion/index.html'),
+      study: resolve(__dirname, 'study/index.html'),
     } },
     target: 'es2022', cssMinify: true, sourcemap: false,
   },

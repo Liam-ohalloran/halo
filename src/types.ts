@@ -40,7 +40,10 @@ export interface Backend {
   activeSession(): Promise<StudySession | null>
   sessionsSince(from: Date): Promise<StudySession[]>
   startSession(subject: string): Promise<StudySession>
-  stopSession(id: string): Promise<StudySession>
+  /** Ends a session. `endedAt` defaults to now. The timer passes started_at + focused time so paused time is not logged. */
+  stopSession(id: string, endedAt?: Date): Promise<StudySession>
+  /** Tests due after `now`, soonest first. */
+  upcomingTests(now: Date): Promise<Test[]>
   /** Subjects seen in tests and past study sessions. */
   subjects(): Promise<string[]>
   /** Realtime: called whenever a shift row changes. Returns unsubscribe. */

@@ -1,0 +1,72 @@
+/* Pay panel. Tokens only (HALO.md 3.2). Pay is a content colour, so --pay tints the bars and the after tax figure. */
+
+.pay-panel { container-type: inline-size; display: grid; gap: var(--s3); padding: var(--s4); background: var(--island); color: var(--text-1);
+  border-radius: 32px; font-family: var(--font); font-size: var(--fs-15); font-weight: 500; line-height: 1.3; -webkit-font-smoothing: antialiased; }
+.pay-panel *, .pay-panel *::before, .pay-panel *::after { box-sizing: border-box; }
+.pay-panel .label { font-size: var(--fs-11); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-2); }
+.pay-panel .num { font-variant-numeric: tabular-nums; }
+
+/* Week switcher */
+.pay-nav { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
+.pay-week { display: grid; justify-items: center; gap: 2px; min-width: 140px; min-height: 44px; padding: 0 var(--s3); border: 0; border-radius: 22px; background: transparent; cursor: pointer;
+  transition: background-color var(--t-fade), transform var(--t-spring) var(--ease-spring); }
+.pay-week b { font-size: var(--fs-15); font-weight: 700; }
+.pay-week span { font-size: var(--fs-13); font-weight: 500; color: var(--text-2); }
+.pay-week:hover { background: var(--fill-2); }
+.pay-week:active { transform: scale(var(--press)); background: var(--fill-1); }
+.pay-week:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pay-week[data-here] { cursor: default; }
+.pay-week[data-here]:hover { background: transparent; }
+
+/* Layout: two columns when the panel is wide, one on a phone */
+.pay-grid { display: grid; gap: var(--s3); align-items: start; }
+.pay-left { display: grid; gap: var(--s3); }
+.pay-inset { background: var(--fill-2); border-radius: 16px; padding: var(--s3); }
+@container (min-width: 560px) {
+  .pay-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s4); }
+  .pay-list { max-height: 296px; overflow-y: auto; }
+}
+
+/* Totals */
+.pay-totals { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3) var(--s4); padding: 0 var(--s1); }
+.pay-stat { display: grid; gap: var(--s1); }
+.pay-stat.wide { grid-column: 1 / -1; }
+.pay-gross { font-size: var(--fs-28); font-weight: 700; line-height: 1.1; }
+.pay-sub { display: flex; align-items: baseline; gap: 2px; font-size: var(--fs-21); font-weight: 700; line-height: 1.1; }
+.pay-sub small { font-size: var(--fs-15); font-weight: 600; color: var(--text-2); }
+.pay-net { color: var(--pay); }
+
+/* Bars: worked solid, upcoming outlined. Height is layout, the grow-in is transform only. */
+.pay-bars { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--s2); }
+.pay-day { display: grid; justify-items: center; gap: 2px; }
+.pay-track { position: relative; width: 100%; height: 72px; border-radius: 10px; background: var(--fill-2); overflow: hidden; }
+.pay-day .seg { position: absolute; left: 0; right: 0; bottom: 0; transform-origin: bottom; border-radius: 6px; }
+.pay-day .seg.solid { background: var(--pay); }
+.pay-day .seg.outline { border: 2px solid var(--pay); background: transparent; }
+.pay-bars.grow .seg { animation: pay-grow calc(520ms * var(--slow)) var(--ease-spring) backwards; animation-delay: calc(var(--i) * 30ms); }
+@keyframes pay-grow { from { transform: scaleY(0); } }
+.pay-day b { margin-top: var(--s1); font-size: var(--fs-13); font-weight: 600; color: var(--text-2); }
+.pay-day i { font-style: normal; font-size: var(--fs-11); font-weight: 500; color: var(--text-2); font-variant-numeric: tabular-nums; min-height: 14px; }
+.pay-day.today b { color: var(--text-1); }
+.pay-day.today b::after { content: ''; display: block; width: 4px; height: 4px; margin: 2px auto 0; border-radius: 2px; background: var(--text-1); }
+
+/* Shift list */
+.pay-list { display: grid; gap: var(--s1); scrollbar-width: none; }
+.pay-list::-webkit-scrollbar { display: none; }
+.pay-shift { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s3); padding: var(--s2) var(--s1); }
+.pay-shift + .pay-shift { border-top: 1px solid var(--fill-1); }
+.pay-shift-main { display: grid; gap: 2px; min-width: 0; }
+.pay-shift-main b { font-size: var(--fs-15); font-weight: 700; overflow-wrap: anywhere; }
+.pay-shift-main span { font-size: var(--fs-13); font-weight: 500; color: var(--text-2); }
+.pay-shift-main em { justify-self: start; margin-top: var(--s1); padding: 2px var(--s2); border-radius: 10px; background: var(--fill-1); font-style: normal; font-size: var(--fs-11); font-weight: 600; color: var(--text-1); }
+.pay-shift > strong { font-size: var(--fs-15); font-weight: 700; white-space: nowrap; }
+
+/* Footer note */
+.pay-note { margin: 0; padding: 0 var(--s1); font-size: var(--fs-13); font-weight: 500; color: var(--text-2); }
+.pay-link { padding: 0; border: 0; background: none; font: inherit; font-weight: 600; color: var(--text-1); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; border-radius: 4px; }
+.pay-link:hover { filter: brightness(1.14); }
+.pay-link:active { transform: scale(var(--press)); }
+.pay-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) { .pay-bars.grow .seg { animation: none; } }
+:root.reduce-motion .pay-bars.grow .seg { animation: none; }

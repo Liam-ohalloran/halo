@@ -3,7 +3,7 @@ import type { Backend } from './types'
 import { supabase, supabaseBackend } from './supabase'
 import { h, icon, reducedMotion, SPRING, toast } from './ui'
 import { mountNow } from './views/now'
-import { mountPay } from './views/pay'
+import { mountPay } from './panels/pay'
 import { mountStudy } from './views/study'
 import { mountAuth } from './views/auth'
 

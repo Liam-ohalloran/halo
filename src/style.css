@@ -245,32 +245,6 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 .field::placeholder { color: var(--faint); }
 .field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(177, 140, 255, 0.2); }
 
-/* ---------- pay ---------- */
-.week-nav { display: flex; align-items: center; gap: 8px; padding: 0 2px; }
-.week-range { flex: 1; display: flex; flex-direction: column; align-items: center; line-height: 1.2; }
-.week-range b { font-size: 13px; }
-.week-range span { font-size: 11.5px; color: var(--muted); }
-.pay-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; }
-.big-money { font-size: 30px; font-weight: 750; letter-spacing: -0.03em; line-height: 1.05; font-variant-numeric: tabular-nums; background: linear-gradient(180deg, #fff, #d9c8ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.pay-hours { text-align: right; line-height: 1.1; }
-.pay-hours b { display: block; font-size: 17px; }
-.pay-hours i { font-style: normal; font-size: 11px; color: var(--faint); }
-.bars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin: 12px 0 10px; }
-.bar-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.bar-col i { font-style: normal; font-size: 10.5px; color: var(--faint); font-weight: 600; }
-.bar-col.today i { color: var(--accent); }
-.bar-track { position: relative; width: 100%; height: 46px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); overflow: hidden; }
-.bar-track span {
-  position: absolute; left: 0; right: 0; bottom: 0; height: 100%;
-  border-radius: 8px;
-  background: linear-gradient(180deg, #c7a6ff, #7c4dff);
-  transform-origin: bottom; transform: scaleY(var(--h));
-  animation: grow 0.7s var(--spring) var(--d) both;
-}
-.bar-track span.zero { display: none; }
-@keyframes grow { from { transform: scaleY(0); } }
-.rates { display: flex; flex-wrap: wrap; gap: 5px; }
-
 /* ---------- study ---------- */
 .study { --hue: 270; }
 .chips { display: flex; gap: 5px; overflow-x: auto; scrollbar-width: none; margin: -2px -14px 10px; padding: 2px 14px; mask: linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 14px), transparent); }
@@ -354,8 +328,6 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
   .card { padding: 14px 16px; }
   .title { font-size: 16.5px; }
   .count b { font-size: 30px; }
-  .big-money { font-size: 34px; }
-  .bar-track { height: 64px; }
   .ring { width: 128px; height: 128px; }
   .ring-clock { font-size: 25px; }
   .btn { height: 42px; }

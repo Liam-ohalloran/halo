@@ -6,6 +6,7 @@ import { mountNow } from './views/now'
 import { mountPay } from './panels/pay'
 import { mountStudy } from './views/study'
 import { mountAuth } from './views/auth'
+import { isEmbed } from './lib/embed'
 
 type Tab = 'now' | 'pay' | 'study'
 const TABS: { id: Tab; label: string }[] = [
@@ -134,6 +135,7 @@ function booting() {
 }
 
 async function start() {
+  isEmbed() // reads ?embed=1, remembers it, and sets html.embed before anything draws
   // index.html ships with class="home" so the first paint is the Halo black. The old draft screens opt out.
   if (params.has('legacy') || (import.meta.env.DEV && params.has('mock'))) document.documentElement.classList.remove('home')
   // Dev-only preview of the Now panel on fixtures with a fixed clock: /?demo=soon&open=1 (stripped from production builds).
@@ -160,7 +162,8 @@ async function start() {
       if (signedIn) {
         document.documentElement.classList.remove('signin')
         mountHome(app)
-        mountSignedInNote(app, supabase, email)
+        // Embedded in NotchPixel the strip would cover the panel. Sign out lives in the settings popover instead.
+        if (!isEmbed()) mountSignedInNote(app, supabase, email)
       } else {
         mountSignIn(app, supabase, linkError ? "That link didn't work. Send a new one." : undefined)
       }

@@ -14,7 +14,9 @@ import { StudyPanel, ICONS_NEEDED as STUDY_ICONS } from '../panels/study'
 import { StudyPill } from '../panels/studyPill'
 import { createStudyTimer } from '../panels/studyTimer'
 import { mountPay } from '../panels/pay'
-import { supabaseBackend } from '../supabase'
+import { supabase, supabaseBackend } from '../supabase'
+import { isEmbed } from '../lib/embed'
+import { EmbedShell } from './EmbedShell'
 import type { Backend } from '../types'
 import { supabaseNowSource, getTravelMinutes, type NowData, type NowSource } from '../lib/now'
 import { perthDayBounds, shiftView, type ShiftView } from '../lib/now-model'
@@ -51,6 +53,7 @@ const TAB_TINT: Record<TabId, string> = { now: '#FF9F0A', study: '#BF5AF2', pay:
 const QUIET = '#C7C7CC' // glow colour when no content has one
 const CHROME = 22 + 44 + 12 + 22 // top padding, tab bar, row gap, bottom padding (matches the demo content)
 const MAX_FIT = 2 // compact layout steps a panel may take before it is allowed to scroll
+const MAX_FIT_EMBED = 3 // embedded in NotchPixel there is one more step, because the window can be any size
 const REFRESH_MS = 5 * 60_000
 
 export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
@@ -60,7 +63,9 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   const clock = o.now ?? (() => new Date())
 
   // iPhone width: the panels become a swipeable stack under the island (card 10) instead of opening inside it.
-  const phone = matchMedia('(max-width: 480px)').matches
+  // Embedded in NotchPixel's web tab (?embed=1): no island at all, the panels fill the viewport.
+  const embed = isEmbed()
+  const phone = !embed && matchMedia('(max-width: 480px)').matches
   document.documentElement.classList.toggle('phone', phone)
 
   // The stage is the visible window, so the island can grow as tall as the screen allows.
@@ -71,7 +76,8 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   let game: NbaResponse | null = null // latest Sixers response
   let sixersLive = false // a live or final game: the wide pill shows
   let sixersPill: PillHandle | null = null
-  const isl: IslandHandle = Island({
+  const shell = embed ? EmbedShell({ onSignOut: () => void supabase.auth.signOut() }) : null
+  const isl: IslandHandle = shell ?? Island({
     initial: 'resting', base: 'resting', stageHeight: stageH, tint: QUIET, label: 'Halo island',
     hover: !phone && matchMedia('(hover: hover)').matches,
     toggleOnClick: !phone,
@@ -81,13 +87,14 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
       if (s !== 'expanded' && s !== 'alert') queueMicrotask(syncBase)
     },
   })
-  const stage = h('div', { class: 'home-stage' }, isl)
+  const stage = shell ?? h('div', { class: 'home-stage' }, isl)
   app.replaceChildren(stage)
 
   // ---- Expanded content: tab bar and one panel per tab
   let activeId: TabId = isTab(o.tab) ? o.tab : lastTab()
   const tabs = TabBar({
-    tabs: HOME_TABS, active: activeId, settings: false,
+    tabs: HOME_TABS, active: activeId, settings: embed,
+    onSettings: () => shell?.toggleSettings(),
     onChange: (id, from) => {
       const ids = tabs.visibleIds()
       showTab(id as TabId, ids.indexOf(id) - ids.indexOf(from ?? id))
@@ -104,7 +111,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
       scroller.append(s)
     }
     stage.after(h('div', { class: 'phone-card' }, tabs, scroller))
-  } else isl.setContent('expanded', [tabs, host])
+  } else if (shell) { shell.bar.append(tabs); shell.body.append(host) } else isl.setContent('expanded', [tabs, host])
 
   const timer = createStudyTimer(api, 'Human Biology')
   const studyPill = StudyPill(timer)
@@ -135,15 +142,22 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     if (phone) return // slides scroll on their own, nothing to fit
     const el = made[activeId]
     if (!el) return
-    const room = stageH - 4 - CHROME
+    // Embedded, the panel host fills whatever is left under the tab bar, so the room is the viewport's.
+    const room = shell ? host.clientHeight : stageH - 4 - CHROME
+    const maxFit = shell ? MAX_FIT_EMBED : MAX_FIT
     // Start roomy and compact the layout one step at a time until the panel fits, so the island can
     // spring to the full content height with nothing clipped and nothing to scroll.
     let fit = 0
     el.dataset.fit = '0'
     let ph = el.offsetHeight // layout height: ignores the slide and scale of a tab switch
-    while (ph > room && fit < MAX_FIT) {
+    while (ph > room && fit < maxFit) {
       el.dataset.fit = String(++fit)
       ph = el.offsetHeight
+    }
+    if (shell) {
+      host.style.overflowY = ph > room ? 'auto' : 'hidden'
+      host.classList.toggle('is-scroll', ph > room)
+      return
     }
     host.style.height = `${Math.min(ph, room)}px`
     host.style.overflowY = ph > room ? 'auto' : 'hidden'
@@ -177,6 +191,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     ro.disconnect()
     const el = getPanel(id)
     host.show(el, dir)
+    if (shell) { host.style.height = ''; ro.observe(host) } // the host fills the viewport, resizing it re-fits the panel
     ro.observe(el)
     relayout()
     applyTint()

@@ -82,7 +82,7 @@ export function TabBar(o: TabBarOptions = {}): TabBarHandle {
     }
     sync()
     if (o.settings !== false) {
-      const sb = h('button', { type: 'button', class: 'h-tab', 'aria-label': 'Settings', title: 'Settings' }, Icon(SETTINGS_TAB.icon, 'regular', 22))
+      const sb = h('button', { type: 'button', class: 'h-tab', 'aria-label': 'Settings', title: 'Settings', 'data-settings': true }, Icon(SETTINGS_TAB.icon, 'regular', 22))
       sb.addEventListener('click', () => o.onSettings?.())
       el.replaceChildren(list, h('span', { class: 'h-tab-div', 'aria-hidden': 'true' }), sb)
     } else el.replaceChildren(list)

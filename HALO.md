@@ -258,3 +258,11 @@ Plus everything NotchPixel already does (see `docs/notchpixel-parity.md` if pres
 7. Finish with: what you built (3 lines max), the screenshot paths, and anything Liam must do by hand.
 8. If a card is unclear or conflicts with this file, stop and ask. Never invent design.
 9. Australian spelling in code comments and UI. PowerShell for any command Liam runs himself (he's on Windows).
+
+### 3.9 Embedded mode (v1 inside NotchPixel)
+
+NotchPixel is already the island, so Halo drops its own. Turn it on with `?embed=1` on the URL (remembered in `localStorage`, `?embed=0` turns it off, an installed iPhone app ignores the stored flag).
+- No island shell, ears, key line or glow. Pure `#000000`, tab bar and panels edge to edge, content uses the full width.
+- Sized by a `ResizeObserver` to any viewport. Panels step through `data-fit` 0 to 3 (3 only exists in embed) until they fit, so 684 × 453 and down to 600 × 300 show compact layouts instead of scrolling or clipping.
+- Gear at the end of the tab bar opens a small popover with **Top padding** (default 0, step 4 px, max 64) in case NotchPixel's own UI overlaps the top. `?top=N` sets it too. Sign out lives in the same popover.
+- Screenshots: `npm run shots:embed` saves to `screenshots/embed/`.

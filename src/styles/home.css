@@ -5,3 +5,9 @@ html.home body { margin: 0; min-height: 100%; overflow-x: hidden; }
 /* The stage is transparent and only as tall as the tallest expanded island. Only the island itself takes pointer events. */
 .home-stage { position: fixed; top: 0; left: 0; right: 0; pointer-events: none; }
 .home-stage .h-island { pointer-events: none; }
+
+/* A panel taller than the window scrolls inside the island instead of being cut off. No visible bar. */
+.home-stage .h-panelhost { overflow-x: hidden; scrollbar-width: none; overscroll-behavior: contain; }
+.home-stage .h-panelhost::-webkit-scrollbar { display: none; }
+/* Soft fade at the bottom edge while there is more to scroll to. */
+.home-stage .h-panelhost.is-scroll { -webkit-mask-image: linear-gradient(#000 calc(100% - 20px), transparent); mask-image: linear-gradient(#000 calc(100% - 20px), transparent); }

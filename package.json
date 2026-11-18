@@ -11,6 +11,8 @@
     "seed": "node scripts/seed.mjs",
     "icons":"node scripts/icons.mjs",
     "shots": "node scripts/shots.mjs",
+    "shots:home": "node scripts/shots-home.mjs",
+    "test:home": "node scripts/test-home.mjs",
     "record": "node scripts/record.mjs",
     "shots:study": "node scripts/shots-study.mjs",
     "shots:legacy": "node scripts/shots-legacy.mjs",

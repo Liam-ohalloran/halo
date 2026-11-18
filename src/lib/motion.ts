@@ -55,7 +55,9 @@ export class Spring {
   get settled(): boolean { return Math.abs(this.x - this.target) < 0.01 && Math.abs(this.v) < 0.02 }
   step(dt: number): void {
     // Sub-step so large frames stay stable.
-    const n = Math.max(1, Math.ceil(dt / (1 / 240)))
+    // Capped so a bad dt (NaN, Infinity, a huge stall) can never turn into an endless loop.
+    if (!Number.isFinite(dt) || dt <= 0) return
+    const n = Math.min(60, Math.max(1, Math.ceil(dt / (1 / 240))))
     const h = dt / n
     for (let i = 0; i < n; i++) {
       const a = (-this.k * (this.x - this.target) - this.c * this.v) / this.m

@@ -346,16 +346,22 @@ export function Island(o: IslandOptions = {}): IslandHandle {
   }
 
   // ---- Input: click, keyboard, optional hover
+  // Clicks on controls inside the island (tabs, buttons, inputs) belong to those controls, never to the shell.
+  // Closed: a click or tap opens. Open: only a click on the bare top strip closes, so using a panel never
+  // closes it. Escape, leaving (hover) and tapping outside (home) also close.
+  const CONTROL = 'button, a, input, select, textarea, label, summary, [role="tab"], [role="slider"], [role="switch"], [data-no-toggle]'
   if (o.toggleOnClick !== false) {
     clip.addEventListener('click', (e) => {
-      // Buttons inside the open island (tabs, Retry and so on) do their own job and must not collapse it.
-      if ((e.target as Element).closest('button, a, input, select, textarea')) return
-      cur === 'expanded' ? root.close() : root.open()
+      const t = e.target as Element
+      if (t !== clip && t.closest(CONTROL)) return
+      if (cur !== 'expanded') { root.open(); return }
+      if (e.clientY - clip.getBoundingClientRect().top < SIZES.resting.h) root.close()
     })
   }
   clip.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && cur === 'expanded') { root.close(); return }
+    if (e.target !== clip) return // Enter and Space on a tab or button are that control's own
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); cur === 'expanded' ? root.close() : root.open() }
-    else if (e.key === 'Escape' && cur === 'expanded') root.close()
   })
   if (o.hover) {
     let timer = 0

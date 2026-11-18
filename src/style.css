@@ -25,7 +25,7 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
-body {
+html:not(.home) body {
   background:
     radial-gradient(120% 70% at 50% -10%, #3b1a72 0%, transparent 60%),
     radial-gradient(80% 60% at 100% 110%, #3a1450 0%, transparent 55%),

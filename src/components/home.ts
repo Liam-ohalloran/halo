@@ -3,12 +3,20 @@ import '../styles/home.css'
 import './components.css'
 import { h } from './dom'
 import { Island, NumberRoll, PanelHost, TabBar, preloadIcons, type IslandHandle, type IslandState, type NumberRollHandle } from './index'
+import { TABS, type TabDef } from './TabBar'
 import { NowPanel, SHIFT_COLOUR } from '../panels/now'
+import { StudyPanel, ICONS_NEEDED as STUDY_ICONS } from '../panels/study'
+import { StudyPill } from '../panels/studyPill'
+import { createStudyTimer } from '../panels/studyTimer'
+import { mountPay } from '../panels/pay'
+import { supabaseBackend } from '../supabase'
+import type { Backend } from '../types'
 import { supabaseNowSource, getTravelMinutes, type NowData, type NowSource } from '../lib/now'
 import { perthDayBounds, shiftView, type ShiftView } from '../lib/now-model'
 
-// Home: the island. Resting when nothing is close, a compact "shift soon" pill inside two hours of a
-// shift, and the Now panel when it opens (HALO.md 3.1e, tab 1).
+// Home: the island. Resting when nothing is close, a compact pill inside two hours of a shift or while a
+// study session runs, and the tab bar with the Now, Study and Pay panels when it opens (HALO.md 3.1e).
+// Tab order follows the bible: Now (1), Study (3), Pay (4). Sixers joins when card 09 lands.
 
 export interface HomeOptions {
   source?: NowSource
@@ -16,9 +24,23 @@ export interface HomeOptions {
   now?: () => Date
   /** Open the island on load (dev previews). */
   open?: boolean
+  /** Data for the Pay and Study panels. Defaults to Supabase. */
+  api?: Backend
+  /** Tab to start on (dev previews). Otherwise the last tab used. */
+  tab?: string
 }
 
-const NOW_TAB = { id: 'now', label: 'Now', icon: 'house' }
+type TabId = 'now' | 'study' | 'pay'
+const HOME_TABS: TabDef[] = (['now', 'study', 'pay'] as const).map((id) => TABS.find((t) => t.id === id)!)
+const TAB_KEY = 'halo.homeTab'
+const isTab = (v: unknown): v is TabId => HOME_TABS.some((t) => t.id === v)
+function lastTab(): TabId {
+  try { const v = localStorage.getItem(TAB_KEY); if (isTab(v)) return v } catch { /* private mode */ }
+  return 'now'
+}
+
+/** Glow colour while a tab is open: colour comes from the content (HALO.md 3.1b). */
+const TAB_TINT: Record<TabId, string> = { now: '#FF9F0A', study: '#BF5AF2', pay: '#30D158' }
 const QUIET = '#C7C7CC' // glow colour when no content has one
 const CHROME = 22 + 44 + 12 + 22 // top padding, tab bar, row gap, bottom padding (matches the demo content)
 const REFRESH_MS = 5 * 60_000
@@ -26,38 +48,84 @@ const REFRESH_MS = 5 * 60_000
 export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   document.documentElement.classList.add('home')
   const source = o.source ?? supabaseNowSource
+  const api = o.api ?? supabaseBackend
   const clock = o.now ?? (() => new Date())
 
   // The stage is the visible window, so the island can grow as tall as the screen allows.
   const stageH = Math.max(innerHeight - 8, 300)
 
   let wantBase: IslandState = 'resting'
+  let baseTint = QUIET // glow colour of whatever the closed island shows
   const isl: IslandHandle = Island({
     initial: 'resting', base: 'resting', stageHeight: stageH, tint: QUIET, label: 'Halo island',
     hover: matchMedia('(hover: hover)').matches,
     onState: (s) => {
       // The base can only change while the island is closed, otherwise it would collapse under the user.
+      applyTint()
       if (s !== 'expanded' && s !== 'alert') queueMicrotask(syncBase)
     },
   })
   const stage = h('div', { class: 'home-stage' }, isl)
   app.replaceChildren(stage)
 
-  // ---- Expanded content: tab bar and the Now panel
-  const tabs = TabBar({ tabs: [NOW_TAB], active: 'now', settings: false })
+  // ---- Expanded content: tab bar and one panel per tab
+  let activeId: TabId = isTab(o.tab) ? o.tab : lastTab()
+  const tabs = TabBar({
+    tabs: HOME_TABS, active: activeId, settings: false,
+    onChange: (id, from) => {
+      const ids = tabs.visibleIds()
+      showTab(id as TabId, ids.indexOf(id) - ids.indexOf(from ?? id))
+    },
+  })
   const host = PanelHost()
   isl.setContent('expanded', [tabs, host])
-  const panel = NowPanel()
-  host.show(panel.el, 0)
-  const relayout = () => {
-    const ph = panel.el.offsetHeight
-    host.style.height = `${ph}px`
+
+  const timer = createStudyTimer(api, 'Human Biology')
+  const studyPill = StudyPill(timer)
+  const nowPanel = NowPanel()
+  const payListeners = new Set<() => void>()
+  let unmountPay: () => void = () => {}
+  const made: Partial<Record<TabId, HTMLElement>> = { now: nowPanel.el }
+
+  // Panels are built the first time their tab is shown, then kept.
+  function getPanel(id: TabId): HTMLElement {
+    let el = made[id]
+    if (el) return el
+    if (id === 'study') el = StudyPanel(api, timer, () => requestAnimationFrame(relayout))
+    else {
+      const root = h('div', { class: 'home-pay' })
+      unmountPay = mountPay(root, api, (cb) => { payListeners.add(cb); return () => payListeners.delete(cb) })
+      el = root
+    }
+    made[id] = el
+    return el
+  }
+
+  // The island's height springs to the active tab's content height (HALO.md 3.5, tab switch).
+  const ro = new ResizeObserver(() => relayout())
+  function relayout() {
+    const el = made[activeId]
+    if (!el) return
+    const ph = el.offsetHeight
+    const room = stageH - 4 - CHROME
+    host.style.height = `${Math.min(ph, room)}px`
+    host.style.overflowY = ph > room ? 'auto' : 'hidden'
+    host.classList.toggle('is-scroll', ph > room)
     isl.setExpandedHeight(Math.min(CHROME + ph, stageH - 4))
   }
-  const ro = new ResizeObserver(relayout)
-  ro.observe(panel.el)
+  function showTab(id: TabId, dir: number) {
+    activeId = id
+    try { localStorage.setItem(TAB_KEY, id) } catch { /* private mode */ }
+    ro.disconnect()
+    const el = getPanel(id)
+    host.show(el, dir)
+    ro.observe(el)
+    relayout()
+    applyTint()
+  }
+  showTab(activeId, 0)
   void document.fonts?.ready.then(relayout)
-  void preloadIcons(['house', 'briefcase', 'exam', 'book-open', 'check', 'warning-circle', 'wifi-slash', 'arrow-clockwise'], ['regular', 'fill'])
+  void preloadIcons(['house', 'briefcase', 'exam', 'book-open', 'wallet', 'check', 'warning-circle', 'wifi-slash', 'arrow-clockwise', 'caret-left', 'caret-right', ...STUDY_ICONS], ['regular', 'fill'])
 
   // ---- Compact pill
   let pillKey = ''
@@ -95,9 +163,9 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   function render() {
     const now = clock()
     if (!data) {
-      if (failed) panel.showError(!navigator.onLine, () => { panel.showLoading(); void refresh() })
-      else panel.showLoading()
-    } else panel.render(data, now, getTravelMinutes())
+      if (failed) nowPanel.showError(!navigator.onLine, () => { nowPanel.showLoading(); void refresh() })
+      else nowPanel.showLoading()
+    } else nowPanel.render(data, now, getTravelMinutes())
     syncIsland(now)
   }
 
@@ -106,18 +174,38 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     if (isl.state !== wantBase) isl.setState(wantBase)
   }
 
+  // The glow follows the open tab while expanded, otherwise whatever the pill is showing.
+  function applyTint() { isl.setTint(isl.state === 'expanded' ? TAB_TINT[activeId] : baseTint) }
+
+  // One live thing at a time (HALO.md 1): a running study session takes the pill, otherwise a shift soon.
+  let studyOn = false
   function syncIsland(now: Date) {
     const sv = data?.shift ? shiftView(data.shift, now, getTravelMinutes()) : null
-    if (sv?.soon) {
+    if (timer.state.status !== 'idle') {
+      if (!studyOn) { studyOn = true; isl.swapContent('compact', studyPill.nodes) }
+      baseTint = studyPill.colour()
+      wantBase = 'compact'
+    } else if (sv?.soon) {
+      if (studyOn) { studyOn = false; pillKey = ''; pillNum = null }
       setPill(sv)
-      isl.setTint(SHIFT_COLOUR)
+      baseTint = SHIFT_COLOUR
       wantBase = 'compact'
     } else {
-      isl.setTint(sv || data?.test ? SHIFT_COLOUR : QUIET)
+      studyOn = false
+      baseTint = sv || data?.test ? SHIFT_COLOUR : QUIET
       wantBase = 'resting'
     }
+    applyTint()
     syncBase()
   }
+  // The timer calls back about 4 times a second while running. Only react when the live thing changes.
+  let timerKey = ''
+  const unsubTimer = timer.subscribe(() => {
+    const k = `${timer.state.status}|${timer.state.subject}`
+    if (k === timerKey) return
+    timerKey = k
+    syncIsland(clock())
+  })
 
   // ---- Clock: once a second, only while the page is visible (HALO.md 3.8)
   let tickTimer = 0
@@ -128,7 +216,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
       const endsAt = data.shift ? new Date(data.shift.ends_at).getTime() : Infinity
       // The shift finished, or midnight passed in Perth: today's rows and the "next" shift have moved on.
       if (now.getTime() >= endsAt || perthDayBounds(now).from.getTime() !== loadedDay) { void refresh(); return }
-      panel.tick(now, getTravelMinutes())
+      nowPanel.tick(now, getTravelMinutes())
       syncIsland(now)
     }
   }
@@ -140,17 +228,22 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   function stop() { clearInterval(tickTimer); clearInterval(refreshTimer) }
   const onVisible = () => { if (document.hidden) stop(); else { start(); void refresh() } }
   const onOnline = () => void refresh()
+  // Tapping or clicking anywhere outside the open island closes it (phones have no Escape key).
+  const onOutside = (e: PointerEvent) => { if (isl.state === 'expanded' && !(e.target as Element).closest('.h-island')) isl.close() }
+  document.addEventListener('pointerdown', onOutside)
   document.addEventListener('visibilitychange', onVisible)
   addEventListener('online', onOnline)
-  const unsub = source.onChange(() => void refresh())
+  const unsub = source.onChange(() => { void refresh(); payListeners.forEach((f) => f()) })
 
   render()
   void refresh()
   start()
+  void timer.init().then(() => syncIsland(clock())).catch(() => {})
   if (o.open) requestAnimationFrame(() => requestAnimationFrame(() => isl.open()))
 
   return () => {
-    stop(); ro.disconnect(); unsub()
+    stop(); ro.disconnect(); unsub(); unsubTimer(); unmountPay(); studyPill.destroy(); timer.destroy()
+    document.removeEventListener('pointerdown', onOutside)
     document.removeEventListener('visibilitychange', onVisible)
     removeEventListener('online', onOnline)
   }

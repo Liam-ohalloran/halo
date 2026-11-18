@@ -134,6 +134,8 @@ function booting() {
 }
 
 async function start() {
+  // index.html ships with class="home" so the first paint is the Halo black. The old draft screens opt out.
+  if (params.has('legacy') || (import.meta.env.DEV && params.has('mock'))) document.documentElement.classList.remove('home')
   // Dev-only preview of the Now panel on fixtures with a fixed clock: /?demo=soon&open=1 (stripped from production builds).
   if (import.meta.env.DEV && params.has('demo')) {
     const { mockSource, mockClock } = await import('./dev/now-mock')
@@ -141,7 +143,8 @@ async function start() {
     const mode = (params.get('demo') || 'full') as Parameters<typeof mockSource>[0]
     const start = mockClock(mode).getTime()
     const t0 = Date.now()
-    mountHome(app, { source: mockSource(mode), now: () => new Date(start + Date.now() - t0), open: params.has('open') })
+    const { mockBackend } = await import('./dev/mock')
+    mountHome(app, { source: mockSource(mode), api: mockBackend('full'), now: () => new Date(start + Date.now() - t0), open: params.has('open'), tab: params.get('tab') ?? undefined })
     return
   }
   // Home is the card 01 island. The old draft tabs stay reachable at ?legacy=1 until cards 06 to 08 replace them.

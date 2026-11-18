@@ -1,13 +1,13 @@
-// Edge function `nba` (card 09). Fetches the NBA's public JSON server side (the CDN sends no CORS
-// headers, so the browser can't) and returns only the Sixers game, cached for 20 seconds.
+// Edge function `nba` (card 09). Fetches ESPN's public NBA JSON server side (no CORS for browsers, and
+// cdn.nba.com blocks automated requests with a 403) and returns only the Sixers game, cached for 20 seconds.
 // No secrets are used here. Deploy:  supabase functions deploy nba --project-ref brqrszaljxeduelpuyty
 
 import { buildResponse, type NbaResponse, type RawBoxscore, type RawScoreboard, type RawSchedule } from './parse.ts'
 
-const BASE = 'https://cdn.nba.com/static/json'
-const SCOREBOARD = `${BASE}/liveData/scoreboard/todaysScoreboard_00.json`
-const boxscoreUrl = (id: string) => `${BASE}/liveData/boxscore/boxscore_${id}.json`
-const SCHEDULE = `${BASE}/staticData/scheduleLeagueV2_1.json`
+const BASE = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba'
+const SCOREBOARD = `${BASE}/scoreboard`
+const boxscoreUrl = (id: string) => `${BASE}/summary?event=${id}`
+const SCHEDULE = `${BASE}/teams/phi/schedule`
 
 const CACHE_MS = 20_000
 const SCHEDULE_MS = 6 * 60 * 60 * 1000

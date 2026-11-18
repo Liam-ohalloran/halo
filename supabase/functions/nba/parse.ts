@@ -1,13 +1,14 @@
 // Pure parsing for the `nba` edge function (card 09). No Deno or browser APIs in here, so the same
-// file runs in the edge function, in the dev page with recorded sample JSON, and in `npm test`.
+// file runs in the edge function, in the dev page with sample JSON, and in `npm test`.
 //
-// Sources (public, no key, but they send no CORS headers, which is why this runs server side):
-//   scoreboard  https://cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_00.json
-//   boxscore    https://cdn.nba.com/static/json/liveData/boxscore/boxscore_<gameId>.json
-//   schedule    https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_1.json
+// Source: ESPN's public JSON (no key). cdn.nba.com answers 403 to automated requests, so it is not used.
+//   scoreboard  https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard
+//   boxscore    https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=<id>
+//   schedule    https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/phi/schedule
 
 export const SIXERS = 'PHI'
-export const MAXEY_ID = 1630178
+/** Tyrese Maxey's ESPN athlete id. */
+export const MAXEY_ID = '4431678'
 
 export type GameStatus = 'scheduled' | 'live' | 'final'
 /** `none` means no Sixers game on today's scoreboard. `next` still says when the following one is. */
@@ -17,7 +18,7 @@ export interface TeamLine { tri: string; name: string; score: number; record: st
 export interface SixersGame {
   id: string
   status: GameStatus
-  /** The NBA's own words, e.g. "Q4 3:12", "Halftime", "Final", "Final/OT". */
+  /** Plain words, e.g. "Q4 3:12", "Halftime", "Final", "Final/OT". */
   statusText: string
   period: number
   /** "3:12", or "" when no clock is running. */
@@ -40,33 +41,34 @@ export interface NbaResponse {
 
 // ---- Raw shapes, only the fields we read -------------------------------------------------------
 
-interface RawTeam { teamTricode: string; teamName: string; teamCity?: string; wins?: number; losses?: number; score?: number }
-export interface RawGame {
-  gameId: string
-  gameStatus: number
-  gameStatusText: string
-  period: number
-  gameClock: string
-  gameTimeUTC: string
-  homeTeam: RawTeam
-  awayTeam: RawTeam
+interface RawTeam { abbreviation: string; shortDisplayName?: string; name?: string; displayName?: string }
+interface RawCompetitor { homeAway: 'home' | 'away'; score?: string; records?: { type?: string; summary?: string }[]; team: RawTeam }
+export interface RawEvent {
+  id: string
+  date: string
+  status: { displayClock?: string; period?: number; type: { state: 'pre' | 'in' | 'post'; detail?: string } }
+  competitions: { competitors: RawCompetitor[] }[]
 }
-export interface RawScoreboard { scoreboard: { games: RawGame[] } }
-interface RawPlayer { personId: number; statistics: { points?: number; reboundsTotal?: number; assists?: number } }
-export interface RawBoxscore { game: { homeTeam: { players: RawPlayer[] }; awayTeam: { players: RawPlayer[] } } }
-interface RawScheduleGame { gameId: string; gameDateTimeUTC: string; homeTeam: RawTeam; awayTeam: RawTeam }
-export interface RawSchedule { leagueSchedule: { gameDates: { gameDate: string; games: RawScheduleGame[] }[] } }
+export interface RawScoreboard { events: RawEvent[] }
+export interface RawBoxscore {
+  boxscore?: { players?: { statistics?: { labels?: string[]; athletes?: { athlete: { id: string }; stats?: string[] }[] }[] }[] }
+}
+export interface RawSchedule { events: { id: string; date: string; competitions: { competitors: RawCompetitor[] }[] }[] }
 
 // ---- Helpers -----------------------------------------------------------------------------------
 
-/** "PT03M12.00S" becomes "3:12". Under a minute stays as seconds, "0:45". Empty when there is no clock. */
+/** ESPN abbreviations that differ from the NBA's own three letter codes. */
+const TRI: Record<string, string> = { NY: 'NYK', SA: 'SAS', GS: 'GSW', NO: 'NOP', UTAH: 'UTA', WSH: 'WAS' }
+export const nbaTri = (espn: string): string => TRI[espn] ?? espn
+
+/** ESPN's display clock: "3:12" stays, "45.3" (under a minute) becomes "0:45", "0.0" and "" become "". */
 export function parseClock(raw: string | null | undefined): string {
-  const m = /^PT(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?$/.exec(raw ?? '')
-  if (!m) return ''
-  const min = Number(m[1] ?? 0)
-  const sec = Math.floor(Number(m[2] ?? 0))
-  if (min === 0 && sec === 0) return ''
-  return `${min}:${String(sec).padStart(2, '0')}`
+  const s = (raw ?? '').trim()
+  const m = /^(\d+):(\d{2})(?:\.\d+)?$/.exec(s)
+  if (m) return `${Number(m[1])}:${m[2]}`
+  const sec = /^(\d+)(?:\.\d+)?$/.exec(s)
+  if (sec && Number(sec[1]) > 0) return `0:${String(Number(sec[1])).padStart(2, '0')}`
+  return ''
 }
 
 /** 1 to 4 are quarters, then OT, 2OT and so on. */
@@ -77,53 +79,70 @@ export function periodLabel(period: number): string {
   return ot === 1 ? 'OT' : `${ot}OT`
 }
 
-const statusOf = (n: number): GameStatus => (n === 2 ? 'live' : n === 3 ? 'final' : 'scheduled')
+const statusOf = (state: string): GameStatus => (state === 'in' ? 'live' : state === 'post' ? 'final' : 'scheduled')
+const iso = (d: string): string => { const t = Date.parse(d); return Number.isNaN(t) ? d : new Date(t).toISOString() }
 
-function line(t: RawTeam): TeamLine {
-  return { tri: t.teamTricode, name: t.teamName, score: t.score ?? 0, record: `${t.wins ?? 0}-${t.losses ?? 0}` }
+function line(c: RawCompetitor): TeamLine {
+  const rec = c.records?.find((r) => r.type === 'total') ?? c.records?.[0]
+  return {
+    tri: nbaTri(c.team.abbreviation),
+    name: c.team.shortDisplayName ?? c.team.name ?? c.team.displayName ?? c.team.abbreviation,
+    score: Number(c.score ?? 0) || 0,
+    record: rec?.summary ?? '',
+  }
 }
+
+const hasSixers = (cs: RawCompetitor[]) => cs.some((c) => nbaTri(c.team.abbreviation) === SIXERS)
 
 /** The Sixers game on a scoreboard, or null. */
 export function findSixersGame(sb: RawScoreboard | null | undefined): SixersGame | null {
-  const g = sb?.scoreboard?.games?.find((x) => x.homeTeam.teamTricode === SIXERS || x.awayTeam.teamTricode === SIXERS)
-  if (!g) return null
-  const home = g.homeTeam.teamTricode === SIXERS
-  const status = statusOf(g.gameStatus)
-  const clock = status === 'live' ? parseClock(g.gameClock) : ''
+  const ev = sb?.events?.find((e) => hasSixers(e.competitions?.[0]?.competitors ?? []))
+  if (!ev) return null
+  const cs = ev.competitions[0].competitors
+  const mine = cs.find((c) => nbaTri(c.team.abbreviation) === SIXERS)!
+  const other = cs.find((c) => c !== mine)
+  if (!other) return null
+  const status = statusOf(ev.status.type.state)
+  const period = ev.status.period ?? 0
+  const clock = status === 'live' ? parseClock(ev.status.displayClock) : ''
   return {
-    id: g.gameId,
+    id: ev.id,
     status,
-    statusText: status === 'live' && clock ? `${periodLabel(g.period)} ${clock}` : g.gameStatusText.trim(),
-    period: g.period,
+    statusText: status === 'live' && clock ? `${periodLabel(period)} ${clock}` : (ev.status.type.detail ?? '').trim(),
+    period,
     clock,
-    startsAt: g.gameTimeUTC,
-    sixers: line(home ? g.homeTeam : g.awayTeam),
-    opponent: line(home ? g.awayTeam : g.homeTeam),
-    home,
+    startsAt: iso(ev.date),
+    sixers: line(mine),
+    opponent: line(other),
+    home: mine.homeAway === 'home',
   }
 }
 
 /** Maxey's points, rebounds and assists from a boxscore, or null if he has not played or is not listed. */
 export function maxeyFromBox(box: RawBoxscore | null | undefined): MaxeyLine | null {
-  const players = [...(box?.game?.homeTeam?.players ?? []), ...(box?.game?.awayTeam?.players ?? [])]
-  const p = players.find((x) => x.personId === MAXEY_ID)
-  if (!p) return null
-  return { points: p.statistics.points ?? 0, rebounds: p.statistics.reboundsTotal ?? 0, assists: p.statistics.assists ?? 0 }
+  for (const team of box?.boxscore?.players ?? []) {
+    for (const group of team.statistics ?? []) {
+      const a = group.athletes?.find((x) => x.athlete.id === MAXEY_ID)
+      if (!a?.stats?.length) continue
+      const at = (label: string) => Number(a.stats![group.labels?.indexOf(label) ?? -1] ?? 0) || 0
+      return { points: at('PTS'), rebounds: at('REB'), assists: at('AST') }
+    }
+  }
+  return null
 }
 
-/** The next Sixers game that starts after `now`, from the league schedule. */
+/** The next Sixers game that starts after `now`, from the Sixers team schedule. */
 export function nextGame(schedule: RawSchedule | null | undefined, now: Date): NextGame | null {
   let best: NextGame | null = null
-  for (const d of schedule?.leagueSchedule?.gameDates ?? []) {
-    for (const g of d.games) {
-      const home = g.homeTeam.teamTricode === SIXERS
-      if (!home && g.awayTeam.teamTricode !== SIXERS) continue
-      const at = Date.parse(g.gameDateTimeUTC)
-      if (!(at > now.getTime())) continue
-      if (!best || at < Date.parse(best.startsAt)) {
-        const opp = home ? g.awayTeam : g.homeTeam
-        best = { startsAt: g.gameDateTimeUTC, opponent: { tri: opp.teamTricode, name: opp.teamName }, home }
-      }
+  for (const ev of schedule?.events ?? []) {
+    const cs = ev.competitions?.[0]?.competitors ?? []
+    const mine = cs.find((c) => nbaTri(c.team.abbreviation) === SIXERS)
+    const other = cs.find((c) => c !== mine)
+    const at = Date.parse(ev.date)
+    if (!mine || !other || !(at > now.getTime())) continue
+    if (!best || at < Date.parse(best.startsAt)) {
+      const o = line(other)
+      best = { startsAt: iso(ev.date), opponent: { tri: o.tri, name: o.name }, home: mine.homeAway === 'home' }
     }
   }
   return best

@@ -1,101 +1,231 @@
 {
- "leagueSchedule": {
-  "gameDates": [
-   {
-    "gameDate": "11/17/2026 00:00:00",
-    "games": [
-     {
-      "gameId": "a",
-      "gameDateTimeUTC": "2026-11-17T00:00:00Z",
-      "homeTeam": {
-       "teamId": 1,
-       "teamName": "76ers",
-       "teamCity": "Philadelphia",
-       "teamTricode": "PHI",
-       "wins": 0,
-       "losses": 0
+ "team": {
+  "abbreviation": "PHI"
+ },
+ "events": [
+  {
+   "id": "a",
+   "date": "2026-11-17T00:00Z",
+   "competitions": [
+    {
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "0",
+       "records": [
+        {
+         "name": "overall",
+         "type": "total",
+         "summary": ""
+        },
+        {
+         "name": "Home",
+         "type": "home",
+         "summary": "1-1"
+        }
+       ],
+       "team": {
+        "id": "1",
+        "abbreviation": "PHI",
+        "name": "76ers",
+        "shortDisplayName": "76ers",
+        "displayName": "Philadelphia 76ers"
+       }
       },
-      "awayTeam": {
-       "teamId": 1,
-       "teamName": "Knicks",
-       "teamCity": "New York",
-       "teamTricode": "NYK",
-       "wins": 0,
-       "losses": 0
+      {
+       "homeAway": "away",
+       "score": "0",
+       "records": [
+        {
+         "name": "overall",
+         "type": "total",
+         "summary": ""
+        },
+        {
+         "name": "Home",
+         "type": "home",
+         "summary": "1-1"
+        }
+       ],
+       "team": {
+        "id": "1",
+        "abbreviation": "NY",
+        "name": "Knicks",
+        "shortDisplayName": "Knicks",
+        "displayName": "Knicks"
+       }
       }
-     }
-    ]
-   },
-   {
-    "gameDate": "11/21/2026 00:00:00",
-    "games": [
-     {
-      "gameId": "c",
-      "gameDateTimeUTC": "2026-11-22T01:00:00Z",
-      "homeTeam": {
-       "teamId": 1,
-       "teamName": "Heat",
-       "teamCity": "Miami",
-       "teamTricode": "MIA",
-       "wins": 0,
-       "losses": 0
+     ]
+    }
+   ]
+  },
+  {
+   "id": "c",
+   "date": "2026-11-22T01:00Z",
+   "competitions": [
+    {
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "0",
+       "records": [
+        {
+         "name": "overall",
+         "type": "total",
+         "summary": ""
+        },
+        {
+         "name": "Home",
+         "type": "home",
+         "summary": "1-1"
+        }
+       ],
+       "team": {
+        "id": "1",
+        "abbreviation": "MIA",
+        "name": "Heat",
+        "shortDisplayName": "Heat",
+        "displayName": "Heat"
+       }
       },
-      "awayTeam": {
-       "teamId": 1,
-       "teamName": "76ers",
-       "teamCity": "Philadelphia",
-       "teamTricode": "PHI",
-       "wins": 0,
-       "losses": 0
+      {
+       "homeAway": "away",
+       "score": "0",
+       "records": [
+        {
+         "name": "overall",
+         "type": "total",
+         "summary": ""
+        },
+        {
+         "name": "Home",
+         "type": "home",
+         "summary": "1-1"
+        }
+       ],
+       "team": {
+        "id": "1",
+        "abbreviation": "PHI",
+        "name": "76ers",
+        "shortDisplayName": "76ers",
+        "displayName": "Philadelphia 76ers"
+       }
       }
-     }
-    ]
-   },
-   {
-    "gameDate": "11/20/2026 00:00:00",
-    "games": [
-     {
-      "gameId": "b",
-      "gameDateTimeUTC": "2026-11-21T00:30:00Z",
-      "homeTeam": {
-       "teamId": 1,
-       "teamName": "76ers",
-       "teamCity": "Philadelphia",
-       "teamTricode": "PHI",
-       "wins": 0,
-       "losses": 0
+     ]
+    }
+   ]
+  },
+  {
+   "id": "b",
+   "date": "2026-11-21T00:30Z",
+   "competitions": [
+    {
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "0",
+       "records": [
+        {
+         "name": "overall",
+         "type": "total",
+         "summary": ""
+        },
+        {
+         "name": "Home",
+         "type": "home",
+         "summary": "1-1"
+        }
+       ],
+       "team": {
+        "id": "1",
+        "abbreviation": "PHI",
+        "name": "76ers",
+        "shortDisplayName": "76ers",
+        "displayName": "Philadelphia 76ers"
+       }
       },
-      "awayTeam": {
-       "teamId": 1,
-       "teamName": "Bulls",
-       "teamCity": "Chicago",
-       "teamTricode": "CHI",
-       "wins": 0,
-       "losses": 0
+      {
+       "homeAway": "away",
+       "score": "0",
+       "records": [
+        {
+         "name": "overall",
+         "type": "total",
+         "summary": ""
+        },
+        {
+         "name": "Home",
+         "type": "home",
+         "summary": "1-1"
+        }
+       ],
+       "team": {
+        "id": "1",
+        "abbreviation": "CHI",
+        "name": "Bulls",
+        "shortDisplayName": "Bulls",
+        "displayName": "Bulls"
+       }
       }
-     },
-     {
-      "gameId": "z",
-      "gameDateTimeUTC": "2026-11-21T00:00:00Z",
-      "homeTeam": {
-       "teamId": 1,
-       "teamName": "Warriors",
-       "teamCity": "Golden State",
-       "teamTricode": "GSW",
-       "wins": 0,
-       "losses": 0
+     ]
+    }
+   ]
+  },
+  {
+   "id": "z",
+   "date": "2026-11-21T00:00Z",
+   "competitions": [
+    {
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "0",
+       "records": [
+        {
+         "name": "overall",
+         "type": "total",
+         "summary": ""
+        },
+        {
+         "name": "Home",
+         "type": "home",
+         "summary": "1-1"
+        }
+       ],
+       "team": {
+        "id": "1",
+        "abbreviation": "GS",
+        "name": "Warriors",
+        "shortDisplayName": "Warriors",
+        "displayName": "Warriors"
+       }
       },
-      "awayTeam": {
-       "teamId": 1,
-       "teamName": "Lakers",
-       "teamCity": "Los Angeles",
-       "teamTricode": "LAL",
-       "wins": 0,
-       "losses": 0
+      {
+       "homeAway": "away",
+       "score": "0",
+       "records": [
+        {
+         "name": "overall",
+         "type": "total",
+         "summary": ""
+        },
+        {
+         "name": "Home",
+         "type": "home",
+         "summary": "1-1"
+        }
+       ],
+       "team": {
+        "id": "1",
+        "abbreviation": "LAL",
+        "name": "Lakers",
+        "shortDisplayName": "Lakers",
+        "displayName": "Lakers"
+       }
       }
-     }
-    ]
-   }
-  ]
- }
+     ]
+    }
+   ]
+  }
+ ]
 }

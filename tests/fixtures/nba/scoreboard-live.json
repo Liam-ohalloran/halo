@@ -1,63 +1,205 @@
 {
- "meta": {
-  "version": 1
+ "day": {
+  "date": "2026-11-18"
  },
- "scoreboard": {
-  "gameDate": "2026-11-18",
-  "leagueId": "00",
-  "games": [
-   {
-    "gameId": "0022600201",
-    "gameStatus": 3,
-    "gameStatusText": "Final",
+ "events": [
+  {
+   "id": "401900001",
+   "date": "2026-11-19T00:00Z",
+   "status": {
+    "clock": 0,
+    "displayClock": "0.0",
     "period": 4,
-    "gameClock": "",
-    "gameTimeUTC": "2026-11-19T00:00:00Z",
-    "homeTeam": {
-     "teamId": 1,
-     "teamName": "Warriors",
-     "teamCity": "Golden State",
-     "teamTricode": "GSW",
-     "wins": 9,
-     "losses": 6,
-     "score": 118
-    },
-    "awayTeam": {
-     "teamId": 1,
-     "teamName": "Lakers",
-     "teamCity": "Los Angeles",
-     "teamTricode": "LAL",
-     "wins": 8,
-     "losses": 7,
-     "score": 111
+    "type": {
+     "state": "post",
+     "detail": "Final",
+     "name": "X"
     }
    },
-   {
-    "gameId": "0022600202",
-    "gameStatus": 2,
-    "gameStatusText": "Q4 3:12",
-    "period": 4,
-    "gameClock": "PT03M12.00S",
-    "gameTimeUTC": "2026-11-19T00:00:00Z",
-    "homeTeam": {
-     "teamId": 1,
-     "teamName": "76ers",
-     "teamCity": "Philadelphia",
-     "teamTricode": "PHI",
-     "wins": 9,
-     "losses": 5,
-     "score": 98
-    },
-    "awayTeam": {
-     "teamId": 1,
-     "teamName": "Celtics",
-     "teamCity": "Boston",
-     "teamTricode": "BOS",
-     "wins": 11,
-     "losses": 4,
-     "score": 94
+   "competitions": [
+    {
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "118",
+       "records": [
+        {
+         "name": "overall",
+         "type": "total",
+         "summary": "9-6"
+        },
+        {
+         "name": "Home",
+         "type": "home",
+         "summary": "1-1"
+        }
+       ],
+       "team": {
+        "id": "1",
+        "abbreviation": "GS",
+        "name": "Warriors",
+        "shortDisplayName": "Warriors",
+        "displayName": "Golden State Warriors"
+       }
+      },
+      {
+       "homeAway": "away",
+       "score": "111",
+       "records": [
+        {
+         "name": "overall",
+         "type": "total",
+         "summary": "8-7"
+        },
+        {
+         "name": "Home",
+         "type": "home",
+         "summary": "1-1"
+        }
+       ],
+       "team": {
+        "id": "1",
+        "abbreviation": "LAL",
+        "name": "Lakers",
+        "shortDisplayName": "Lakers",
+        "displayName": "Los Angeles Lakers"
+       }
+      }
+     ]
     }
-   }
-  ]
- }
+   ]
+  },
+  {
+   "id": "401900003",
+   "date": "2026-11-19T00:00Z",
+   "status": {
+    "clock": 0,
+    "displayClock": "0.0",
+    "period": 0,
+    "type": {
+     "state": "pre",
+     "detail": "7:00 PM",
+     "name": "X"
+    }
+   },
+   "competitions": [
+    {
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "0",
+       "records": [
+        {
+         "name": "overall",
+         "type": "total",
+         "summary": "8-7"
+        },
+        {
+         "name": "Home",
+         "type": "home",
+         "summary": "1-1"
+        }
+       ],
+       "team": {
+        "id": "1",
+        "abbreviation": "SA",
+        "name": "Spurs",
+        "shortDisplayName": "Spurs",
+        "displayName": "San Antonio Spurs"
+       }
+      },
+      {
+       "homeAway": "away",
+       "score": "0",
+       "records": [
+        {
+         "name": "overall",
+         "type": "total",
+         "summary": "8-6"
+        },
+        {
+         "name": "Home",
+         "type": "home",
+         "summary": "1-1"
+        }
+       ],
+       "team": {
+        "id": "1",
+        "abbreviation": "NY",
+        "name": "Knicks",
+        "shortDisplayName": "Knicks",
+        "displayName": "New York Knicks"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401900002",
+   "date": "2026-11-19T00:00Z",
+   "status": {
+    "clock": 0,
+    "displayClock": "3:12",
+    "period": 4,
+    "type": {
+     "state": "in",
+     "detail": "Q4 - 3:12",
+     "name": "X"
+    }
+   },
+   "competitions": [
+    {
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "98",
+       "records": [
+        {
+         "name": "overall",
+         "type": "total",
+         "summary": "9-5"
+        },
+        {
+         "name": "Home",
+         "type": "home",
+         "summary": "1-1"
+        }
+       ],
+       "team": {
+        "id": "1",
+        "abbreviation": "PHI",
+        "name": "76ers",
+        "shortDisplayName": "76ers",
+        "displayName": "Philadelphia 76ers"
+       }
+      },
+      {
+       "homeAway": "away",
+       "score": "94",
+       "records": [
+        {
+         "name": "overall",
+         "type": "total",
+         "summary": "11-4"
+        },
+        {
+         "name": "Home",
+         "type": "home",
+         "summary": "1-1"
+        }
+       ],
+       "team": {
+        "id": "1",
+        "abbreviation": "BOS",
+        "name": "Celtics",
+        "shortDisplayName": "Celtics",
+        "displayName": "Boston Celtics"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
 }

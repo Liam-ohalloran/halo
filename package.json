@@ -12,6 +12,7 @@
     "icons":"node scripts/icons.mjs",
     "shots": "node scripts/shots.mjs",
     "shots:home": "node scripts/shots-home.mjs",
+    "shots:phone": "node scripts/shots-phone.mjs",
     "test:home": "node scripts/test-home.mjs",
     "record": "node scripts/record.mjs",
     "shots:study": "node scripts/shots-study.mjs",

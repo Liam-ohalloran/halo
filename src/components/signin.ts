@@ -123,6 +123,14 @@ export function mountSignedInNote(app: HTMLElement, client: SupabaseClient, emai
   const out = el('button', 'signin-link', 'Sign out')
   out.type = 'button'
   out.addEventListener('click', () => void client.auth.signOut())
-  note.append(who, out)
+  note.append(who)
+  // Offer the install guide until Halo is running from the home screen.
+  const standalone = matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true
+  if (!standalone) {
+    const guide = el('a', 'signin-link', 'Add to Home Screen')
+    guide.href = `${import.meta.env.BASE_URL}install/`
+    note.append(guide)
+  }
+  note.append(out)
   app.append(note)
 }

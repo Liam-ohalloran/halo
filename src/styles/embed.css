@@ -148,3 +148,80 @@ html.embed .signin-msg { min-height: 0; }
 .embed-root .s-panel[data-fit="3"] .s-bar { line-height: 1.15; }
 .embed-root .s-panel[data-fit="3"] .s-week { padding: var(--s2) var(--s3); }
 .embed-root .s-panel[data-fit="3"] .s-weekhead { line-height: 1.2; }
+
+/* ===== Polish pass ===== */
+
+/* Tab bar: the active tab is a pill with its name, the rest are icons. Left aligned, the gear sits at the far end. */
+.embed-bar { padding: var(--s2) var(--s3) var(--s2); border-bottom: 0; }
+.embed-bar .h-tabbar { gap: var(--s2); }
+.embed-bar .h-tabs { flex: 1 1 auto; height: 40px; gap: var(--s1); }
+.embed-bar .h-tab, .embed-bar .h-tabbar > .h-tab { flex: 0 0 auto; width: auto; max-width: none; height: 40px; padding: 0 var(--s3); border-radius: 20px; display: inline-flex; align-items: center; gap: var(--s2); color: var(--text-2); }
+.embed-bar .h-tabbar > .h-tab { width: 40px; padding: 0; justify-content: center; }
+.embed-bar .h-tab[aria-selected="true"] { background: var(--fill-1); color: var(--text-1); padding: 0 var(--s4) 0 var(--s3); }
+.embed-bar .h-tab[aria-selected="true"]::after { content: attr(aria-label); font-size: var(--fs-15); font-weight: 600; }
+.embed-bar .h-tab:hover:not([aria-selected="true"]) { color: var(--text-1); }
+.embed-bar .h-tabdot, .embed-bar .h-tab-div { display: none; }
+.embed-root.is-short .embed-bar .h-tabs, .embed-root.is-short .embed-bar .h-tab, .embed-root.is-short .embed-bar .h-tabbar > .h-tab { height: 36px; }
+.embed-root.is-tiny .embed-bar { padding: var(--s1) var(--s3); }
+.embed-root.is-tiny .embed-bar .h-tabs, .embed-root.is-tiny .embed-bar .h-tab, .embed-root.is-tiny .embed-bar .h-tabbar > .h-tab { height: 34px; padding-bottom: 0; }
+.embed-root.is-tiny .embed-bar .h-tabbar > .h-tab { width: 34px; flex-basis: auto; }
+.embed-root.is-tiny .embed-bar .h-tab[aria-selected="true"] { padding: 0 var(--s3) 0 var(--s2); }
+.embed-pop { top: calc(var(--embed-top, 0px) + 56px); }
+.embed-root.is-tiny .embed-pop { top: calc(var(--embed-top, 0px) + 44px); }
+
+/* Panels fill the space under the bar instead of hugging the top. home.ts measures the natural height first. */
+.embed-root .h-panelhost .h-panel { min-height: 100%; }
+.embed-root .n-panel { grid-template-rows: minmax(0, 1fr); }
+.embed-root .n-left { grid-auto-rows: minmax(0, 1fr); align-content: stretch; }
+.embed-root .n-card { align-content: center; }
+.embed-root .n-today { align-content: start; grid-template-rows: auto 1fr; }
+.embed-root .n-today .n-list { align-content: space-between; }
+.embed-root .home-pay { min-height: 100%; display: grid; }
+.embed-root .home-pay .pay-panel { height: 100%; grid-template-rows: auto minmax(0, 1fr); }
+.embed-root .home-pay .pay-body, .embed-root .home-pay .pay-grid { min-height: 0; height: 100%; }
+.embed-root .home-pay .pay-grid { align-items: stretch; }
+.embed-root .home-pay .pay-left { grid-template-rows: auto minmax(0, 1fr) auto; }
+.embed-root .home-pay .pay-left > .pay-inset { display: grid; min-height: 0; }
+.embed-root .home-pay .pay-bars { height: 100%; }
+.embed-root .home-pay .pay-day { grid-template-rows: minmax(0, 1fr) auto auto; min-height: 0; }
+.embed-root .home-pay .pay-track { height: auto; min-height: 32px; }
+.embed-root .home-pay .pay-list { align-content: start; }
+.embed-root .s-panel { min-height: 100%; grid-template-rows: auto minmax(0, 1fr); }
+.embed-root .s-grid { min-height: 0; }
+.embed-root .s-timer { align-content: center; }
+.embed-root .s-week { align-content: center; }
+
+/* Sixers: a bigger scoreboard, centred in the space, with room to breathe. */
+.embed-root .h-panel.sx { justify-content: center; }
+.embed-root .sx-game { gap: var(--s5); }
+.embed-root .sx-inset { padding: var(--s4) var(--s5); }
+.embed-root .sx-scores { padding: 0 var(--s2); }
+.embed-root .sx-big, .embed-root .sx-big .h-roll { font-size: 44px; }
+.embed-root .is-tiny ~ * .sx-big { font-size: var(--fs-28); }
+.embed-root.is-tiny .sx-big, .embed-root.is-tiny .sx-big .h-roll { font-size: var(--fs-28); }
+.embed-root.is-tiny .sx-game { gap: var(--s3); }
+.embed-root.is-tiny .sx-inset { padding: var(--s3) var(--s4); }
+
+/* ---- Polish pass, fixes ---- */
+.embed-root .home-pay .pay-panel { height: auto; }
+.embed-root .home-pay .pay-body { display: grid; }
+.embed-root .home-pay .pay-body, .embed-root .home-pay .pay-grid { height: auto; }
+.embed-root .home-pay[data-fit="3"] .pay-week { min-height: 32px; }
+.embed-root .home-pay[data-fit="3"] .pay-nav .h-ibtn { width: 32px; height: 32px; }
+.embed-root .h-panelhost .h-panel.sx { min-height: 100% !important; } /* the card sets its own inline minimum for the island */
+
+/* ---- Polish pass, round two ---- */
+.embed-root .home-pay[data-fit] .pay-panel { align-items: stretch; }
+.embed-root .home-pay[data-fit] .pay-list { align-content: space-between; }
+.embed-root .home-pay[data-fit="3"] .pay-list { align-content: start; }
+
+/* Sixers: type stays on the 28 step. The scoreboard is an inset card that fills the space, Maxey's line sits under it. */
+.embed-root .sx-big, .embed-root .sx-big .h-roll { font-size: var(--fs-28); }
+.embed-root .h-panel.sx { justify-content: stretch; }
+.embed-root .sx-game { flex: 1 1 auto; grid-template-rows: minmax(0, 1fr) auto; gap: var(--s2); }
+.embed-root .sx-scores { align-content: center; padding: var(--s4) var(--s6); border-radius: 24px; background: var(--fill-2); }
+.embed-root .sx-next { flex: 1 1 auto; }
+.embed-root .sx-ncount { align-self: stretch; justify-content: center; }
+.embed-root.is-tiny .embed-bar { padding: var(--s1) var(--s3) 0; }
+.embed-root .home-pay[data-fit="3"] .pay-shift { padding: 1px var(--s1); } .embed-root .home-pay[data-fit="3"] .pay-list { padding: var(--s1) var(--s3); }
+.embed-root .home-pay[data-fit] .pay-track { height: auto; min-height: 32px; }

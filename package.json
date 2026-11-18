@@ -12,6 +12,7 @@
     "icons":"node scripts/icons.mjs",
     "shots": "node scripts/shots.mjs",
     "record": "node scripts/record.mjs",
+    "shots:study": "node scripts/shots-study.mjs",
     "shots:legacy": "node scripts/shots-legacy.mjs",
     "test": "node --test \"tests/*.test.ts\""
   },

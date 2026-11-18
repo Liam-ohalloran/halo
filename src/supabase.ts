@@ -38,6 +38,17 @@ export const supabaseBackend: Backend = {
     return rows[0] ?? null
   },
 
+  async upcomingTests(now) {
+    return must(
+      await supabase
+        .from('tests')
+        .select('id,subject,title,due_at')
+        .gt('due_at', now.toISOString())
+        .order('due_at', { ascending: true })
+        .limit(50),
+    ) as Test[]
+  },
+
   async shiftsBetween(from, to) {
     return must(
       await supabase
@@ -100,11 +111,11 @@ export const supabaseBackend: Backend = {
     ) as StudySession
   },
 
-  async stopSession(id) {
+  async stopSession(id, endedAt = new Date()) {
     return must(
       await supabase
         .from('study_sessions')
-        .update({ ended_at: new Date().toISOString() })
+        .update({ ended_at: endedAt.toISOString() })
         .eq('id', id)
         .select(SESSION_COLS)
         .single(),

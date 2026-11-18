@@ -45,8 +45,12 @@ float sdIsland(vec2 p) {
 }
 void main() {
   vec2 p = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y) / uScale;
-  float d = max(sdIsland(p), 0.0);
+  float sd = sdIsland(p);
+  float d = max(sd, 0.0);
   float g = 0.36 * exp(-d / 26.0) + 0.17 * exp(-d / 110.0) + 0.07 * exp(-d / 300.0);
+  // Inside the island the glow eases to nothing instead of holding a flat plateau, so if the black body
+  // and the glow are ever a pixel or two apart mid morph, the result is a soft gradient, never a hard edge.
+  g *= smoothstep(-22.0, 0.0, sd);
   g *= uGain;
   float a = 1.0 - exp(-g * 1.1);
   float t = smoothstep(-0.18, 0.18, (p.x - uShape.x) / max(uShape.y, 1.0));
@@ -152,7 +156,15 @@ export function LightSpill(o: LightSpillOptions = {}): LightSpillHandle {
     addTicker(tick)
   }
 
-  canvas.setShape = (s) => { shape = s; dirty = true; wake() }
+  // The island calls this every frame with its live spring values. Draw straight away so the glow is
+  // never a frame behind the body (a stale frame is what showed as a hard amber rectangle mid open).
+  canvas.setShape = (s) => {
+    shape = s
+    dirty = true
+    if (document.hidden || !onScreen) return
+    draw()
+    wake()
+  }
   canvas.setColours = (c1, c2) => { a = hexToRgb(c1); b = hexToRgb(c2 ?? c1); dirty = true; wake() }
   canvas.setPulse = (p) => { pulse = p }
   canvas.setStatic = (on) => { forceStatic = on; dirty = true; wake() }

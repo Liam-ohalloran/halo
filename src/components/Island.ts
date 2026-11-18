@@ -155,7 +155,8 @@ export function Island(o: IslandOptions = {}): IslandHandle {
     hlP.setAttribute('d', key)
     clip.style.clipPath = `inset(0px ${f(x0)}px ${f(H - hh)}px ${f(x0)}px round 0px 0px ${f(r)}px ${f(r)}px)`
     body.style.transform = sx.x === 1 && sy.x === 1 ? '' : `scale(${sx.x.toFixed(4)}, ${sy.x.toFixed(4)})`
-    spill.setShape({ cx, w, h: hh, r })
+    // Same width, height and radius as the drawn body, including the open squash scale.
+    spill.setShape({ cx, w: w * sx.x, h: hh * sy.x, r })
     root.onFrame?.({ w, h: hh, r })
   }
 

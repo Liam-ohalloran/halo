@@ -91,3 +91,24 @@ export async function getSettings(): Promise<Settings> {
     public_holiday_multiplier: Number(row.public_holiday_multiplier),
   }
 }
+
+/** Shifts that overlap [from, to). */
+export async function getShiftsBetween(from: Date, to: Date): Promise<ShiftRow[]> {
+  return must(
+    await supabase.from('shifts').select(SHIFT_COLS).lt('starts_at', to.toISOString()).gt('ends_at', from.toISOString()).order('starts_at'),
+  ) as ShiftRow[]
+}
+
+/** Tests due in [from, to). */
+export async function getTestsBetween(from: Date, to: Date): Promise<TestRow[]> {
+  return must(
+    await supabase.from('tests').select(TEST_COLS).gte('due_at', from.toISOString()).lt('due_at', to.toISOString()).order('due_at'),
+  ) as TestRow[]
+}
+
+/** Study sessions that started in [from, to), including one still running. */
+export async function getStudySessionsBetween(from: Date, to: Date): Promise<StudySession[]> {
+  return must(
+    await supabase.from('study_sessions').select(SESSION_COLS).gte('started_at', from.toISOString()).lt('started_at', to.toISOString()).order('started_at'),
+  ) as StudySession[]
+}

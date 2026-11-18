@@ -134,6 +134,16 @@ function booting() {
 }
 
 async function start() {
+  // Dev-only preview of the Now panel on fixtures with a fixed clock: /?demo=soon&open=1 (stripped from production builds).
+  if (import.meta.env.DEV && params.has('demo')) {
+    const { mockSource, mockClock } = await import('./dev/now-mock')
+    const { mountHome } = await import('./components/home')
+    const mode = (params.get('demo') || 'full') as Parameters<typeof mockSource>[0]
+    const start = mockClock(mode).getTime()
+    const t0 = Date.now()
+    mountHome(app, { source: mockSource(mode), now: () => new Date(start + Date.now() - t0), open: params.has('open') })
+    return
+  }
   // Home is the card 01 island. The old draft tabs stay reachable at ?legacy=1 until cards 06 to 08 replace them.
   if (!params.has('legacy') && !params.has('mock')) {
     // Signed out: sign-in screen. Signed in: the island. The session persists across reloads.

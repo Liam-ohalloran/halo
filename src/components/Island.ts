@@ -347,7 +347,11 @@ export function Island(o: IslandOptions = {}): IslandHandle {
 
   // ---- Input: click, keyboard, optional hover
   if (o.toggleOnClick !== false) {
-    clip.addEventListener('click', () => (cur === 'expanded' ? root.close() : root.open()))
+    clip.addEventListener('click', (e) => {
+      // Buttons inside the open island (tabs, Retry and so on) do their own job and must not collapse it.
+      if ((e.target as Element).closest('button, a, input, select, textarea')) return
+      cur === 'expanded' ? root.close() : root.open()
+    })
   }
   clip.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); cur === 'expanded' ? root.close() : root.open() }

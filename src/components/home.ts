@@ -1,8 +1,10 @@
 import '../styles/tokens.css'
 import '../styles/home.css'
+import '../styles/phone.css'
 import './components.css'
 import './sixers.css'
 import { h } from './dom'
+import { reduced } from '../lib/motion'
 import { Island, NumberRoll, PanelHost, TabBar, preloadIcons, type IslandHandle, type IslandState, type NumberRollHandle } from './index'
 import { TABS, type TabDef } from './TabBar'
 import { SixersCard, SixersPill, confetti, type PillHandle } from './Sixers'
@@ -57,8 +59,12 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   const api = o.api ?? supabaseBackend
   const clock = o.now ?? (() => new Date())
 
+  // iPhone width: the panels become a swipeable stack under the island (card 10) instead of opening inside it.
+  const phone = matchMedia('(max-width: 480px)').matches
+  document.documentElement.classList.toggle('phone', phone)
+
   // The stage is the visible window, so the island can grow as tall as the screen allows.
-  const stageH = Math.max(innerHeight - 8, 300)
+  const stageH = phone ? 320 : Math.max(innerHeight - 8, 300)
 
   let wantBase: IslandState = 'resting'
   let baseTint = QUIET // glow colour of whatever the closed island shows
@@ -67,7 +73,8 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   let sixersPill: PillHandle | null = null
   const isl: IslandHandle = Island({
     initial: 'resting', base: 'resting', stageHeight: stageH, tint: QUIET, label: 'Halo island',
-    hover: matchMedia('(hover: hover)').matches,
+    hover: !phone && matchMedia('(hover: hover)').matches,
+    toggleOnClick: !phone,
     onState: (s) => {
       // The base can only change while the island is closed, otherwise it would collapse under the user.
       applyTint()
@@ -87,7 +94,17 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     },
   })
   const host = PanelHost()
-  isl.setContent('expanded', [tabs, host])
+  // Phone: the tab bar and a scroll-snap row of slides, one panel each, sit in an inset black card under the island.
+  const scroller = h('div', { class: 'phone-scroll', role: 'group', 'aria-label': 'Halo panels' })
+  const slides = new Map<TabId, HTMLElement>()
+  if (phone) {
+    for (const t of HOME_TABS) {
+      const s = h('section', { class: 'phone-slide', 'aria-label': t.label, 'data-id': t.id })
+      slides.set(t.id as TabId, s)
+      scroller.append(s)
+    }
+    stage.after(h('div', { class: 'phone-card' }, tabs, scroller))
+  } else isl.setContent('expanded', [tabs, host])
 
   const timer = createStudyTimer(api, 'Human Biology')
   const studyPill = StudyPill(timer)
@@ -115,6 +132,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   // The island's height springs to the active tab's content height (HALO.md 3.5, tab switch).
   const ro = new ResizeObserver(() => relayout())
   function relayout() {
+    if (phone) return // slides scroll on their own, nothing to fit
     const el = made[activeId]
     if (!el) return
     const room = stageH - 4 - CHROME
@@ -132,7 +150,28 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     host.classList.toggle('is-scroll', ph > room)
     isl.setExpandedHeight(Math.min(CHROME + ph, stageH - 4))
   }
+  // Phone: swiping moves the tab bar, tapping a tab slides to its panel.
+  let swipeLock = 0
+  function phoneShow(id: TabId, smooth: boolean) {
+    activeId = id
+    try { localStorage.setItem(TAB_KEY, id) } catch { /* private mode */ }
+    const s = slides.get(id)!
+    swipeLock = Date.now() + 600
+    scroller.scrollTo({ left: s.offsetLeft, behavior: smooth && !reduced() ? 'smooth' : 'auto' })
+    tabs.setActive(id)
+    applyTint()
+  }
+  function onSwipe() {
+    if (Date.now() < swipeLock) return
+    const i = Math.round(scroller.scrollLeft / Math.max(scroller.clientWidth, 1))
+    const id = HOME_TABS[Math.min(Math.max(i, 0), HOME_TABS.length - 1)].id as TabId
+    if (id === activeId) return
+    activeId = id
+    try { localStorage.setItem(TAB_KEY, id) } catch { /* private mode */ }
+    tabs.setActive(id)
+  }
   function showTab(id: TabId, dir: number) {
+    if (phone) return phoneShow(id, dir !== 0)
     activeId = id
     try { localStorage.setItem(TAB_KEY, id) } catch { /* private mode */ }
     ro.disconnect()
@@ -141,6 +180,11 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     ro.observe(el)
     relayout()
     applyTint()
+  }
+  if (phone) {
+    for (const t of HOME_TABS) slides.get(t.id as TabId)!.append(getPanel(t.id as TabId))
+    scroller.addEventListener('scroll', onSwipe, { passive: true })
+    requestAnimationFrame(() => phoneShow(activeId, false))
   }
   showTab(activeId, 0)
   void document.fonts?.ready.then(relayout)
@@ -285,7 +329,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   void refresh()
   start()
   void timer.init().then(() => syncIsland(clock())).catch(() => {})
-  if (o.open) requestAnimationFrame(() => requestAnimationFrame(() => isl.open()))
+  if (o.open && !phone) requestAnimationFrame(() => requestAnimationFrame(() => isl.open()))
 
   return () => {
     stop(); ro.disconnect(); unsub(); unsubTimer(); unmountPay(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()

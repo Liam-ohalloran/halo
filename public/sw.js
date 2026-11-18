@@ -1,5 +1,5 @@
 // Halo service worker: app shell offline, never caches Supabase traffic.
-const CACHE = 'halo-v1'
+const CACHE = 'halo-v2'
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', './manifest.webmanifest', './icons/icon-192.png'])))

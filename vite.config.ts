@@ -12,6 +12,7 @@ export default defineConfig({
       motion: resolve(__dirname, 'motion/index.html'),
       study: resolve(__dirname, 'study/index.html'),
       sixers: resolve(__dirname, 'sixers/index.html'),
+      install: resolve(__dirname, 'install/index.html'),
     } },
     target: 'es2022', cssMinify: true, sourcemap: false,
   },

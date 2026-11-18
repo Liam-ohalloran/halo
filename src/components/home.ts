@@ -1,9 +1,12 @@
 import '../styles/tokens.css'
 import '../styles/home.css'
 import './components.css'
+import './sixers.css'
 import { h } from './dom'
 import { Island, NumberRoll, PanelHost, TabBar, preloadIcons, type IslandHandle, type IslandState, type NumberRollHandle } from './index'
 import { TABS, type TabDef } from './TabBar'
+import { SixersCard, SixersPill, confetti, type PillHandle } from './Sixers'
+import { SIXERS_BLUE, createFeed, sixersWon, teamColour, type NbaResponse } from '../lib/sixers'
 import { NowPanel, SHIFT_COLOUR } from '../panels/now'
 import { StudyPanel, ICONS_NEEDED as STUDY_ICONS } from '../panels/study'
 import { StudyPill } from '../panels/studyPill'
@@ -15,8 +18,8 @@ import { supabaseNowSource, getTravelMinutes, type NowData, type NowSource } fro
 import { perthDayBounds, shiftView, type ShiftView } from '../lib/now-model'
 
 // Home: the island. Resting when nothing is close, a compact pill inside two hours of a shift or while a
-// study session runs, and the tab bar with the Now, Study and Pay panels when it opens (HALO.md 3.1e).
-// Tab order follows the bible: Now (1), Study (3), Pay (4). Sixers joins when card 09 lands.
+// study session runs, and the tab bar with the Now, Study, Pay and Sixers panels when it opens (HALO.md 3.1e).
+// Tab order follows the bible: Now (1), Study (3), Pay (4), Sixers (5). A live Sixers game takes the wide pill.
 
 export interface HomeOptions {
   source?: NowSource
@@ -28,10 +31,12 @@ export interface HomeOptions {
   api?: Backend
   /** Tab to start on (dev previews). Otherwise the last tab used. */
   tab?: string
+  /** Sixers feed, swapped for recorded JSON in dev previews. Defaults to the nba edge function. */
+  sixers?: () => Promise<NbaResponse>
 }
 
-type TabId = 'now' | 'study' | 'pay'
-const HOME_TABS: TabDef[] = (['now', 'study', 'pay'] as const).map((id) => TABS.find((t) => t.id === id)!)
+type TabId = 'now' | 'study' | 'pay' | 'sixers'
+const HOME_TABS: TabDef[] = (['now', 'study', 'pay', 'sixers'] as const).map((id) => TABS.find((t) => t.id === id)!)
 const TAB_KEY = 'halo.homeTab'
 const isTab = (v: unknown): v is TabId => HOME_TABS.some((t) => t.id === v)
 function lastTab(): TabId {
@@ -40,7 +45,7 @@ function lastTab(): TabId {
 }
 
 /** Glow colour while a tab is open: colour comes from the content (HALO.md 3.1b). */
-const TAB_TINT: Record<TabId, string> = { now: '#FF9F0A', study: '#BF5AF2', pay: '#30D158' }
+const TAB_TINT: Record<TabId, string> = { now: '#FF9F0A', study: '#BF5AF2', pay: '#30D158', sixers: SIXERS_BLUE }
 const QUIET = '#C7C7CC' // glow colour when no content has one
 const CHROME = 22 + 44 + 12 + 22 // top padding, tab bar, row gap, bottom padding (matches the demo content)
 const REFRESH_MS = 5 * 60_000
@@ -56,6 +61,9 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
 
   let wantBase: IslandState = 'resting'
   let baseTint = QUIET // glow colour of whatever the closed island shows
+  let game: NbaResponse | null = null // latest Sixers response
+  let sixersLive = false // a live or final game: the wide pill shows
+  let sixersPill: PillHandle | null = null
   const isl: IslandHandle = Island({
     initial: 'resting', base: 'resting', stageHeight: stageH, tint: QUIET, label: 'Halo island',
     hover: matchMedia('(hover: hover)').matches,
@@ -85,7 +93,9 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   const nowPanel = NowPanel()
   const payListeners = new Set<() => void>()
   let unmountPay: () => void = () => {}
-  const made: Partial<Record<TabId, HTMLElement>> = { now: nowPanel.el }
+  const sixersCard = SixersCard({ onRetry: () => void sixers.refresh() })
+  sixersCard.loading()
+  const made: Partial<Record<TabId, HTMLElement>> = { now: nowPanel.el, sixers: sixersCard.el }
 
   // Panels are built the first time their tab is shown, then kept.
   function getPanel(id: TabId): HTMLElement {
@@ -175,13 +185,18 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   }
 
   // The glow follows the open tab while expanded, otherwise whatever the pill is showing.
-  function applyTint() { isl.setTint(isl.state === 'expanded' ? TAB_TINT[activeId] : baseTint) }
+  function applyTint() {
+    if (isl.state !== 'expanded' && sixersLive && game?.game) isl.setColours(teamColour(game.game.sixers.tri), teamColour(game.game.opponent.tri))
+    else isl.setTint(isl.state === 'expanded' ? TAB_TINT[activeId] : baseTint)
+  }
 
   // One live thing at a time (HALO.md 1): a running study session takes the pill, otherwise a shift soon.
   let studyOn = false
   function syncIsland(now: Date) {
     const sv = data?.shift ? shiftView(data.shift, now, getTravelMinutes()) : null
-    if (timer.state.status !== 'idle') {
+    if (sixersLive) {
+      wantBase = 'wide'
+    } else if (timer.state.status !== 'idle') {
       if (!studyOn) { studyOn = true; isl.swapContent('compact', studyPill.nodes) }
       baseTint = studyPill.colour()
       wantBase = 'compact'
@@ -205,6 +220,28 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     if (k === timerKey) return
     timerKey = k
     syncIsland(clock())
+  })
+
+  // ---- Sixers: the edge function feed. Live or final shows the wide pill, otherwise the island rests.
+  const sixers = createFeed({
+    load: o.sixers,
+    onData: (r, prev) => {
+      game = r
+      sixersCard.update(r)
+      relayout()
+      const g = r.game
+      sixersLive = !!g && g.status !== 'scheduled'
+      if (sixersLive && g) {
+        if (!sixersPill) { sixersPill = SixersPill(r); isl.setContent('wide', sixersPill.nodes) } else sixersPill.update(r)
+      }
+      syncIsland(clock())
+      // A Sixers win just went final: celebrate once, on the transition only.
+      if (prev?.game?.status === 'live' && sixersWon(r) && r.game?.id === prev.game.id) {
+        const b = isl.getBoundingClientRect()
+        confetti({ x: b.left + b.width / 2, y: b.top + 36 })
+      }
+    },
+    onError: (offline) => { if (!game) sixersCard.error(offline) },
   })
 
   // ---- Clock: once a second, only while the page is visible (HALO.md 3.8)
@@ -242,7 +279,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   if (o.open) requestAnimationFrame(() => requestAnimationFrame(() => isl.open()))
 
   return () => {
-    stop(); ro.disconnect(); unsub(); unsubTimer(); unmountPay(); studyPill.destroy(); timer.destroy()
+    stop(); ro.disconnect(); unsub(); unsubTimer(); unmountPay(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
     document.removeEventListener('pointerdown', onOutside)
     document.removeEventListener('visibilitychange', onVisible)
     removeEventListener('online', onOnline)

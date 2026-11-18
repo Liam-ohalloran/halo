@@ -30,7 +30,8 @@ for (const [size, [width, height]] of Object.entries({ 'notchpixel-680x420': [68
   const errors = []
   page.on('pageerror', (e) => { errors.push(e.message); if (process.env.STACK) console.log(e.stack) })
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()))
-  // Empty answers for the database, and a quiet realtime socket.
+  // Empty answers for the database and the Sixers feed, and a quiet realtime socket.
+  await page.route('**/functions/v1/nba', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ state: 'none', game: null, maxey: null, next: { startsAt: new Date(Date.now() + 26 * 3600e3).toISOString(), opponent: { tri: 'CHI', name: 'Bulls', city: 'Chicago' }, home: true }, fetchedAt: new Date().toISOString() }) }))
   await page.route('**/rest/v1/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'content-range': '*/0' }, body: r.request().headers()['accept']?.includes('object') ? 'null' : '[]' }))
   await page.routeWebSocket(/supabase\.co\/realtime/, (ws) => {
     ws.onMessage((m) => {
@@ -68,15 +69,15 @@ for (const [size, [width, height]] of Object.entries({ 'notchpixel-680x420': [68
   await page.waitForTimeout(900)
   check((await state()) === 'expanded', 'click opens the island')
   const tabs = await page.getByRole('tab').all()
-  check(tabs.length === 3, `tab bar has Now, Study, Pay (${tabs.length} tabs)`)
-  for (const name of ['Now', 'Study', 'Pay', 'Study', 'Now', 'Pay']) {
+  check(tabs.length === 4, `tab bar has Now, Study, Pay, Sixers (${tabs.length} tabs)`)
+  for (const name of ['Now', 'Study', 'Pay', 'Sixers', 'Study', 'Now', 'Sixers', 'Pay']) {
     await page.getByRole('tab', { name }).click()
     await page.waitForTimeout(700)
     await responsive(`tab ${name}`)
     const sel = await page.getByRole('tab', { name }).getAttribute('aria-selected')
     check(sel === 'true' && (await state()) === 'expanded', `tab ${name} selected and island still open`)
   }
-  for (const name of ['Now', 'Study', 'Pay']) {
+  for (const name of ['Now', 'Study', 'Pay', 'Sixers']) {
     await page.getByRole('tab', { name }).click()
     await page.waitForTimeout(900)
     if (shotDir) await page.screenshot({ path: `${shotDir}/${name.toLowerCase()}-${size}.png` })

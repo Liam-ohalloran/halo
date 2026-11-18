@@ -20,7 +20,7 @@ for his week: shifts, pay, study, sport, Claude, phone link.
 | **v1 (now)** | Web panel shown inside the NotchPixel app via its "Add a site" web tab, plus the same app as an iPhone home screen PWA | GitHub Pages + Supabase |
 | **v2 (later)** | Native Windows island app (Tauri 2) that replaces NotchPixel | Liam's laptop |
 
-v1 cannot control the laptop (no volume, Wi-Fi etc.). That is v2's job. Do not try to hack it into v1.
+v1 is a web page, so on its own it cannot control the laptop. The **Halo helper** (section 2b) fills that gap: a small local program that Halo talks to on `127.0.0.1`. Never try to control the laptop any other way from v1.
 
 ## 2. Stack
 
@@ -47,6 +47,24 @@ v1 cannot control the laptop (no volume, Wi-Fi etc.). That is v2's job. Do not t
 | `settings` | Pay rates, theme | `weekday_rate`, `saturday_rate`, `sunday_multiplier`, `public_holiday_multiplier`, `theme` |
 
 All tables have `owner_id uuid default auth.uid()`. Realtime is on for `notifications`, `commands`, `shifts`.
+
+### 2b. Halo helper (laptop bridge)
+
+A small Python program that runs in the background on Liam's Windows laptop and gives Halo safe access to music and laptop controls.
+
+- **Lives in** `helper/` in the halo repo. Python 3.12, FastAPI + uvicorn, `winsdk` (media and radios), `pycaw` (volume), `screen-brightness-control`, `psutil` (battery), `pystray` (tray icon).
+- **Listens on** `http://127.0.0.1:47800` only. Never `0.0.0.0`.
+- **CORS** allows only `https://liam-ohalloran.github.io` and `http://localhost:5173`, and answers Private Network Access preflights with `Access-Control-Allow-Private-Network: true`.
+- **Token:** on first run it creates a random token in `%APPDATA%\HaloHelper\token.txt`. Every request needs header `X-Halo-Token`. Halo stores the token in localStorage after Liam pastes it once in Settings (Pair helper).
+- **Endpoints:** `GET /status`, `GET /media`, `GET /media/art`, `POST /media/{play|pause|toggle|next|previous}`, `POST /media/seek`, `GET|POST /volume`, `POST /mute`, `GET|POST /brightness`, `GET /battery`, `GET|POST /wifi`, `GET|POST /bluetooth`, `GET|POST /power-mode`, `GET /events` (server sent events for media, volume and battery changes).
+- **Not supported yet:** Night light and Focus (no reliable public Windows API). Their tiles show "Not available yet".
+- **Starts at logon** via a Task Scheduler task, shows a tray icon with Quit.
+- **Read only for everything else.** It never touches files, messages or accounts.
+- On the phone, or when the helper is not running, Music and Controls show a plain state ("Open Halo on your laptop" / "Start Halo helper") with a retry button. Never an error dump.
+
+### 2c. Window size (from the approved redesign)
+
+The open panel is **600 × 290**, radius 26, matching NotchPixel's panel. The current tab's colour tints the whole window (soft gradient plus one soft corner glow). Sections are split with thin lines and spacing, not boxes inside boxes. Reference: the "final style" boards in the Halo UI redesign canvas.
 
 ## 3. Design rules (non-negotiable)
 
@@ -120,6 +138,8 @@ Left to right. Phosphor icons, regular when inactive, fill plus a 4 px dot under
 | — | Settings | `gear-six` | Opens the Settings window |
 
 Opens on the last tab used, or Music while something is playing (setting).
+
+**Tab picks (Liam, 18 Nov 2026).** Built or designed: Home, Music, Study, Pay, Sixers, Controls. Approved next: **Week** (7 day TickTick timeline), **Alerts**, **Claude**, **Shelf**, **Widgets**, **Marks** (results and ATAR target), **Money** (savings goal, earnings history, payday countdown), **Night** (bedtime and tomorrow), **Laptop** (battery, storage, warranty reminder). Declined as tabs: Games, Driving, Chicago, Fishing, Commute, Watchlist, Gifts. With this many tabs, Settings must let Liam hide and reorder them (at most 8 visible).
 
 ### 3.2 Tokens
 
@@ -258,11 +278,3 @@ Plus everything NotchPixel already does (see `docs/notchpixel-parity.md` if pres
 7. Finish with: what you built (3 lines max), the screenshot paths, and anything Liam must do by hand.
 8. If a card is unclear or conflicts with this file, stop and ask. Never invent design.
 9. Australian spelling in code comments and UI. PowerShell for any command Liam runs himself (he's on Windows).
-
-### 3.9 Embedded mode (v1 inside NotchPixel)
-
-NotchPixel is already the island, so Halo drops its own. Turn it on with `?embed=1` on the URL (remembered in `localStorage`, `?embed=0` turns it off, an installed iPhone app ignores the stored flag).
-- No island shell, ears, key line or glow. Pure `#000000`, tab bar and panels edge to edge, content uses the full width.
-- Sized by a `ResizeObserver` to any viewport. Panels step through `data-fit` 0 to 3 (3 only exists in embed) until they fit, so 684 × 453 and down to 600 × 300 show compact layouts instead of scrolling or clipping.
-- Gear at the end of the tab bar opens a small popover with **Top padding** (default 0, step 4 px, max 64) in case NotchPixel's own UI overlaps the top. `?top=N` sets it too. Sign out lives in the same popover.
-- Screenshots: `npm run shots:embed` saves to `screenshots/embed/`.

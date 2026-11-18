@@ -401,24 +401,35 @@ export interface PanelHostHandle extends HTMLDivElement {
 export function PanelHost(): PanelHostHandle {
   const host = h('div', { class: 'h-panelhost' }) as PanelHostHandle
   let current: HTMLElement | null = null
+  // Panels are kept and shown again later, so no animation may outlive its switch: a fade-out that held
+  // opacity 0 after finishing used to pin the panel invisible the next time it was shown.
+  const clear = (el: HTMLElement) => { for (const a of el.getAnimations()) a.cancel() }
   host.show = (panel, dir = 0) => {
+    const old = current
+    // Anything still fading out from an earlier switch is gone now (the fade-out we start below replaces it).
+    for (const el of [...host.children] as HTMLElement[]) if (el !== panel && el !== old) { clear(el); el.remove() }
+    clear(panel) // a half-finished fade (in or out) from a quick switch must not carry over
+    panel.style.pointerEvents = ''
     panel.classList.add('h-panel')
     host.append(panel)
     const natural = panel.offsetHeight
     host.style.height = `${natural}px`
-    const old = current
     const rm = reduced()
     if (old && old !== panel) {
+      clear(old)
       const out = animate(old, rm ? [{ opacity: 1 }, { opacity: 0 }] : [
         { opacity: 1, transform: 'translateX(0)', filter: 'blur(0px)' },
-        { opacity: 0, transform: `translateX(${-12 * dir}px)`, filter: 'blur(4px)' }], { duration: rm ? 200 : 160, easing: 'ease-out' })
-      out.onfinish = () => old.remove()
+        { opacity: 0, transform: `translateX(${-12 * dir}px)`, filter: 'blur(4px)' }], { duration: rm ? 200 : 160, easing: 'ease-out', fill: 'forwards' })
       old.style.pointerEvents = 'none'
-    }
-    if (old && old !== panel) {
-      animate(panel, rm ? [{ opacity: 0 }, { opacity: 1 }] : [
+      out.onfinish = () => {
+        out.cancel()
+        // Only remove it if it has not been brought back in the meantime.
+        if (current !== old) old.remove()
+      }
+      const inn = animate(panel, rm ? [{ opacity: 0 }, { opacity: 1 }] : [
         { opacity: 0, transform: `translateX(${12 * dir}px)`, filter: 'blur(4px)' },
         { opacity: 1, transform: 'translateX(0)', filter: 'blur(0px)' }], { duration: rm ? 200 : 280, delay: rm ? 0 : 50, fill: 'backwards' })
+      inn.onfinish = () => inn.cancel() // leave the panel at its plain CSS state: opacity 1, no transform, no filter
     }
     current = panel
     return natural

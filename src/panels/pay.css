@@ -68,5 +68,43 @@
 .pay-link:active { transform: scale(var(--press)); }
 .pay-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+/* Inside the island: the island already pads the content, so the panel adds no padding of its own. */
+.home-pay .pay-panel { padding: 0; border-radius: 0; }
+.home-pay .pay-note { padding: 0; }
+.home-pay .pay-totals { padding: 0; }
+
+/* Compact fits. Home sets data-fit on the panel: 0 roomy, 1 compact, 2 tightest. It steps up until the panel fits the window,
+   so the island can spring to the full content height with no scrolling (HALO.md 3.5). */
+.home-pay[data-fit="1"] .pay-panel, .home-pay[data-fit="2"] .pay-panel { gap: var(--s2); }
+.home-pay[data-fit="1"] .pay-left, .home-pay[data-fit="2"] .pay-left { gap: var(--s2); }
+.home-pay[data-fit="1"] .pay-inset, .home-pay[data-fit="2"] .pay-inset { padding: var(--s2); }
+.home-pay[data-fit="1"] .pay-track { height: 52px; }
+.home-pay[data-fit="2"] .pay-track { height: 40px; }
+.home-pay[data-fit="2"] .pay-totals { gap: var(--s2) var(--s4); }
+.home-pay[data-fit="2"] .pay-gross { font-size: var(--fs-21); }
+.home-pay[data-fit="2"] .pay-sub { font-size: var(--fs-17); }
+/* Shifts: title and pay on one line, date and paid hours under them. */
+.home-pay[data-fit="1"] .pay-shift, .home-pay[data-fit="2"] .pay-shift { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 var(--s3); align-items: baseline; padding: var(--s1); }
+.home-pay[data-fit="1"] .pay-shift-main, .home-pay[data-fit="2"] .pay-shift-main { display: contents; }
+.home-pay[data-fit="1"] .pay-shift-main b, .home-pay[data-fit="2"] .pay-shift-main b { grid-column: 1; grid-row: 1; }
+.home-pay[data-fit="1"] .pay-when, .home-pay[data-fit="2"] .pay-when { grid-column: 1; grid-row: 2; }
+.home-pay[data-fit="1"] .pay-shift > strong, .home-pay[data-fit="2"] .pay-shift > strong { grid-column: 2; grid-row: 1; }
+.home-pay[data-fit="1"] .pay-shift-main span:not(.pay-when), .home-pay[data-fit="2"] .pay-shift-main span:not(.pay-when) { grid-column: 2; grid-row: 2; justify-self: end; white-space: nowrap; }
+.home-pay[data-fit="1"] .pay-brk, .home-pay[data-fit="2"] .pay-brk { display: none; }
+.home-pay[data-fit="1"] .pay-shift-main em { grid-column: 1; grid-row: 3; margin-top: 2px; }
+.home-pay[data-fit="2"] .pay-shift-main em { display: none; }
+.home-pay[data-fit="2"] .pay-shift { padding: 2px var(--s1); }
+.home-pay[data-fit="1"] .pay-list, .home-pay[data-fit="2"] .pay-list { gap: 0; }
+/* Wide: the week switcher and totals stack on the left, the shift list takes the full height on the right. */
+@media (min-width: 640px) {
+  .home-pay[data-fit="1"] .pay-panel, .home-pay[data-fit="2"] .pay-panel { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--s4); align-items: start; }
+  .home-pay[data-fit="1"] .pay-nav, .home-pay[data-fit="2"] .pay-nav { grid-column: 1; }
+  .home-pay[data-fit="1"] .pay-body:has(> .pay-grid), .home-pay[data-fit="2"] .pay-body:has(> .pay-grid),
+  .home-pay[data-fit="1"] .pay-grid, .home-pay[data-fit="2"] .pay-grid { display: contents; }
+  .home-pay[data-fit="1"] .pay-body:not(:has(> .pay-grid)), .home-pay[data-fit="2"] .pay-body:not(:has(> .pay-grid)) { grid-column: 1 / -1; }
+  .home-pay[data-fit="1"] .pay-left, .home-pay[data-fit="2"] .pay-left { grid-column: 1; grid-row: 2; }
+  .home-pay[data-fit="1"] .pay-list, .home-pay[data-fit="2"] .pay-list { grid-column: 2; grid-row: 1 / span 2; max-height: none; overflow: visible; }
+}
+
 @media (prefers-reduced-motion: reduce) { .pay-bars.grow .seg { animation: none; } }
 :root.reduce-motion .pay-bars.grow .seg { animation: none; }

@@ -157,12 +157,13 @@ export function mountPay(root: HTMLElement, api: Backend, subscribe: (cb: () => 
         const b = new Date(sh.ends_at)
         const detail = calcShift(sh, s)
         const tag = sh.is_public_holiday ? `Public holiday ×${s.public_holiday_multiplier}` : perthDay.format(a) === 'Sun' ? `Sunday ×${s.sunday_multiplier}` : ''
-        const meta = [`${fmtHours(ws.hours)}h paid`, detail.breakHours ? '30 min break' : ''].filter(Boolean).join(', ')
+        // The break note is its own span so the compact layouts can drop it and keep the paid hours.
+        const meta = h('span', {}, `${fmtHours(ws.hours)}h paid`, detail.breakHours ? h('span', { class: 'pay-brk' }, ', 30 min break') : null)
         return h('div', { class: 'pay-shift', role: 'listitem' },
           h('div', { class: 'pay-shift-main' },
             h('b', {}, sh.title),
-            h('span', {}, `${fmtDayLong(a)}, ${fmtSpan(a, b)}`),
-            h('span', {}, meta),
+            h('span', { class: 'pay-when' }, `${fmtDayLong(a)}, ${fmtSpan(a, b)}`),
+            meta,
             tag ? h('em', {}, tag) : null),
           h('strong', { class: 'num' }, fmtMoney(ws.pay)))
       }))

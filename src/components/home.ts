@@ -48,6 +48,7 @@ function lastTab(): TabId {
 const TAB_TINT: Record<TabId, string> = { now: '#FF9F0A', study: '#BF5AF2', pay: '#30D158', sixers: SIXERS_BLUE }
 const QUIET = '#C7C7CC' // glow colour when no content has one
 const CHROME = 22 + 44 + 12 + 22 // top padding, tab bar, row gap, bottom padding (matches the demo content)
+const MAX_FIT = 2 // compact layout steps a panel may take before it is allowed to scroll
 const REFRESH_MS = 5 * 60_000
 
 export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
@@ -116,8 +117,16 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   function relayout() {
     const el = made[activeId]
     if (!el) return
-    const ph = el.offsetHeight
     const room = stageH - 4 - CHROME
+    // Start roomy and compact the layout one step at a time until the panel fits, so the island can
+    // spring to the full content height with nothing clipped and nothing to scroll.
+    let fit = 0
+    el.dataset.fit = '0'
+    let ph = el.offsetHeight // layout height: ignores the slide and scale of a tab switch
+    while (ph > room && fit < MAX_FIT) {
+      el.dataset.fit = String(++fit)
+      ph = el.offsetHeight
+    }
     host.style.height = `${Math.min(ph, room)}px`
     host.style.overflowY = ph > room ? 'auto' : 'hidden'
     host.classList.toggle('is-scroll', ph > room)

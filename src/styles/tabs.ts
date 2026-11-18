@@ -1,0 +1,100 @@
+// TabTheme: one entry per tab, so every later card just picks its key (card 15).
+// Every value is copied from the 600 x 290 boards in design/boards/ (Home2, Music, Study3, Pay3, Sixers2, Week, More, Controls).
+// colour = the tab colour (active rail icon, accents). rail = the icon colour while the tab is not open.
+// bg, border and glow are the frame: a tinted gradient, a 1 px tinted border and a soft corner glow. Never remove the glow.
+
+export type TabId = 'home' | 'music' | 'study' | 'pay' | 'sixers' | 'week' | 'more' | 'controls'
+
+export interface TabTheme {
+  id: TabId
+  /** Header title and rail tooltip. */
+  label: string
+  /** Rail aria-label, when it differs from the title. */
+  aria: string
+  colour: string
+  rail: string
+  /** Frame background (a CSS background value) and 1 px border colour. */
+  bg: string
+  border: string
+  /** Frame padding: top right bottom left, in px, as on the board. */
+  pad: [number, number, number, number]
+  /** Primary text colour. */
+  text: string
+  /** Soft corner glow: inline style for the absolutely positioned span. */
+  glow: string
+  /** Extra layers drawn under the content (Music: blurred colour field and a scrim). */
+  layers: string[]
+}
+
+const GLOW_AT = 'position:absolute;pointer-events:none;'
+const corner = (rgb: string, a: number, pos: string, w = 340, h = 230) =>
+  `${GLOW_AT}${pos};width:${w}px;height:${h}px;background:radial-gradient(closest-side,rgba(${rgb},${a}),rgba(${rgb},0))`
+const NEUTRAL_BORDER = 'rgba(255,255,255,0.10)'
+const neutral = (a: string, b: string, c: string) => `linear-gradient(165deg, ${a} 0%, ${b} 55%, ${c} 100%)`
+
+export const TAB_THEMES: Record<TabId, TabTheme> = {
+  home: {
+    id: 'home', label: 'Home', aria: 'Home', colour: '#D39B65', rail: '#F2F2F4',
+    bg: neutral('#33251A', '#211912', '#16110D'), border: 'rgba(211,155,101,0.20)', pad: [10, 16, 12, 16], text: '#F5F5F7',
+    glow: corner('211,155,101', 0.16, 'left:-90px;top:-110px'), layers: [],
+  },
+  music: {
+    id: 'music', label: 'Music', aria: 'Music', colour: '#C9B6F0', rail: '#C9B6F0',
+    bg: '#0E0D14', border: 'rgba(201,182,240,0.22)', pad: [10, 18, 16, 18], text: '#F2F2F4',
+    glow: 'position:absolute;inset:-40px;pointer-events:none;background:radial-gradient(60% 80% at 15% 30%, rgba(108,84,190,0.75), rgba(108,84,190,0) 70%), radial-gradient(55% 75% at 70% 20%, rgba(52,98,170,0.6), rgba(52,98,170,0) 70%), radial-gradient(60% 70% at 85% 90%, rgba(150,70,140,0.45), rgba(150,70,140,0) 70%), #14121E;filter:blur(18px)',
+    layers: ['position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg, rgba(8,8,14,0.35), rgba(8,8,14,0.62))'],
+  },
+  study: {
+    id: 'study', label: 'Study', aria: 'Study', colour: '#B59AE3', rail: '#B59AE3',
+    bg: neutral('#2B2240', '#1E1830', '#15111F'), border: 'rgba(181,154,227,0.20)', pad: [10, 16, 12, 16], text: '#F5F5F7',
+    glow: corner('181,154,227', 0.16, 'left:-90px;top:-110px'), layers: [],
+  },
+  pay: {
+    id: 'pay', label: 'Pay', aria: 'Pay', colour: '#91BDA0', rail: '#91BDA0',
+    bg: neutral('#1F3329', '#17251F', '#101914'), border: 'rgba(145,189,160,0.20)', pad: [10, 16, 12, 16], text: '#F5F5F7',
+    glow: corner('145,189,160', 0.16, 'left:-90px;top:-110px'), layers: [],
+  },
+  sixers: {
+    id: 'sixers', label: 'Sixers', aria: 'Sixers', colour: '#88B5E0', rail: '#88B5E0',
+    bg: neutral('#1D2C3F', '#151E2A', '#10151C'), border: 'rgba(136,181,224,0.18)', pad: [10, 16, 12, 16], text: '#F5F5F7',
+    glow: corner('136,181,224', 0.18, 'left:-80px;top:-90px', 320, 220), layers: [],
+  },
+  week: {
+    id: 'week', label: 'Week', aria: 'Week', colour: '#D8C28C', rail: '#D5D5DC',
+    bg: neutral('#1C1B21', '#141418', '#0F0F12'), border: NEUTRAL_BORDER, pad: [10, 18, 14, 18], text: '#F2F2F4',
+    glow: corner('216,194,140', 0.10, 'left:-90px;top:-110px'), layers: [],
+  },
+  more: {
+    id: 'more', label: 'More', aria: 'More tabs', colour: '#D8C28C', rail: '#B9B9C2',
+    bg: neutral('#1C1B21', '#141418', '#0F0F12'), border: NEUTRAL_BORDER, pad: [10, 16, 12, 16], text: '#F5F5F7',
+    glow: corner('216,194,140', 0.16, 'left:-90px;top:-110px'), layers: [],
+  },
+  controls: {
+    id: 'controls', label: 'Controls', aria: 'Controls', colour: '#D99FB3', rail: '#D99FB3',
+    bg: neutral('#1B1A20', '#141417', '#101012'), border: NEUTRAL_BORDER, pad: [10, 16, 12, 16], text: '#F5F5F7',
+    glow: corner('217,159,179', 0.10, 'right:-90px;top:-100px'), layers: [],
+  },
+}
+
+/** Rail order. `null` is the divider (More and Controls sit after it). */
+export const RAIL: (TabId | null)[] = ['home', 'music', 'study', 'pay', 'sixers', 'week', null, 'more', 'controls']
+export const TAB_IDS: TabId[] = RAIL.filter((t): t is TabId => t !== null)
+
+/** Tabs with a real panel today. Everything else shows "Coming soon" in its own colour. */
+export const BUILT: TabId[] = ['home', 'study', 'pay', 'sixers']
+
+export const isTabId = (v: unknown): v is TabId => typeof v === 'string' && (TAB_IDS as string[]).includes(v)
+/** Accepts the old id: the Home tab used to be called Now. */
+export const parseTab = (v: unknown): TabId | null => (v === 'now' ? 'home' : isTabId(v) ? v : null)
+
+/** Rail icons, drawn on a 24 grid exactly as the boards draw them. */
+export const RAIL_ICONS: Record<TabId, string> = {
+  home: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.5"></rect><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"></rect><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"></rect><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"></rect>',
+  music: '<path d="M9 18V5l11-2v13"></path><circle cx="6.5" cy="18" r="2.5"></circle><circle cx="17.5" cy="16" r="2.5"></circle>',
+  study: '<path d="M12 6c-2-1.5-5-2-8-1.5V19c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V4.5C17 4 14 4.5 12 6z"></path><path d="M12 6v14.5"></path>',
+  pay: '<rect x="3" y="6" width="18" height="14" rx="2.5"></rect><path d="M3 10h18"></path>',
+  sixers: '<circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3v18M5.6 5.6c3 3 3 9.8 0 12.8M18.4 5.6c-3 3-3 9.8 0 12.8"></path>',
+  week: '<rect x="3.5" y="5" width="17" height="15" rx="2.5"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path>',
+  more: '<circle cx="5" cy="12" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="19" cy="12" r="1.6"></circle>',
+  controls: '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle>',
+}

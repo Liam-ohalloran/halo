@@ -16,7 +16,9 @@ import { createStudyTimer } from '../panels/studyTimer'
 import { mountPay } from '../panels/pay'
 import { supabase, supabaseBackend } from '../supabase'
 import { isEmbed } from '../lib/embed'
-import { EmbedShell } from './EmbedShell'
+import { EmbedShell, EmbedSettings } from './EmbedShell'
+import { Shell } from './Shell'
+import { parseTab, type TabId as ShellTabId } from '../styles/tabs'
 import type { Backend } from '../types'
 import { supabaseNowSource, getTravelMinutes, type NowData, type NowSource } from '../lib/now'
 import { perthDayBounds, shiftView, type ShiftView } from '../lib/now-model'
@@ -47,6 +49,15 @@ function lastTab(): TabId {
   try { const v = localStorage.getItem(TAB_KEY); if (isTab(v)) return v } catch { /* private mode */ }
   return 'now'
 }
+// Desktop shell tabs (card 15) are Home, Music, Study, Pay, Sixers, Week, More and Controls. Only Home, Study, Pay and
+// Sixers have panels yet. The phone stack keeps the old ids, so these two map between them.
+const SHELL_KEY = 'halo.shellTab'
+const toPanel = (t: ShellTabId): TabId | null => (t === 'home' ? 'now' : t === 'study' || t === 'pay' || t === 'sixers' ? t : null)
+function startTab(o: { tab?: string }): ShellTabId {
+  let stored: string | null = null
+  try { stored = localStorage.getItem(SHELL_KEY) ?? localStorage.getItem(TAB_KEY) } catch { /* private mode */ }
+  return parseTab(o.tab) ?? parseTab(stored) ?? 'home'
+}
 
 /** Glow colour while a tab is open: colour comes from the content (HALO.md 3.1b). */
 const TAB_TINT: Record<TabId, string> = { now: '#FF9F0A', study: '#BF5AF2', pay: '#30D158', sixers: SIXERS_BLUE }
@@ -76,31 +87,40 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   let game: NbaResponse | null = null // latest Sixers response
   let sixersLive = false // a live or final game: the wide pill shows
   let sixersPill: PillHandle | null = null
-  const shell = embed ? EmbedShell({ onSignOut: () => void supabase.auth.signOut() }) : null
-  const isl: IslandHandle = shell ?? Island({
+  // Desktop and NotchPixel get the 600 x 290 shell (card 15). The island above it only shows the live pills now,
+  // so it no longer opens. Card 17 gives it its full set of states. The phone keeps the island and the swipeable stack.
+  let activeTab: ShellTabId = startTab(o)
+  let panelFor: (id: ShellTabId) => HTMLElement = () => document.createElement('div')
+  let showShellTab: (id: ShellTabId, emitted?: boolean) => void = () => {}
+  const sh = phone ? null : Shell({ active: activeTab, now: clock, onChange: (id) => showShellTab(id, true) })
+  const embedRoot = embed ? EmbedShell() : null
+  const isl: IslandHandle = embedRoot ?? Island({
     initial: 'resting', base: 'resting', stageHeight: stageH, tint: QUIET, label: 'Halo island',
-    hover: !phone && matchMedia('(hover: hover)').matches,
-    toggleOnClick: !phone,
+    hover: !phone && !sh && matchMedia('(hover: hover)').matches,
+    toggleOnClick: !phone && !sh,
     onState: (s) => {
       // The base can only change while the island is closed, otherwise it would collapse under the user.
       applyTint()
       if (s !== 'expanded' && s !== 'alert') queueMicrotask(syncBase)
     },
   })
-  const stage = shell ?? h('div', { class: 'home-stage' }, isl)
+  if (sh && !embedRoot) isl.open = () => {}
+  const stage = embedRoot ?? h('div', { class: 'home-stage' }, isl)
+  if (embedRoot && sh) embedRoot.panelSlot.append(sh.el)
   app.replaceChildren(stage)
+  if (sh && !embedRoot) app.append(h('div', { class: 'home-shell' }, sh.el))
+  const shell = sh // the shell drives layout where the old embedded shell did
 
   // ---- Expanded content: tab bar and one panel per tab
-  let activeId: TabId = isTab(o.tab) ? o.tab : lastTab()
+  let activeId: TabId = toPanel(activeTab) ?? (isTab(o.tab) ? o.tab : lastTab())
   const tabs = TabBar({
-    tabs: HOME_TABS, active: activeId, settings: embed,
-    onSettings: () => shell?.toggleSettings(),
+    tabs: HOME_TABS, active: activeId, settings: false,
     onChange: (id, from) => {
       const ids = tabs.visibleIds()
       showTab(id as TabId, ids.indexOf(id) - ids.indexOf(from ?? id))
     },
   })
-  const host = PanelHost()
+  const host = sh?.host ?? PanelHost()
   // Phone: the tab bar and a scroll-snap row of slides, one panel each, sit in an inset black card under the island.
   const scroller = h('div', { class: 'phone-scroll', role: 'group', 'aria-label': 'Halo panels' })
   const slides = new Map<TabId, HTMLElement>()
@@ -111,7 +131,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
       scroller.append(s)
     }
     stage.after(h('div', { class: 'phone-card' }, tabs, scroller))
-  } else if (shell) { shell.bar.append(tabs); shell.body.append(host) } else isl.setContent('expanded', [tabs, host])
+  }
 
   const timer = createStudyTimer(api, 'Human Biology')
   const studyPill = StudyPill(timer)
@@ -140,7 +160,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   const ro = new ResizeObserver(() => relayout())
   function relayout() {
     if (phone) return // slides scroll on their own, nothing to fit
-    const el = made[activeId]
+    const el = shell ? panelFor(activeTab) : made[activeId]
     if (!el) return
     // Embedded, the panel host fills whatever is left under the tab bar, so the room is the viewport's.
     const room = shell ? host.clientHeight : stageH - 4 - CHROME
@@ -191,7 +211,6 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     ro.disconnect()
     const el = getPanel(id)
     host.show(el, dir)
-    if (shell) { host.style.height = ''; ro.observe(host) } // the host fills the viewport, resizing it re-fits the panel
     ro.observe(el)
     relayout()
     applyTint()
@@ -201,7 +220,31 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     scroller.addEventListener('scroll', onSwipe, { passive: true })
     requestAnimationFrame(() => phoneShow(activeId, false))
   }
-  showTab(activeId, 0)
+  // Desktop and embed: the shell shows the panel for the active tab. Tabs without a panel yet show "Coming soon".
+  panelFor = (id) => {
+    const p = toPanel(id)
+    if (p) return getPanel(p)
+    const soon = sh!.soon(id)
+    // Embedded, the top padding and sign out used to sit behind a gear. They live on More until card 23.
+    if (id === 'more' && embed && !soon.querySelector('.embed-set')) soon.append(EmbedSettings({ onSignOut: () => void supabase.auth.signOut() }))
+    return soon
+  }
+  showShellTab = (id, fromShell = false) => {
+    activeTab = id
+    const p = toPanel(id)
+    if (p) activeId = p
+    try { localStorage.setItem(SHELL_KEY, id) } catch { /* private mode */ }
+    if (!fromShell) sh!.setActive(id)
+    ro.disconnect()
+    const el = panelFor(id)
+    host.show(el)
+    ro.observe(host) // the host has a fixed size, resizing it re-fits the panel
+    ro.observe(el)
+    relayout()
+    applyTint()
+  }
+  if (sh) showShellTab(activeTab, true)
+  else showTab(activeId, 0)
   void document.fonts?.ready.then(relayout)
   void preloadIcons(['house', 'briefcase', 'exam', 'book-open', 'wallet', 'check', 'warning-circle', 'wifi-slash', 'arrow-clockwise', 'caret-left', 'caret-right', ...STUDY_ICONS], ['regular', 'fill'])
 
@@ -322,6 +365,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
       // The shift finished, or midnight passed in Perth: today's rows and the "next" shift have moved on.
       if (now.getTime() >= endsAt || perthDayBounds(now).from.getTime() !== loadedDay) { void refresh(); return }
       nowPanel.tick(now, getTravelMinutes())
+      sh?.refreshMeta()
       syncIsland(now)
     }
   }

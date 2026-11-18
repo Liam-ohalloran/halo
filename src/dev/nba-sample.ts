@@ -1,4 +1,4 @@
-// Dev only: sample NBA JSON (same shape as cdn.nba.com, see tests/fixtures/nba) run through the real parser,
+// Dev only: sample JSON (ESPN's shape, see tests/fixtures/nba) run through the real parser,
 // so the pages show exactly what the edge function would return.
 import { buildResponse, type NbaResponse, type RawSchedule } from '../../supabase/functions/nba/parse'
 import live from '../../tests/fixtures/nba/scoreboard-live.json'
@@ -13,11 +13,12 @@ import boxFinal from '../../tests/fixtures/nba/boxscore-final-win.json'
 export const SAMPLE_KEYS = ['live', 'halftime', 'overtime', 'final-win', 'final-loss', 'next', 'none'] as const
 export type SampleKey = (typeof SAMPLE_KEYS)[number]
 
-const team = (tri: string, name: string, city: string) => ({ teamId: 1, teamName: name, teamCity: city, teamTricode: tri })
+const team = (abbreviation: string, name: string) => ({ abbreviation, name, shortDisplayName: name })
+const comp = (homeAway: 'home' | 'away', t: ReturnType<typeof team>) => ({ homeAway, team: t })
 /** A schedule whose next Sixers game is `ahead` ms from now, so the countdown always has something to show. */
 function scheduleAhead(ahead: number, now: Date): RawSchedule {
-  const at = new Date(now.getTime() + ahead).toISOString()
-  return { leagueSchedule: { gameDates: [{ gameDate: '', games: [{ gameId: 'next', gameDateTimeUTC: at, homeTeam: team('PHI', '76ers', 'Philadelphia'), awayTeam: team('CHI', 'Bulls', 'Chicago') }] }] } }
+  const date = new Date(now.getTime() + ahead).toISOString()
+  return { events: [{ id: 'next', date, competitions: [{ competitors: [comp('home', team('PHI', '76ers')), comp('away', team('CHI', 'Bulls'))] }] }] }
 }
 
 export function sample(key: SampleKey, now = new Date()): NbaResponse {

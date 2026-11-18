@@ -1,20 +1,25 @@
-// Run with: npm test. Parses sample NBA JSON (same shape as cdn.nba.com, see tests/fixtures/nba).
+// Run with: npm test. Parses sample NBA JSON (ESPN's shape, see tests/fixtures/nba).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { buildResponse, findSixersGame, maxeyFromBox, nextGame, parseClock, periodLabel } from '../supabase/functions/nba/parse.ts'
+import { buildResponse, findSixersGame, maxeyFromBox, nbaTri, nextGame, parseClock, periodLabel } from '../supabase/functions/nba/parse.ts'
 
 const fx = (name: string) => JSON.parse(readFileSync(new URL(`./fixtures/nba/${name}.json`, import.meta.url), 'utf8'))
 // Wed 18 Nov 2026, 9:00 pm Perth.
 const NOW = new Date('2026-11-18T13:00:00Z')
 
 test('parseClock', () => {
-  assert.equal(parseClock('PT03M12.00S'), '3:12')
-  assert.equal(parseClock('PT11M59.90S'), '11:59')
-  assert.equal(parseClock('PT00M45.30S'), '0:45')
-  assert.equal(parseClock('PT00M00.00S'), '')
+  assert.equal(parseClock('3:12'), '3:12')
+  assert.equal(parseClock('12:00'), '12:00')
+  assert.equal(parseClock('3:12.4'), '3:12')
+  assert.equal(parseClock('45.3'), '0:45')
+  assert.equal(parseClock('0.0'), '')
   assert.equal(parseClock(''), '')
   assert.equal(parseClock(undefined), '')
+})
+
+test('ESPN abbreviations map to NBA codes', () => {
+  assert.deepEqual(['NY', 'SA', 'GS', 'NO', 'UTAH', 'WSH', 'BOS'].map(nbaTri), ['NYK', 'SAS', 'GSW', 'NOP', 'UTA', 'WAS', 'BOS'])
 })
 
 test('periodLabel', () => {
@@ -26,6 +31,8 @@ test('live game: Sixers on the left, Q4 3:12, Maxey line', () => {
   assert.equal(r.state, 'live')
   assert.equal(r.game?.statusText, 'Q4 3:12')
   assert.equal(r.game?.home, true)
+  assert.equal(r.game?.sixers.record, '9-5')
+  assert.equal(r.game?.opponent.name, 'Celtics')
   assert.equal(`${r.game?.sixers.tri} ${r.game?.sixers.score}`, 'PHI 98')
   assert.equal(`${r.game?.opponent.score} ${r.game?.opponent.tri}`, '94 BOS')
   assert.deepEqual(r.maxey, { points: 28, rebounds: 5, assists: 7 })
@@ -34,8 +41,9 @@ test('live game: Sixers on the left, Q4 3:12, Maxey line', () => {
 
 test('away game: the Sixers still come first', () => {
   const sb = fx('scoreboard-live')
-  const g = sb.scoreboard.games[1]
-  ;[g.homeTeam, g.awayTeam] = [g.awayTeam, g.homeTeam]
+  const cs = sb.events[2].competitions[0].competitors
+  cs[0].homeAway = 'away'; cs[1].homeAway = 'home'
+  cs.reverse()
   const game = findSixersGame(sb)
   assert.equal(game?.home, false)
   assert.equal(game?.sixers.tri, 'PHI')
@@ -62,7 +70,7 @@ test('today scheduled game becomes the next game, no Maxey line', () => {
   const r = buildResponse(fx('scoreboard-today-scheduled'), null, fx('schedule'), NOW)
   assert.equal(r.state, 'scheduled')
   assert.equal(r.maxey, null)
-  assert.equal(r.next?.startsAt, '2026-11-19T00:30:00Z')
+  assert.equal(r.next?.startsAt, '2026-11-19T00:00:00.000Z')
   assert.equal(r.next?.opponent.tri, 'BOS')
   assert.equal(r.next?.home, true)
 })
@@ -72,7 +80,7 @@ test('no game today: state none, next game from the schedule', () => {
   assert.equal(r.state, 'none')
   assert.equal(r.game, null)
   assert.equal(r.next?.opponent.tri, 'CHI')
-  assert.equal(r.next?.startsAt, '2026-11-21T00:30:00Z')
+  assert.equal(r.next?.startsAt, '2026-11-21T00:30:00.000Z')
 })
 
 test('nextGame skips past games, picks the earliest Sixers game, away games read as away', () => {
@@ -86,7 +94,11 @@ test('nextGame skips past games, picks the earliest Sixers game, away games read
 test('missing or odd data does not throw', () => {
   assert.equal(findSixersGame(null), null)
   assert.equal(maxeyFromBox(null), null)
-  assert.equal(maxeyFromBox({ game: { homeTeam: { players: [] }, awayTeam: { players: [] } } }), null)
+  assert.equal(maxeyFromBox({ boxscore: { players: [] } }), null)
+  // Listed but did not play: empty stats.
+  const dnp = fx('boxscore-live')
+  dnp.boxscore.players[0].statistics[0].athletes[0].stats = []
+  assert.equal(maxeyFromBox(dnp), null)
   const r = buildResponse(null, null, null, NOW)
   assert.equal(r.state, 'none')
   assert.equal(r.next, null)

@@ -1,37 +1,73 @@
 {
- "meta": {
-  "version": 1
+ "day": {
+  "date": "2026-11-18"
  },
- "scoreboard": {
-  "gameDate": "2026-11-18",
-  "leagueId": "00",
-  "games": [
-   {
-    "gameId": "0022600202",
-    "gameStatus": 2,
-    "gameStatusText": "Halftime",
+ "events": [
+  {
+   "id": "401900002",
+   "date": "2026-11-19T00:00Z",
+   "status": {
+    "clock": 0,
+    "displayClock": "0.0",
     "period": 2,
-    "gameClock": "",
-    "gameTimeUTC": "2026-11-19T00:00:00Z",
-    "homeTeam": {
-     "teamId": 1,
-     "teamName": "76ers",
-     "teamCity": "Philadelphia",
-     "teamTricode": "PHI",
-     "wins": 9,
-     "losses": 5,
-     "score": 55
-    },
-    "awayTeam": {
-     "teamId": 1,
-     "teamName": "Celtics",
-     "teamCity": "Boston",
-     "teamTricode": "BOS",
-     "wins": 11,
-     "losses": 4,
-     "score": 51
+    "type": {
+     "state": "in",
+     "detail": "Halftime",
+     "name": "X"
     }
-   }
-  ]
- }
+   },
+   "competitions": [
+    {
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "55",
+       "records": [
+        {
+         "name": "overall",
+         "type": "total",
+         "summary": "9-5"
+        },
+        {
+         "name": "Home",
+         "type": "home",
+         "summary": "1-1"
+        }
+       ],
+       "team": {
+        "id": "1",
+        "abbreviation": "PHI",
+        "name": "76ers",
+        "shortDisplayName": "76ers",
+        "displayName": "Philadelphia 76ers"
+       }
+      },
+      {
+       "homeAway": "away",
+       "score": "51",
+       "records": [
+        {
+         "name": "overall",
+         "type": "total",
+         "summary": "11-4"
+        },
+        {
+         "name": "Home",
+         "type": "home",
+         "summary": "1-1"
+        }
+       ],
+       "team": {
+        "id": "1",
+        "abbreviation": "BOS",
+        "name": "Celtics",
+        "shortDisplayName": "Celtics",
+        "displayName": "Boston Celtics"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
 }

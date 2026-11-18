@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Halo Sixers</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+a{color:inherit;text-decoration:none}
+a:hover{color:#fff}
+.num{font-variant-numeric:tabular-nums}
+</style>
+</helmet>
+<div style="width: 684px; height: 453px; box-sizing: border-box; padding: 18px 24px 20px; background: #000; color: #fff; font-family: 'Onest', system-ui, sans-serif; position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 12px">
+  <div aria-hidden="true" style="position: absolute; left: -60px; top: 50px; width: 380px; height: 300px; background: radial-gradient(closest-side, rgba(76,141,255,0.24), rgba(76,141,255,0.06) 55%, rgba(76,141,255,0) 100%); pointer-events: none"></div>
+  <div aria-hidden="true" style="position: absolute; right: -60px; top: 50px; width: 380px; height: 300px; background: radial-gradient(closest-side, rgba(0,119,192,0.22), rgba(0,119,192,0.05) 55%, rgba(0,119,192,0) 100%); pointer-events: none"></div>
+
+  <nav aria-label="Halo tabs" style="display: flex; align-items: center; gap: 6px; height: 40px; position: relative">
+    <a href="Main.dc.html" aria-label="Now" style="width: 44px; height: 40px; display: flex; align-items: center; justify-content: center; color: rgba(235,235,245,0.6)">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z"></path></svg>
+    </a>
+    <a href="#" aria-label="Music" style="width: 44px; height: 40px; display: flex; align-items: center; justify-content: center; color: rgba(235,235,245,0.6)">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l11-2v13"></path><circle cx="6.5" cy="18" r="2.5"></circle><circle cx="17.5" cy="16" r="2.5"></circle></svg>
+    </a>
+    <a href="Study.dc.html" aria-label="Study" style="width: 44px; height: 40px; display: flex; align-items: center; justify-content: center; color: rgba(235,235,245,0.6)">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6c-2-1.5-5-2-8-1.5V19c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V4.5C17 4 14 4.5 12 6z"></path><path d="M12 6v14.5"></path></svg>
+    </a>
+    <a href="Pay.dc.html" aria-label="Pay" style="width: 44px; height: 40px; display: flex; align-items: center; justify-content: center; color: rgba(235,235,245,0.6)">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2.5"></rect><path d="M3 10h18"></path><path d="M15.5 15h2.5"></path></svg>
+    </a>
+    <a href="Sixers.dc.html" aria-label="Sixers" style="width: 44px; height: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: #fff">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff" stroke="#000" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"></circle><path d="M3 12h18M12 3v18M5.6 5.6c3 3 3 9.8 0 12.8M18.4 5.6c-3 3-3 9.8 0 12.8" fill="none"></path></svg>
+      <span style="width: 4px; height: 4px; border-radius: 2px; background: #fff"></span>
+    </a>
+    <div style="flex-grow: 1"></div>
+    <div role="group" aria-label="Preview state" style="display: flex; padding: 3px; border-radius: 18px; background: rgba(255,255,255,0.08)">
+      <button type="button" onClick="{{showNext}}" aria-pressed="{{nextPressed}}" style="height: 30px; padding: 0 12px; border: 0; border-radius: 15px; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; background: {{nextBg}}; color: {{nextFg}}">Next game</button>
+      <button type="button" onClick="{{showLive}}" aria-pressed="{{livePressed}}" style="height: 30px; padding: 0 12px; border: 0; border-radius: 15px; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; background: {{liveBg}}; color: {{liveFg}}">Live</button>
+    </div>
+  </nav>
+
+  <sc-if value="{{isNext}}" hint-placeholder-val="{{ true }}">
+    <section aria-label="Next game" style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; position: relative">
+      <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #7FB0FF">NEXT GAME</div>
+      <div style="display: flex; align-items: center; gap: 28px">
+        <div style="display: flex; align-items: center; gap: 10px"><span style="width: 10px; height: 10px; border-radius: 5px; background: #ED174C"></span><span style="font-size: 56px; font-weight: 800; letter-spacing: -0.02em; line-height: 1">PHI</span></div>
+        <span style="font-size: 17px; font-weight: 600; color: rgba(235,235,245,0.6)">at</span>
+        <div style="display: flex; align-items: center; gap: 10px"><span style="font-size: 56px; font-weight: 800; letter-spacing: -0.02em; line-height: 1">ORL</span><span style="width: 10px; height: 10px; border-radius: 5px; background: #0077C0"></span></div>
+      </div>
+      <div class="num" style="font-size: 28px; font-weight: 700; color: #7FB0FF; margin-top: 6px">Tip off in 9h 46m</div>
+      <div style="font-size: 15px; font-weight: 500; color: rgba(235,235,245,0.6)">Thu 19 Nov, 8:00 am Perth time</div>
+    </section>
+  </sc-if>
+  <sc-if value="{{isLive}}" hint-placeholder-val="{{ false }}">
+    <section aria-label="Live game, example score" style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; position: relative">
+      <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700"><span style="width: 8px; height: 8px; border-radius: 4px; background: #FF453A"></span><span class="num">Q4 3:12</span><span style="color: rgba(235,235,245,0.6); font-weight: 600">example score</span></div>
+      <div style="display: flex; align-items: center; gap: 40px">
+        <div style="text-align: center"><div style="font-size: 15px; font-weight: 700; color: rgba(235,235,245,0.6)">PHI</div><div class="num" style="font-size: 72px; font-weight: 800; line-height: 1; letter-spacing: -0.03em">98</div></div>
+        <div style="width: 1px; height: 64px; background: rgba(255,255,255,0.16)"></div>
+        <div style="text-align: center"><div style="font-size: 15px; font-weight: 700; color: rgba(235,235,245,0.6)">ORL</div><div class="num" style="font-size: 72px; font-weight: 800; line-height: 1; letter-spacing: -0.03em; color: rgba(235,235,245,0.6)">94</div></div>
+      </div>
+    </section>
+  </sc-if>
+
+  <section aria-label="Maxey tracker" style="background: rgba(255,255,255,0.08); border-radius: 22px; padding: 14px 20px; display: flex; align-items: center; gap: 20px; position: relative">
+    <div style="flex-grow: 1">
+      <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: rgba(235,235,245,0.6)">MAXEY</div>
+      <div style="font-size: 13px; font-weight: 600; color: rgba(235,235,245,0.6); margin-top: 4px">{{maxeyNote}}</div>
+    </div>
+    <div class="num" style="display: flex; gap: 22px; text-align: center">
+      <div><div style="font-size: 28px; font-weight: 700; line-height: 1">{{pts}}</div><div style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: rgba(235,235,245,0.6); margin-top: 4px">PTS</div></div>
+      <div><div style="font-size: 28px; font-weight: 700; line-height: 1">{{reb}}</div><div style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: rgba(235,235,245,0.6); margin-top: 4px">REB</div></div>
+      <div><div style="font-size: 28px; font-weight: 700; line-height: 1">{{ast}}</div><div style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: rgba(235,235,245,0.6); margin-top: 4px">AST</div></div>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":684,"height":453}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { live: false }; }
+  renderVals() {
+    const live = this.state.live;
+    const on = { bg: '#fff', fg: '#000' };
+    const off = { bg: 'rgba(255,255,255,0)', fg: 'rgba(235,235,245,0.6)' };
+    return {
+      isLive: live,
+      isNext: !live,
+      nextBg: live ? off.bg : on.bg, nextFg: live ? off.fg : on.fg, nextPressed: live ? 'false' : 'true',
+      liveBg: live ? on.bg : off.bg, liveFg: live ? on.fg : off.fg, livePressed: live ? 'true' : 'false',
+      showNext: () => this.setState({ live: false }),
+      showLive: () => this.setState({ live: true }),
+      maxeyNote: live ? 'Live line, example numbers' : 'His line shows here once the game is live',
+      pts: live ? '27' : '–', reb: live ? '4' : '–', ast: live ? '6' : '–'
+    };
+  }
+}
+</script>
+</body>
+</html>

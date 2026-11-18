@@ -92,7 +92,7 @@ Add a `/components` page showing each one, and the `/motion` page from HALO.md 3
 **Done when**
 - [ ] Liam can sign in on laptop and phone
 - [ ] Seed data shows in Supabase table editor
-- [ ] No secret keys anywhere in the repo (a `git grep -i` for the service role key's name returns nothing)
+- [ ] No secret keys anywhere in the repo (`git grep -i "service_role"` returns nothing)
 
 ---
 
@@ -191,8 +191,235 @@ Add a `/components` page showing each one, and the `/motion` page from HALO.md 3
 
 ---
 
+## Card 12 · Halo helper
+**Model:** Sonnet · **Size:** medium · **Runs on Liam's laptop** (open Claude Code in the halo folder on the laptop)
+
+**Goal:** the helper from HALO.md 2b, running on the laptop and answering Halo.
+
+**Build** in `helper/`:
+1. `requirements.txt`, `halo_helper.py`, `README.md`. Python 3.12 venv in `helper/.venv` (git ignored).
+2. Everything in HALO.md 2b: localhost only, CORS list, Private Network Access header, token in `%APPDATA%\HaloHelper\token.txt`, all endpoints.
+3. Media uses Windows' system media controls (`winsdk` GlobalSystemMediaTransportControlsSessionManager): title, artist, album, source app, playing, position, duration, art (as PNG at `/media/art`). Works with Spotify, browsers, anything.
+4. `/events` streams changes so Halo doesn't need to poll fast.
+5. Tray icon with "Copy pairing token" and "Quit".
+6. `helper/install.ps1`: creates the venv, installs requirements, registers a Task Scheduler task to start at logon, starts it now. `helper/uninstall.ps1` removes the task.
+7. Tests: `pytest` for the token check and CORS headers.
+
+**Done when**
+- [ ] `install.ps1` runs clean and the tray icon appears
+- [ ] `curl.exe -H "X-Halo-Token: <token>" http://127.0.0.1:47800/media` shows the song playing in Spotify
+- [ ] A request without the token gets 401
+- [ ] Liam knows how to copy the token (tray icon)
+
+---
+
+## Card 13 · Music tab
+**Model:** Sonnet · **Size:** medium · **Needs:** card 12 · **REVIEW WITH OPUS**
+
+**Goal:** the Music tab, matching the "Music · final style" board.
+
+**Build:**
+1. `src/lib/helper.ts`: typed client for the helper (base URL, token from localStorage, `getMedia()`, `control(action)`, `seek(sec)`, `getVolume()`, `setVolume(n)`, `subscribe(onEvent)` over `/events` with reconnect).
+2. Settings: "Pair helper" field to paste the token, with a Test button showing Connected or the plain reason it failed.
+3. Music tab per HALO.md 3.1c at 600 × 290: blurred album art background with an adaptive scrim (text 4.5:1), art 96 px radius 20 with source badge, title 21/600 with slow marquee for long titles, artist 15/500 at 62% white, previous / play-pause / next, wave progress (flat when paused) with elapsed and remaining in tabular 13/600, volume slider.
+4. Compact pill when something is playing: art 26 px left, visualiser bars tinted with the art colour right.
+5. States: nothing playing, helper not running ("Start Halo helper on your laptop" + retry), on the phone ("Music controls work on your laptop").
+6. Add Music to the tab bar in the order Home, Music, Study, Pay, Sixers, | Controls.
+
+**Done when**
+- [ ] Play, pause, next, previous and seek control real Spotify from Halo inside NotchPixel
+- [ ] Art, title and progress update within a second of a track change
+- [ ] All three states render cleanly
+- [ ] Screenshots at 600 × 290 and 390 × 844 saved; bring them to Opus
+
+---
+
+## Card 14 · Controls tab
+**Model:** Sonnet · **Size:** medium · **Needs:** card 12
+
+**Goal:** the Controls tab, matching the "Controls · final style" board, working through the helper.
+
+**Build:**
+1. Brightness and volume pill sliders (drag and scroll), percentage on top, NumberRoll.
+2. Tiles: Wi-Fi, Bluetooth (shows the connected device name), Night light and Focus (disabled, "Not available yet"), Mute, Battery (percent, charging, time left). Tap toggles with optimistic UI that rolls back if the helper says no.
+3. Power mode segmented control (Battery, Balanced, Performance).
+4. Same helper not running / phone states as card 13.
+
+**Done when**
+- [ ] Each working tile changes the real setting and reflects changes made outside Halo within 2 seconds
+- [ ] Screenshots saved
+
+---
+
+## Shared rules for cards 15 to 23 (the 600 × 290 redesign)
+- The designs are in `design/boards/` (drop in from Opus). Open the matching `.dc.html` file in a browser and copy it exactly: sizes, colours, radii, spacing. Ignore `support.js` and the `{{ }}` holes, they are canvas tooling only.
+- Window 600 × 290, radius 26. Background is the tab's colour as a tinted gradient plus a soft corner glow. Never remove the glow.
+- Text: primary #F5F5F7, label rgba(245,245,247,0.85), meta rgba(245,245,247,0.5). `font-variant-numeric: tabular-nums` on every number. Font Onest.
+- Cards: radius 12, 1 px border tinted with the tab colour, soft radial tint inside.
+- Tab colours: amber #D39B65 (Home, Alerts, Laptop), violet #B59AE3 (Study, Night, Claude), sage #91BDA0 (Pay, Money), cyan #8FCFE0 (Marks, Shelf, Widgets), sky #88B5E0 (Sixers), gold #D8C28C (milestones, unread), rose #D99FB3 (Controls, warnings).
+- No em dashes, hyphens used as dashes or semicolons in on-screen copy.
+- Keep every existing feature and data source working. This is a restyle unless the card says new.
+- Respect `prefers-reduced-motion`. Every button gets hover, active and focus-visible states.
+- Done means: Playwright screenshots at 600 × 290 of every state in `screenshots/card-NN/`, no text overflow or wrapping that the board doesn't show, PR opened, not merged.
+
+---
+
+## Card 15 · Shell and nav at 600 × 290
+**Model:** Sonnet · **Size:** medium · **Needs:** nothing · **Board:** any compact tab board (Home2.dc.html is the reference)
+
+**Goal:** the panel frame every tab sits in, at the new size.
+
+**Build:**
+1. Panel 600 × 290, radius 26, padding and header exactly as Home2. The header has the tab title on the left and the time or chip on the right.
+2. Icon nav rail in this order: Home, Music, Study, Pay, Sixers, Week, a divider, More, Controls. The active icon uses the tab colour. Tabs not built yet show an empty panel with the right colour and the text "Coming soon".
+3. A `TabTheme` token map (colour, glow, label) in `src/styles/tabs.ts` so every later card just picks its key.
+4. Switching tabs crossfades in 180 ms and must not freeze (the old opacity 0 bug stays fixed).
+5. `?embed=1` still hides everything except the panel.
+
+**Done when**
+- [ ] All tabs reachable, each with its own tint and glow
+- [ ] Screenshot of each tab shell
+
+---
+
+## Card 16 · Home, Pay and Study restyle
+**Model:** Sonnet · **Size:** medium · **Needs:** 15 · **Boards:** Home2, Pay3, Study3
+
+**Goal:** the three main tabs redone to match their boards, with the same live data as now.
+
+**Build:**
+1. Home: next shift card, today's tasks, coming up list, exactly as Home2. Times never wrap ("10 pm", "Sun 10:00").
+2. Pay: this week total big, shift list chips (nowrap), weekday and weekend split, as Pay3.
+3. Study: timer ring, subject chips, next test card, as Study3. Subject colours as now.
+
+**Done when**
+- [ ] Real Supabase data shows in all three
+- [ ] Empty states styled (no shifts, no tasks, no tests)
+- [ ] Screenshots of each, filled and empty
+
+---
+
+## Card 17 · Island idle and live states
+**Model:** Sonnet · **Size:** medium · **Needs:** 15 · **Board:** IslandLive.dc.html
+
+**Goal:** the island itself, resting and showing one live thing at a time.
+
+**Build:**
+1. Sizes: idle 200 × 34 r17, compact 300 × 40 r20, wide 400 × 40 r20. Ears drawn with `::before` and `::after` radial masks exactly like the board. Never put `overflow: hidden` on the element with the ears, clip an inner wrapper instead.
+2. States, highest priority wins: Leave now, Live game, Study timer, Shift soon (within 2 hours), Music, Charging (3 seconds on plug in), Idle with unread (gold dot), Idle.
+3. Each state has a thin bottom key line and a soft glow in its colour, as the board shows.
+4. Size changes animate width, height and radius over 380 ms with `cubic-bezier(0.4, 0, 0.2, 1)`. Content fades in after the size settles.
+5. Music and Charging come from the helper and just stay hidden if it isn't running. Live game comes from the `nba` function.
+6. A `/island` dev page with buttons to force each state.
+
+**Done when**
+- [ ] Every state on `/island`, screenshots of each
+- [ ] Priority order unit tested
+
+---
+
+## Card 18 · Notification banners and the alert animation
+**Model:** Sonnet · **Size:** medium · **Needs:** 17, 20 · **Boards:** IslandAlerts.dc.html, IslandDemo.dc.html
+
+**Goal:** the island grows into a 520 × 84 banner for an alert, then settles back.
+
+**Build:**
+1. Banner 520 × 84, radius 34: icon tile 44 round on the left, title and body (both single line, ellipsis), time top right, optional action button.
+2. Eight types with their colours and icons from the board: shift cover, leave reminder, new mark, call, Sixers final, battery low, task done, focus done.
+3. Animation: open over 520 ms with `cubic-bezier(0.34, 1.45, 0.5, 1)`, content fades in after 0.22 s, holds 4 s (hovering pauses the timer), closes over 380 ms back to whatever live state was showing.
+4. A queue: one banner at a time, the next one waits.
+5. Banners are fed from the `alerts` table (card 20) through Supabase realtime.
+6. Actions only open things (a link, a tab) or snooze. Never post, reply or submit anything anywhere. "Open Blink" just opens Blink.
+7. Add every type to `/island` with a "Play" button.
+
+**Done when**
+- [ ] A row inserted into `alerts` shows a banner within 2 seconds
+- [ ] Screenshots of all 8 types, plus a short screen recording of one playing
+
+---
+
+## Card 19 · Week tab
+**Model:** Sonnet · **Size:** medium · **Needs:** 15 · **Board:** Week.dc.html
+
+**Goal:** the next 7 days at a glance.
+
+**Build:**
+1. Seven day columns as the board: shifts, tests and events from the existing Supabase tables (the TickTick sync).
+2. Today highlighted, tests use the subject colour, shifts amber.
+3. Titles may wrap to two lines, never truncate mid word.
+
+**Done when**
+- [ ] Matches the board with real data
+- [ ] Screenshots of a busy week and an empty week
+
+---
+
+## Card 20 · Alerts tab and `alerts` table
+**Model:** Sonnet · **Size:** medium · **Needs:** 15 · **Board:** Alerts.dc.html
+
+**Goal:** one place where every alert lands, and the table the banners read.
+
+**Build:**
+1. Migration: table `alerts` (id, user_id, type, title, body, action_label, action_url, created_at, read_at) with RLS so a user only sees their own rows. Enable realtime on it.
+2. The tab lists alerts newest first, unread with a gold dot, tap marks read. "Mark all read".
+3. The island's unread dot (card 17) reads the unread count from here.
+4. Write `docs/alerts.md` explaining how a scheduled task inserts a row (the insert uses the service role key in the scheduled task only, never in the repo or frontend).
+
+**Done when**
+- [ ] RLS tested with two users
+- [ ] Screenshots of the tab with and without alerts
+
+---
+
+## Card 21 · Money and Marks tabs
+**Model:** Sonnet · **Size:** medium · **Needs:** 15 · **Boards:** Money.dc.html, Marks.dc.html
+
+**Goal:** two new tabs.
+
+**Build:**
+1. Money: earned this month and this year from the shifts data and the pay rules in HALO.md section 4, plus a savings goal (name, target, saved so far) stored in a new `goals` table with RLS, editable in the tab.
+2. Marks: a `marks` table (subject, assessment, score, out_of, weighting, date) with RLS. Manual entry form in the tab. Shows each subject's running average in its colour and the latest results list. No scraping SEQTA.
+
+**Done when**
+- [ ] Both work with real rows
+- [ ] Screenshots, filled and empty
+
+---
+
+## Card 22 · Claude, Shelf and Widgets tabs
+**Model:** Sonnet · **Size:** medium · **Needs:** 15 · **Boards:** Claude.dc.html, Shelf.dc.html, Widgets.dc.html
+
+**Goal:** three new tabs.
+
+**Build:**
+1. Claude: quick launch buttons (open claude.ai, open Claude Code docs) and a "Recent tasks" list read from a new `task_runs` table (name, status, finished_at, summary) with RLS that scheduled tasks can insert into. No API key anywhere in the frontend.
+2. Shelf: drop files, links or text. Files go to a private Supabase Storage bucket `shelf`, metadata in a `shelf_items` table, both with RLS. Tap to open or copy, swipe or button to delete.
+3. Widgets: Perth weather from Open-Meteo (free, no key), a clock, and countdowns stored in a `countdowns` table (for example Doomsday on 18 Dec).
+
+**Done when**
+- [ ] Shelf works between laptop and phone
+- [ ] Screenshots of all three
+
+---
+
+## Card 23 · Night, Laptop, More and tab order
+**Model:** Sonnet · **Size:** medium · **Needs:** 15, 12 · **Boards:** Night.dc.html, Laptop.dc.html, More.dc.html
+
+**Goal:** the last three tabs plus hiding and reordering.
+
+**Build:**
+1. Night: tomorrow's first event and shift, a suggested bedtime, and a Night mode switch (role="switch") that dims the whole UI and mutes banners except leave reminders. Saved per device.
+2. Laptop: battery health, storage, uptime from a new helper endpoint `GET /system` (add it to the helper with psutil, same token rules). Static warranty card: depot warranty until February 2027. Shows "Helper not running" when it's off.
+3. More: a launcher grid of every tab. Long press or an Edit button lets you hide tabs and drag to reorder. At most 8 visible in the rail. Saved in a `settings` row in Supabase so the phone matches.
+
+**Done when**
+- [ ] Hidden and reordered tabs stay that way after reload on both devices
+- [ ] Screenshots of all three
+
+---
+
 ## Backlog (Opus writes these cards later, don't start them)
 - Claude edge function + Ask Claude, snip to Claude, explain selection, clipboard actions, draft in your voice
 - Morning hello, morning briefing, Sunday recap, monthly wrap
 - Phone remote and file sharing through `commands`
-- v2: Tauri island app, HUDs, system controls, NotchPixel parity
+- v2: Tauri island app, HUDs, NotchPixel parity

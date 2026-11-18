@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Halo alert animation</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0B0B0D;font-variant-numeric:tabular-nums}
+.isl{position:relative;background:#000;box-sizing:border-box;color:#F5F5F7}
+.isl::before,.isl::after{content:"";position:absolute;top:0;width:12px;height:12px}
+.isl::before{left:-12px;background:radial-gradient(circle at 0 100%,rgba(0,0,0,0) 11.5px,#000 12px)}
+.isl::after{right:-12px;background:radial-gradient(circle at 100% 100%,rgba(0,0,0,0) 11.5px,#000 12px)}
+.btn{transition:transform .12s ease,filter .15s ease}
+.btn:hover{filter:brightness(1.1)}
+.btn:active{transform:scale(0.96)}
+.btn:focus-visible{outline:2px solid #D8C28C;outline-offset:2px}
+@keyframes eq{0%,100%{transform:scaleY(.35)}50%{transform:scaleY(1)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.eq span{display:inline-block;width:3px;border-radius:2px;transform-origin:bottom;animation:eq 1s ease-in-out infinite}
+.live{animation:pulse 1.4s ease-in-out infinite}
+@media (prefers-reduced-motion: reduce){.eq span,.live{animation:none}}
+</style>
+</helmet>
+<div style="width: 760px; height: 300px; box-sizing: border-box; padding: 20px 24px; color: #F5F5F7; font-family: 'Onest', system-ui, sans-serif; display: flex; flex-direction: column; gap: 14px">
+  <div style="position: relative; flex-grow: 1; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: radial-gradient(ellipse 560px 160px at 50% 0, {{glow}}, rgba(0,0,0,0) 100%), linear-gradient(180deg, #17171C, #111115); display: flex; justify-content: center; transition: background .5s ease">
+    <div class="isl" style="width: {{w}}px; height: {{h}}px; border-radius: 0 0 {{r}}px {{r}}px; box-shadow: inset 0 -1px 0 {{key}}; transition: width {{dur}} {{ease}}, height {{dur}} {{ease}}, border-radius {{dur}} {{ease}}; "><div style="width: 100%; height: 100%; border-radius: inherit; overflow: hidden; display: flex; align-items: center; padding: 0 20px; gap: 14px; box-sizing: border-box">
+      <span style="width: 44px; height: 44px; border-radius: 22px; background: rgba(211,155,101,0.18); display: flex; align-items: center; justify-content: center; flex-shrink: 0; opacity: {{op}}; transform: scale({{sc}}); transition: opacity .25s ease {{delay}}, transform .35s ease {{delay}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D39B65" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18zM12 7v5l3 2"></path></svg></span>
+      <span style="flex-grow: 1; min-width: 0; white-space: nowrap; opacity: {{op}}; transform: translateY({{ty}}); transition: opacity .25s ease {{delay}}, transform .35s ease {{delay}}"><span style="display: block; font-size: 15px; font-weight: 600">Leave in 10 minutes</span><span style="display: block; font-size: 13px; color: rgba(245,245,247,0.7)">PI shift starts at 4:00 pm</span></span>
+      <span style="height: 30px; padding: 0 14px; border-radius: 15px; background: #D39B65; color: #2A1A0C; font-size: 13px; font-weight: 600; display: flex; align-items: center; flex-shrink: 0; white-space: nowrap; opacity: {{op}}; transition: opacity .25s ease {{delay}}">Snooze 5</span>
+    </div></div>
+  </div>
+  <div style="display: flex; align-items: center; gap: 10px">
+    <button type="button" class="btn" onClick="{{play}}" style="height: 34px; padding: 0 16px; border-radius: 10px; border: 0; background: #D39B65; color: #2A1A0C; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer">Play alert</button>
+    <span style="font-size: 13px; color: rgba(245,245,247,0.6)">{{status}}</span>
+    <span style="margin-left: auto; font-size: 11px; color: rgba(245,245,247,0.5)">Grows with a slightly bouncy spring, holds 4 s, settles back</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":760,"height":300}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { phase: 'idle' }; this.t = []; }
+  componentWillUnmount() { this.t.forEach(clearTimeout); }
+  renderVals() {
+    const p = this.state.phase, open = p === 'open';
+    return {
+      w: open ? 520 : 200, h: open ? 84 : 34, r: open ? 34 : 17,
+      dur: open ? '520ms' : '380ms',
+      ease: open ? 'cubic-bezier(0.34, 1.45, 0.5, 1)' : 'cubic-bezier(0.4, 0, 0.2, 1)',
+      op: open ? 1 : 0, sc: open ? 1 : 0.8, ty: open ? '0px' : '6px', delay: open ? '0.22s' : '0s',
+      key: open ? 'rgba(211,155,101,0.45)' : 'rgba(255,255,255,0.08)',
+      glow: open ? 'rgba(211,155,101,0.32)' : 'rgba(211,155,101,0)',
+      status: p === 'idle' ? 'Idle' : (open ? 'Alert showing' : 'Settling back'),
+      play: () => {
+        this.t.forEach(clearTimeout); this.t = [];
+        this.setState({ phase: 'open' });
+        this.t.push(setTimeout(() => this.setState({ phase: 'closing' }), 4000));
+        this.t.push(setTimeout(() => this.setState({ phase: 'idle' }), 4500));
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

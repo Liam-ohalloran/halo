@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Halo compact island states</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0b0b10}
+.num{font-variant-numeric:tabular-nums}
+.isl{position:relative;background:#000;box-sizing:border-box}
+.isl::before,.isl::after{content:"";position:absolute;top:0;width:12px;height:12px}
+.isl::before{left:-12px;background:radial-gradient(circle at 0 100%,rgba(0,0,0,0) 11.5px,#000 12px)}
+.isl::after{right:-12px;background:radial-gradient(circle at 100% 100%,rgba(0,0,0,0) 11.5px,#000 12px)}
+</style>
+</helmet>
+<div style="width: 1300px; height: 620px; box-sizing: border-box; padding: 24px 32px; background: #0b0b10; color: #fff; font-family: 'Onest', system-ui, sans-serif; display: flex; flex-direction: column; gap: 12px">
+
+  <div style="display: flex; gap: 24px; align-items: stretch">
+    <div style="width: 180px; padding-top: 14px"><div style="font-size: 15px; font-weight: 700">Resting</div><div style="font-size: 13px; color: rgba(235,235,245,0.6); margin-top: 4px">200 × 34</div></div>
+    <div style="flex-grow: 1; height: 80px; border-radius: 16px; background: #15151c; display: flex; justify-content: center; overflow: hidden">
+      <div class="isl" style="width: 200px; height: 34px; border-radius: 0 0 17px 17px"></div>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 24px; align-items: stretch">
+    <div style="width: 180px; padding-top: 14px"><div style="font-size: 15px; font-weight: 700">Shift soon</div><div style="font-size: 13px; color: rgba(235,235,245,0.6); margin-top: 4px">300 × 40, within 2 hours</div></div>
+    <div style="flex-grow: 1; height: 86px; border-radius: 16px; background: radial-gradient(ellipse 300px 90px at 50% 0, rgba(255,159,10,0.28), rgba(255,159,10,0) 100%), #15151c; display: flex; justify-content: center; overflow: hidden">
+      <div class="isl" style="width: 300px; height: 40px; border-radius: 0 0 20px 20px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: inset 0 -1px 0 rgba(255,159,10,0.3)">
+        <span style="display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF9F0A" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>PI shift</span>
+        <span class="num" style="font-size: 17px; font-weight: 700; color: #FF9F0A">1:42</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 24px; align-items: stretch">
+    <div style="width: 180px; padding-top: 14px"><div style="font-size: 15px; font-weight: 700">Study timer</div><div style="font-size: 13px; color: rgba(235,235,245,0.6); margin-top: 4px">300 × 40, subject colour</div></div>
+    <div style="flex-grow: 1; height: 86px; border-radius: 16px; background: radial-gradient(ellipse 300px 90px at 50% 0, rgba(191,90,242,0.3), rgba(191,90,242,0) 100%), #15151c; display: flex; justify-content: center; overflow: hidden">
+      <div class="isl" style="width: 300px; height: 40px; border-radius: 0 0 20px 20px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: inset 0 -1px 0 rgba(191,90,242,0.3)">
+        <span style="display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700"><svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true" style="transform: rotate(-90deg)"><circle cx="10" cy="10" r="7.5" fill="none" stroke="rgba(191,90,242,0.25)" stroke-width="3"></circle><circle cx="10" cy="10" r="7.5" fill="none" stroke="#BF5AF2" stroke-width="3" stroke-linecap="round" stroke-dasharray="34.6 47.1"></circle></svg>Chem</span>
+        <span class="num" style="font-size: 17px; font-weight: 700; color: #D9A6F7">18:24</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 24px; align-items: stretch">
+    <div style="width: 180px; padding-top: 14px"><div style="font-size: 15px; font-weight: 700">Live game</div><div style="font-size: 13px; color: rgba(235,235,245,0.6); margin-top: 4px">400 × 40, example score</div></div>
+    <div style="flex-grow: 1; height: 86px; border-radius: 16px; background: radial-gradient(ellipse 220px 90px at 42% 0, rgba(76,141,255,0.32), rgba(76,141,255,0) 100%), radial-gradient(ellipse 220px 90px at 58% 0, rgba(0,119,192,0.28), rgba(0,119,192,0) 100%), #15151c; display: flex; justify-content: center; overflow: hidden">
+      <div class="isl" style="width: 400px; height: 40px; border-radius: 0 0 20px 20px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: inset 0 -1px 0 rgba(76,141,255,0.3)">
+        <span class="num" style="display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700"><span style="color: #7FB0FF">PHI</span>98</span>
+        <span class="num" style="display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: rgba(235,235,245,0.6)"><span style="width: 6px; height: 6px; border-radius: 3px; background: #FF453A"></span>Q4 3:12</span>
+        <span class="num" style="display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; color: rgba(235,235,245,0.6)">94<span>ORL</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 24px; align-items: stretch">
+    <div style="width: 180px; padding-top: 14px"><div style="font-size: 15px; font-weight: 700">Alert banner</div><div style="font-size: 13px; color: rgba(235,235,245,0.6); margin-top: 4px">520 × 84, example alert</div></div>
+    <div style="flex-grow: 1; height: 130px; border-radius: 16px; background: radial-gradient(ellipse 420px 130px at 50% 0, rgba(255,159,10,0.26), rgba(255,159,10,0) 100%), #15151c; display: flex; justify-content: center; overflow: hidden">
+      <div class="isl" style="width: 520px; height: 84px; border-radius: 0 0 34px 34px; padding: 0 22px; display: flex; align-items: center; gap: 14px; box-shadow: inset 0 -1px 0 rgba(255,159,10,0.3)">
+        <span style="width: 44px; height: 44px; border-radius: 22px; background: rgba(255,159,10,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FF9F0A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"></path></svg></span>
+        <div style="flex-grow: 1; min-width: 0">
+          <div style="font-size: 15px; font-weight: 700">Shift cover request</div>
+          <div style="font-size: 13px; font-weight: 500; color: rgba(235,235,245,0.6); margin-top: 3px">SATURDAY PA 5:30-9 needs someone</div>
+        </div>
+        <span style="font-size: 11px; font-weight: 700; color: rgba(235,235,245,0.6)">now</span>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1300,"height":620}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -33,7 +33,7 @@ document.getElementById('app')!.replaceChildren(
       h('h1', { class: 'ins-title' }, 'Add Halo to your iPhone'),
       h('p', { class: 'ins-lead' }, standalone ? 'Halo is already on your home screen.' : 'Three steps and it opens full screen like any other app.'),
       steps,
-      h('p', { class: 'ins-note' }, 'You sign in once inside the app itself. Tap Send magic link, then paste the 6 digit code from the email into Halo. The link in the email opens Safari, not the app.'),
+      h('p', { class: 'ins-note' }, 'You sign in once inside the app itself. Tap Send magic link, then press and hold the link in the email and choose Copy Link. Paste it into Halo. Tapping the link opens Safari, not the app.'),
       h('a', { class: 'ins-btn', href: base }, standalone ? 'Open Halo' : 'Back to Halo'),
     ),
   ),

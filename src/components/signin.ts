@@ -18,13 +18,13 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text?: s
 function plainError(message: string): string {
   if (/rate|too many|seconds/i.test(message)) return 'Too many tries. Wait a minute, then try again.'
   if (/fetch|network/i.test(message)) return "Can't reach Halo. Check your connection and try again."
-  if (/expired|invalid/i.test(message)) return 'That link or code has expired. Send a new one.'
+  if (/expired|invalid/i.test(message)) return 'That link has expired. Send a new one.'
   return 'Something went wrong. Try again.'
 }
 
 /**
  * Magic link sign-in. The link opens in the default browser, so the second step also takes
- * a pasted link or a 6 digit code, which is how it works inside the NotchPixel web tab.
+ * a pasted link, which is how it works inside the NotchPixel web tab and the iPhone app.
  */
 export function mountSignIn(app: HTMLElement, client: SupabaseClient, notice?: string): void {
   document.documentElement.classList.add('signin')
@@ -80,9 +80,8 @@ export function mountSignIn(app: HTMLElement, client: SupabaseClient, notice?: s
 
   function showSent() {
     const input = el('input', 'signin-field')
-    input.placeholder = 'Paste link or 6 digit code'
-    input.autocomplete = 'one-time-code'
-    input.setAttribute('aria-label', 'Magic link or code')
+    input.placeholder = 'Paste the link from the email'
+    input.setAttribute('aria-label', 'Magic link')
     const go = el('button', 'signin-btn secondary', 'Continue')
     go.type = 'submit'
     const msg = el('p', 'signin-msg')
@@ -96,18 +95,8 @@ export function mountSignIn(app: HTMLElement, client: SupabaseClient, notice?: s
       e.preventDefault()
       const v = input.value.trim()
       if (/^https?:\/\/\S+/.test(v)) { location.href = v; return }
-      if (/^\d{6,10}$/.test(v)) {
-        go.disabled = true
-        const { error } = await client.auth.verifyOtp({ email, token: v, type: 'email' })
-        go.disabled = false
-        if (error) {
-          msg.className = 'signin-msg err'
-          msg.textContent = plainError(error.message)
-        }
-        return
-      }
       msg.className = 'signin-msg err'
-      msg.textContent = "That isn't the link or code from the email."
+      msg.textContent = "That isn't the link from the email."
     })
     card.replaceChildren(...head('Check your inbox', `We sent a link to ${email}. Tap it, or paste it here if it opened somewhere else.`), form)
     input.focus()

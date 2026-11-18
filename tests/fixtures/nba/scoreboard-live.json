@@ -1,0 +1,63 @@
+{
+ "meta": {
+  "version": 1
+ },
+ "scoreboard": {
+  "gameDate": "2026-11-18",
+  "leagueId": "00",
+  "games": [
+   {
+    "gameId": "0022600201",
+    "gameStatus": 3,
+    "gameStatusText": "Final",
+    "period": 4,
+    "gameClock": "",
+    "gameTimeUTC": "2026-11-19T00:00:00Z",
+    "homeTeam": {
+     "teamId": 1,
+     "teamName": "Warriors",
+     "teamCity": "Golden State",
+     "teamTricode": "GSW",
+     "wins": 9,
+     "losses": 6,
+     "score": 118
+    },
+    "awayTeam": {
+     "teamId": 1,
+     "teamName": "Lakers",
+     "teamCity": "Los Angeles",
+     "teamTricode": "LAL",
+     "wins": 8,
+     "losses": 7,
+     "score": 111
+    }
+   },
+   {
+    "gameId": "0022600202",
+    "gameStatus": 2,
+    "gameStatusText": "Q4 3:12",
+    "period": 4,
+    "gameClock": "PT03M12.00S",
+    "gameTimeUTC": "2026-11-19T00:00:00Z",
+    "homeTeam": {
+     "teamId": 1,
+     "teamName": "76ers",
+     "teamCity": "Philadelphia",
+     "teamTricode": "PHI",
+     "wins": 9,
+     "losses": 5,
+     "score": 98
+    },
+    "awayTeam": {
+     "teamId": 1,
+     "teamName": "Celtics",
+     "teamCity": "Boston",
+     "teamTricode": "BOS",
+     "wins": 11,
+     "losses": 4,
+     "score": 94
+    }
+   }
+  ]
+ }
+}

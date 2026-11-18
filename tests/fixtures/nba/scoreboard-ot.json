@@ -1,0 +1,37 @@
+{
+ "meta": {
+  "version": 1
+ },
+ "scoreboard": {
+  "gameDate": "2026-11-18",
+  "leagueId": "00",
+  "games": [
+   {
+    "gameId": "0022600202",
+    "gameStatus": 2,
+    "gameStatusText": "OT 1:05",
+    "period": 5,
+    "gameClock": "PT01M05.30S",
+    "gameTimeUTC": "2026-11-19T00:00:00Z",
+    "homeTeam": {
+     "teamId": 1,
+     "teamName": "76ers",
+     "teamCity": "Philadelphia",
+     "teamTricode": "PHI",
+     "wins": 9,
+     "losses": 5,
+     "score": 120
+    },
+    "awayTeam": {
+     "teamId": 1,
+     "teamName": "Celtics",
+     "teamCity": "Boston",
+     "teamTricode": "BOS",
+     "wins": 11,
+     "losses": 4,
+     "score": 120
+    }
+   }
+  ]
+ }
+}

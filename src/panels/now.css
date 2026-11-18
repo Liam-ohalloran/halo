@@ -1,0 +1,64 @@
+/* Now panel (card 06). Tokens from HALO.md 3.2 only: type 11 13 15 17 21 28, spacing 4 8 12 16 20 24 32. */
+
+/* The island's panel host is the container, so the layout follows the island's width, not the window's. */
+.h-panelhost { container-type: inline-size; }
+
+.n-panel { display: grid; gap: var(--s2); grid-template-columns: 1fr; align-items: stretch; }
+.n-left { display: grid; gap: var(--s2); align-content: start; min-width: 0; }
+.n-wide { grid-column: 1 / -1; }
+@container (min-width: 520px) {
+  .n-panel { grid-template-columns: 1fr 1fr; }
+  .n-panel[data-view="error"], .n-panel[data-view="empty"] { grid-template-columns: 1fr; }
+}
+
+/* Inset containers sit inside the 48 px island with 24 px padding, so 24 px radius is concentric. */
+.n-card { display: grid; gap: var(--s2); align-content: start; min-width: 0; padding: var(--s3) var(--s4); border-radius: 24px; background: var(--fill-2); }
+.n-card .label { font-size: var(--fs-11); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-2); }
+
+.n-row { display: flex; align-items: center; gap: var(--s4); min-width: 0; }
+.n-row.between { justify-content: space-between; gap: var(--s3); }
+.n-tline { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); min-width: 0; }
+.n-col { display: grid; gap: var(--s1); min-width: 0; }
+
+.n-title { font-size: var(--fs-17); font-weight: 700; line-height: 1.25; overflow-wrap: break-word; }
+.n-when { font-size: var(--fs-15); font-weight: 500; color: var(--text-2); }
+.n-leave { font-size: var(--fs-15); font-weight: 600; color: var(--shift); font-variant-numeric: tabular-nums; }
+.n-date { font-size: var(--fs-13); font-weight: 600; color: var(--text-2); }
+
+/* Countdown inside the ring: 15/700, rolls digit by digit. */
+.n-card .h-ring-txt { display: inline-flex; font-size: var(--fs-15); }
+
+/* Test card */
+.n-chip { pointer-events: none; cursor: default; }
+.n-days { font-size: var(--fs-13); font-weight: 600; color: var(--text-2); display: inline-flex; align-items: baseline; gap: var(--s1); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.n-days b { font-size: var(--fs-17); font-weight: 700; color: var(--text-1); display: inline-flex; }
+.n-study { display: flex; align-items: center; gap: var(--s2); font-size: var(--fs-13); font-weight: 600; color: var(--text-2); }
+.n-study .h-icon { flex: none; }
+
+/* Today timeline */
+.n-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s1); }
+.n-trow { display: grid; grid-template-columns: 60px 8px 1fr; align-items: start; gap: var(--s2); padding: var(--s2); border-radius: 16px; min-width: 0; }
+.n-trow[data-status="now"] { background: var(--fill-1); }
+.n-time { font-size: var(--fs-13); font-weight: 600; color: var(--text-2); font-variant-numeric: tabular-nums; line-height: 1.4; padding-top: 1px; white-space: nowrap; }
+.n-dot { width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; background: var(--c); box-sizing: border-box; }
+.n-trow[data-status="past"] .n-dot { background: transparent; border: 2px solid var(--c); }
+.n-tcol { min-width: 0; }
+.n-ttl { font-size: var(--fs-15); font-weight: 600; line-height: 1.3; overflow-wrap: break-word; }
+.n-trow[data-status="past"] .n-ttl { color: var(--text-2); }
+.n-sub { font-size: var(--fs-13); font-weight: 500; color: var(--text-2); }
+.n-more { font-size: var(--fs-13); font-weight: 600; color: var(--text-2); padding: 0 var(--s2); }
+
+/* Empty cards inside the panel */
+.n-none { display: grid; justify-items: start; gap: var(--s2); color: var(--text-2); }
+.n-none-t { font-size: var(--fs-15); font-weight: 600; color: var(--text-1); }
+.n-none-b { font-size: var(--fs-13); font-weight: 500; }
+
+/* Loading skeleton */
+.n-skel-col, .n-skel-row { display: grid; gap: var(--s2); }
+.n-skel-col { flex: 1; }
+.n-skel-row { grid-template-columns: 44px 1fr; align-items: center; gap: var(--s3); }
+
+/* Compact pill: leading label, trailing countdown (HALO.md 3.1, 3.3) */
+.n-pill-t { font-size: var(--fs-15); font-weight: 700; }
+.n-pill-n { display: inline-flex; font-size: var(--fs-17); font-weight: 700; color: var(--shift); font-variant-numeric: tabular-nums; }
+.n-leave[data-phase="live"] { color: var(--text-2); font-weight: 500; }

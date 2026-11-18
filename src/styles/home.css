@@ -1,31 +1,7 @@
-/* Card 01 home page: a resting island and nothing else. */
+/* Home: the island hangs from the top edge of the page. */
 html.home, html.home body { background: #0b0b10; }
-html.home body { margin: 0; min-height: 100%; }
+html.home body { margin: 0; min-height: 100%; overflow-x: hidden; }
 
-.home-island {
-  position: fixed;
-  top: 0;
-  left: 50%;
-  width: 300px;
-  height: 40px;
-  transform: translateX(-50%);
-  background: var(--island);
-  border-radius: 0 0 20px 20px;   /* flat top, rounded bottom */
-}
-/* Inverse-curve ears where the island meets the top edge. */
-.home-island::before,
-.home-island::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  width: 20px;
-  height: 20px;
-}
-.home-island::before {
-  left: -20px;
-  background: radial-gradient(circle at 0 100%, transparent 19.5px, var(--island) 20px);
-}
-.home-island::after {
-  right: -20px;
-  background: radial-gradient(circle at 100% 100%, transparent 19.5px, var(--island) 20px);
-}
+/* The stage is transparent and only as tall as the tallest expanded island. Only the island itself takes pointer events. */
+.home-stage { position: fixed; top: 0; left: 0; right: 0; pointer-events: none; }
+.home-stage .h-island { pointer-events: none; }

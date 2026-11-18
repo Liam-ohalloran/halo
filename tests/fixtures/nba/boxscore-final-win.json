@@ -1,0 +1,43 @@
+{
+ "game": {
+  "gameId": "0022600202",
+  "homeTeam": {
+   "teamTricode": "PHI",
+   "players": [
+    {
+     "personId": 202331,
+     "name": "Paul George",
+     "statistics": {
+      "points": 17,
+      "reboundsTotal": 6,
+      "assists": 3
+     }
+    },
+    {
+     "personId": 1630178,
+     "name": "Tyrese Maxey",
+     "statistics": {
+      "points": 34,
+      "reboundsTotal": 4,
+      "assists": 9,
+      "minutes": "PT36M10.00S"
+     }
+    }
+   ]
+  },
+  "awayTeam": {
+   "teamTricode": "BOS",
+   "players": [
+    {
+     "personId": 1628369,
+     "name": "Jayson Tatum",
+     "statistics": {
+      "points": 25,
+      "reboundsTotal": 9,
+      "assists": 6
+     }
+    }
+   ]
+  }
+ }
+}

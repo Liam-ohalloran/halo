@@ -10,6 +10,12 @@ A personal Dynamic Island layer: one compact web panel for [NotchPixel](https://
 - **Pay**: hours and gross for a Monday to Sunday pay week, from `shifts` and the rates in `settings`. Shifts that cross midnight are split so each part gets its own day's rate. Sunday and public holiday rates are `weekday_rate × multiplier`.
 - **Study**: a focus timer that writes to `study_sessions` per subject, plus today's totals.
 
+## Sixers (card 09)
+
+- Edge function `supabase/functions/nba` fetches the NBA public scoreboard, boxscore and schedule server side and returns only the Sixers game (teams, score, period, clock, status, Maxey's points, rebounds and assists, next game). Cached 20 seconds. Pure parsing lives in `supabase/functions/nba/parse.ts` and is covered by `npm test`.
+- Deploy it once: `supabase functions deploy nba --project-ref brqrszaljxeduelpuyty`
+- `/sixers/` is the dev page. It runs sample JSON from `tests/fixtures/nba` through the real parser, so every state (live, halftime, overtime, final, next game, empty, loading, error, offline) works without a game on.
+
 ## Stack
 
 Vite + TypeScript, no UI framework. Supabase (auth by magic link, Postgres with owner-only RLS, realtime on `shifts`). Only the publishable key ships to the browser; anything secret goes in a Supabase edge function.

@@ -11,6 +11,7 @@
     "seed": "node scripts/seed.mjs",
     "icons":"node scripts/icons.mjs",
     "shots": "node scripts/shots.mjs",
+    "record": "node scripts/record.mjs",
     "shots:legacy": "node scripts/shots-legacy.mjs",
     "test": "node --test \"tests/*.test.ts\""
   },

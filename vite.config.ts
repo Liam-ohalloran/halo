@@ -5,5 +5,12 @@ import { resolve } from 'node:path'
 export default defineConfig({
   base: '/halo/',
   build: {
-    rollupOptions: { input: { main: resolve(__dirname, 'index.html'), foundations: resolve(__dirname, 'foundations/index.html') } }, target: 'es2022', cssMinify: true, sourcemap: false },
+    rollupOptions: { input: {
+      main: resolve(__dirname, 'index.html'),
+      foundations: resolve(__dirname, 'foundations/index.html'),
+      components: resolve(__dirname, 'components/index.html'),
+      motion: resolve(__dirname, 'motion/index.html'),
+    } },
+    target: 'es2022', cssMinify: true, sourcemap: false,
+  },
 })

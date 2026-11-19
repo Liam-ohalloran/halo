@@ -652,6 +652,11 @@ def _tray_image():
 
 
 def main() -> int:
+    # pythonw.exe (no console) leaves stdout and stderr as None, which crashes uvicorn's logging.
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, "w")
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, "w")
     if not _port_free():
         return 0  # already running
     import uvicorn

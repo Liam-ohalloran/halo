@@ -35,10 +35,16 @@ Write-Host "Registered task '$taskName' to start at logon."
 
 # 4. Start it now
 Start-ScheduledTask -TaskName $taskName
-Start-Sleep -Seconds 3
 
-$tokenFile = Join-Path $env:APPDATA 'HaloHelper\token.txt'
-if (Test-Path $tokenFile) {
+# Wait up to 15 seconds for the port to answer (any reply, even 401, means it is up)
+$up = $false
+for ($i = 0; $i -lt 15 -and -not $up; $i++) {
+    Start-Sleep -Seconds 1
+    $code = & curl.exe -s -o NUL -w '%{http_code}' http://127.0.0.1:47800/status
+    if ($code -eq '401' -or $code -eq '200') { $up = $true }
+}
+
+if ($up) {
     Write-Host 'Done. Halo helper is running (tray icon, bottom right).' -ForegroundColor Green
     Write-Host 'To pair: right-click the tray icon, choose "Copy pairing token", then paste it in Halo, Settings, Pair helper.'
 } else {

@@ -5,50 +5,23 @@ html.embed, html.embed.home, html.embed body, html.embed.home body, html.embed.s
 html.embed #app { height: 100%; }
 
 .embed-root {
-  position: fixed; inset: 0; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden;
+  position: fixed; inset: 0; box-sizing: border-box; overflow: hidden;
   padding-top: var(--embed-top, 0px); background: #000; color: var(--text-1);
   font-family: var(--font); font-size: var(--fs-15); font-weight: 500; -webkit-font-smoothing: antialiased;
 }
 .embed-root *, .embed-root *::before, .embed-root *::after { box-sizing: border-box; }
 
-/* Tab bar: spans the full width, tabs share it equally. A thin line underneath separates it from the panel. */
-.embed-bar { flex: none; padding: 0 var(--s2); border-bottom: 1px solid var(--fill-2); }
-.embed-bar .h-tabbar { width: 100%; }
-.embed-bar .h-tab { flex: 1 1 0; max-width: none; }
-.embed-bar .h-tabbar > .h-tab { flex: 0 0 56px; width: 56px; padding-bottom: 8px; }
-.embed-bar .h-tab-div { margin: 0 var(--s1); }
-.embed-root.is-short .embed-bar .h-tabs, .embed-root.is-short .embed-bar .h-tab { height: 40px; }
-.embed-root.is-tiny .embed-bar .h-tabs, .embed-root.is-tiny .embed-bar .h-tab { height: 36px; }
-.embed-root.is-tiny .embed-bar .h-tabbar > .h-tab { flex-basis: 44px; width: 44px; padding-bottom: 6px; }
+/* The 600 x 290 panel sits centred at the top. A smaller window scales it down from the top centre (EmbedShell). */
+.embed-slot { position: absolute; top: var(--embed-top, 0px); left: 50%; width: 600px; height: 290px; margin-left: -300px; transform-origin: top center; }
 
-/* Panel area: takes everything under the tab bar. The panel host never gets a fixed height here, it fills this. */
-.embed-body { flex: 1 1 0; min-height: 0; display: flex; padding: var(--s3) var(--s4) var(--s4); }
-.embed-root.is-short .embed-body { padding: var(--s2) var(--s3) var(--s3); }
-.embed-root.is-tiny .embed-body { padding: var(--s2) var(--s3) var(--s2); }
-.embed-body .h-panelhost { flex: 1 1 0; min-width: 0; min-height: 0; overflow-x: hidden; scrollbar-width: none; overscroll-behavior: contain; }
-.embed-body .h-panelhost::-webkit-scrollbar { display: none; }
-.embed-body .h-panelhost.is-scroll { -webkit-mask-image: linear-gradient(#000 calc(100% - 16px), transparent); mask-image: linear-gradient(#000 calc(100% - 16px), transparent); }
-.embed-root .h-panelhost .h-panel { right: 0; left: 0; }
-
-/* Settings popover, anchored under the gear */
-.embed-pop {
-  position: absolute; z-index: 20; right: var(--s2); top: calc(var(--embed-top, 0px) + 48px); width: 292px; max-width: calc(100% - 16px);
-  padding: var(--s3) var(--s4); border-radius: 24px; background: #000; box-shadow: 0 0 0 1px var(--fill-1), 0 12px 32px rgba(0, 0, 0, 0.8);
-  display: grid; gap: var(--s2);
-}
-.embed-root.is-tiny .embed-pop { top: calc(var(--embed-top, 0px) + 40px); }
-.embed-pop[hidden] { display: none; }
-.embed-pop-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
-.embed-pop-text { display: grid; gap: 2px; min-width: 0; }
-.embed-pop-t { font-size: var(--fs-15); font-weight: 600; }
-.embed-pop-s { font-size: var(--fs-13); font-weight: 500; color: var(--text-2); }
+/* Top padding and sign out, shown on the More tab under "Coming soon". */
+.embed-set { display: flex; align-items: center; gap: var(--s3); }
+.embed-set-t { font-size: var(--fs-13); font-weight: 600; color: rgba(245, 245, 247, 0.85); }
 .embed-step { display: flex; align-items: center; gap: 0; flex: none; }
 .embed-step .h-ibtn { width: 36px; height: 44px; }
 .embed-val { display: inline-flex; align-items: baseline; justify-content: center; gap: 2px; min-width: 44px; font-size: var(--fs-17); font-weight: 700; font-variant-numeric: tabular-nums; }
-.embed-val small { font-size: var(--fs-11); font-weight: 600; color: var(--text-2); }
+.embed-val small { font-size: var(--fs-11); font-weight: 600; color: rgba(245, 245, 247, 0.5); }
 .embed-val .h-roll { font-size: var(--fs-17); }
-.embed-out { justify-self: start; }
-.embed-root.is-settings .embed-bar [data-settings] { background: var(--fill-1); }
 
 /* ---- Signed-out screen in embed: a plain black page, copy on the left and the form on the right ---- */
 html.embed .signin-wrap { min-height: 100%; height: 100%; padding: var(--embed-top, 0px) 0 0; align-items: stretch; }
@@ -65,163 +38,7 @@ html.embed .signin-msg { min-height: 0; }
   html.embed .signin-card > .signin-form { grid-column: 1; grid-row: auto; }
 }
 
-/* ---- Tightest layouts. data-fit 3 is only ever set in embed, once 0 to 2 still do not fit. ---- */
-
-
-/* ===== Fitting: home.ts steps data-fit 0 to 3 on the panel until it fits the space under the tab bar. =====
-   0 to 2 are the existing island steps. 3 is the tightest and only exists in embed. Nothing here scrolls or clips by design. */
-
-/* Sixers is short: keep it centred in the space instead of hugging the tab bar. */
-.embed-root .h-panel.sx { min-height: 100%; }
-
-/* Pay: the shift list is as tall as it needs to be, the fit steps decide when that is too tall. */
-.embed-root .pay-list { max-height: none; overflow: visible; }
-.embed-root .home-pay .pay-panel { gap: var(--s3); }
-
-/* ---- Pay, tightest. Two columns, one row of totals, short bars, two line shifts. */
-.embed-root .home-pay[data-fit="3"] .pay-panel { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--s4); row-gap: var(--s1); align-items: start; }
-.embed-root .home-pay[data-fit="3"] .pay-nav { grid-column: 1; }
-.embed-root .home-pay[data-fit="3"] .pay-week { min-height: 36px; min-width: 0; flex: 1; display: flex; align-items: center; justify-content: center; gap: var(--s2); }
-.embed-root .home-pay[data-fit="3"] .pay-nav .h-ibtn { width: 36px; height: 36px; }
-.embed-root .home-pay[data-fit="3"] .pay-body:has(> .pay-grid), .embed-root .home-pay[data-fit="3"] .pay-grid { display: contents; }
-.embed-root .home-pay[data-fit="3"] .pay-body:not(:has(> .pay-grid)) { grid-column: 1 / -1; }
-.embed-root .home-pay[data-fit="3"] .pay-left { grid-column: 1; grid-row: 2; gap: var(--s2); }
-.embed-root .home-pay[data-fit="3"] .pay-list { grid-column: 2; grid-row: 1 / span 2; gap: 0; padding: var(--s2) var(--s3); }
-.embed-root .home-pay[data-fit="3"] .pay-totals { grid-template-columns: auto auto auto; justify-content: space-between; gap: var(--s2); }
-.embed-root .home-pay[data-fit="3"] .pay-stat.wide { grid-column: auto; }
-.embed-root .home-pay[data-fit="3"] .pay-gross, .embed-root .home-pay[data-fit="3"] .pay-sub { font-size: var(--fs-17); }
-.embed-root .home-pay[data-fit="3"] .pay-sub small { font-size: var(--fs-13); }
-.embed-root .home-pay[data-fit="3"] .pay-gross .h-roll, .embed-root .home-pay[data-fit="3"] .pay-sub .h-roll { font-size: var(--fs-17); }
-.embed-root .home-pay[data-fit="3"] .pay-inset { padding: var(--s2); }
-.embed-root .home-pay[data-fit="3"] .pay-track { height: 36px; border-radius: 8px; }
-.embed-root .home-pay[data-fit="3"] .pay-day { gap: 0; }
-.embed-root .home-pay[data-fit="3"] .pay-day b { margin-top: 2px; }
-.embed-root .home-pay[data-fit="3"] .pay-day i { min-height: 13px; }
-.embed-root .home-pay[data-fit="3"] .pay-note { font-size: var(--fs-13); }
-.embed-root .home-pay[data-fit="3"] .pay-shift { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 var(--s3); align-items: baseline; padding: 3px var(--s1); }
-.embed-root .home-pay[data-fit="3"] .pay-shift-main { display: contents; }
-.embed-root .home-pay[data-fit="3"] .pay-shift-main b { grid-column: 1; grid-row: 1; }
-.embed-root .home-pay[data-fit="3"] .pay-when { grid-column: 1; grid-row: 2; }
-.embed-root .home-pay[data-fit="3"] .pay-shift > strong { grid-column: 2; grid-row: 1; }
-.embed-root .home-pay[data-fit="3"] .pay-shift-main span:not(.pay-when) { grid-column: 2; grid-row: 2; justify-self: end; white-space: nowrap; }
-.embed-root .home-pay[data-fit="3"] .pay-brk, .embed-root .home-pay[data-fit="3"] .pay-shift-main em { display: none; }
-
-/* ---- Now, tightest. Smaller cards, a smaller ring, a one line chip row and tight timeline rows. */
-.embed-root .n-panel[data-fit="3"] { gap: var(--s2); }
-.embed-root .n-panel[data-fit="3"] .n-left { gap: var(--s2); }
-.embed-root .n-panel[data-fit="3"] .n-card { padding: var(--s2) var(--s3); gap: var(--s1); border-radius: 20px; }
-.embed-root .n-panel[data-fit="3"] .n-row { gap: var(--s3); }
-.embed-root .n-panel[data-fit="3"] .n-title { font-size: var(--fs-15); line-height: 1.2; }
-.embed-root .n-panel[data-fit="3"] .n-when, .embed-root .n-panel[data-fit="3"] .n-leave { font-size: var(--fs-13); }
-.embed-root .n-panel[data-fit="3"] .n-col { gap: 0; }
-.embed-root .n-panel[data-fit="3"] .h-ring svg { width: 52px; height: 52px; }
-.embed-root .n-panel[data-fit="3"] .n-card .h-ring-txt { font-size: var(--fs-13); }
-.embed-root .n-panel[data-fit="3"] .n-chip { height: 24px; padding: 0 var(--s2); }
-.embed-root .n-panel[data-fit="3"] .n-tline { flex-wrap: nowrap; }
-.embed-root .n-panel[data-fit="3"] .n-study { font-size: var(--fs-13); }
-.embed-root .n-panel[data-fit="3"] .n-list { gap: 0; }
-.embed-root .n-panel[data-fit="3"] .n-trow { padding: 3px var(--s2); }
-.embed-root .n-panel[data-fit="3"] .n-ttl { font-size: var(--fs-15); line-height: 1.2; }
-.embed-root .n-panel[data-fit="3"] .n-time { padding-top: 0; }
-.embed-root .n-panel[data-fit="3"] .n-dot { margin-top: 5px; }
-
-/* ---- Study, tightest. Chips on one row, ring beside the controls, short bars. */
-.embed-root .s-panel[data-fit="3"] { gap: var(--s2); }
-.embed-root .s-panel[data-fit="3"] .s-chips { flex-wrap: nowrap; gap: var(--s1); }
-.embed-root .s-panel[data-fit="3"] .h-chip { flex: 0 1 auto; min-width: 0; height: 28px; padding: 0 var(--s2); gap: var(--s1); }
-.embed-root .s-panel[data-fit="3"] .h-chip::before { width: 6px; height: 6px; }
-.embed-root .s-panel[data-fit="3"] .s-grid { gap: var(--s2); }
-.embed-root .s-panel[data-fit="3"] .s-timer { grid-template-areas: "ring side" "ring btns" "note note"; grid-template-rows: auto auto; gap: var(--s2) var(--s3); padding: var(--s3); border-radius: 20px; }
-.embed-root .s-panel[data-fit="3"] .s-ring svg { width: 88px; height: 88px; }
-.embed-root .s-panel[data-fit="3"] .s-ring .h-ring-txt { font-size: var(--fs-21); }
-.embed-root .s-panel[data-fit="3"] .s-subject { font-size: var(--fs-17); }
-.embed-root .s-panel[data-fit="3"] .s-btns .h-btn.lg { height: 36px; border-radius: 18px; }
-.embed-root .s-panel[data-fit="3"] .s-week { padding: var(--s3); gap: var(--s2); border-radius: 20px; }
-.embed-root .s-panel[data-fit="3"] .s-weekbody { gap: var(--s2); }
-.embed-root .s-panel[data-fit="3"] .s-bars { gap: 2px; }
-.embed-root .s-panel[data-fit="3"] .s-callout { padding: var(--s2) var(--s3); line-height: 1.25; }
-
-/* ---- Tightest, second pass ---- */
-.embed-root .home-pay[data-fit="3"] .pay-panel { grid-template-rows: auto minmax(0, 1fr); }
-.embed-root .home-pay[data-fit="3"] .pay-when { grid-column: 1 / -1; white-space: nowrap; }
-.embed-root .home-pay[data-fit="3"] .pay-shift-main span:not(.pay-when) { display: none; } /* paid hours stay in the day bars above */
-.embed-root .s-panel[data-fit="3"] .s-bar { line-height: 1.15; }
-.embed-root .s-panel[data-fit="3"] .s-week { padding: var(--s2) var(--s3); }
-.embed-root .s-panel[data-fit="3"] .s-weekhead { line-height: 1.2; }
-
-/* ===== Polish pass ===== */
-
-/* Tab bar: the active tab is a pill with its name, the rest are icons. Left aligned, the gear sits at the far end. */
-.embed-bar { padding: var(--s2) var(--s3) var(--s2); border-bottom: 0; }
-.embed-bar .h-tabbar { gap: var(--s2); }
-.embed-bar .h-tabs { flex: 1 1 auto; height: 40px; gap: var(--s1); }
-.embed-bar .h-tab, .embed-bar .h-tabbar > .h-tab { flex: 0 0 auto; width: auto; max-width: none; height: 40px; padding: 0 var(--s3); border-radius: 20px; display: inline-flex; align-items: center; gap: var(--s2); color: var(--text-2); }
-.embed-bar .h-tabbar > .h-tab { width: 40px; padding: 0; justify-content: center; }
-.embed-bar .h-tab[aria-selected="true"] { background: var(--fill-1); color: var(--text-1); padding: 0 var(--s4) 0 var(--s3); }
-.embed-bar .h-tab[aria-selected="true"]::after { content: attr(aria-label); font-size: var(--fs-15); font-weight: 600; }
-.embed-bar .h-tab:hover:not([aria-selected="true"]) { color: var(--text-1); }
-.embed-bar .h-tabdot, .embed-bar .h-tab-div { display: none; }
-.embed-root.is-short .embed-bar .h-tabs, .embed-root.is-short .embed-bar .h-tab, .embed-root.is-short .embed-bar .h-tabbar > .h-tab { height: 36px; }
-.embed-root.is-tiny .embed-bar { padding: var(--s1) var(--s3); }
-.embed-root.is-tiny .embed-bar .h-tabs, .embed-root.is-tiny .embed-bar .h-tab, .embed-root.is-tiny .embed-bar .h-tabbar > .h-tab { height: 34px; padding-bottom: 0; }
-.embed-root.is-tiny .embed-bar .h-tabbar > .h-tab { width: 34px; flex-basis: auto; }
-.embed-root.is-tiny .embed-bar .h-tab[aria-selected="true"] { padding: 0 var(--s3) 0 var(--s2); }
-.embed-pop { top: calc(var(--embed-top, 0px) + 56px); }
-.embed-root.is-tiny .embed-pop { top: calc(var(--embed-top, 0px) + 44px); }
-
-/* Panels fill the space under the bar instead of hugging the top. home.ts measures the natural height first. */
-.embed-root .h-panelhost .h-panel { min-height: 100%; }
-.embed-root .n-panel { grid-template-rows: minmax(0, 1fr); }
-.embed-root .n-left { grid-auto-rows: minmax(0, 1fr); align-content: stretch; }
-.embed-root .n-card { align-content: center; }
-.embed-root .n-today { align-content: start; grid-template-rows: auto 1fr; }
-.embed-root .n-today .n-list { align-content: space-between; }
-.embed-root .home-pay { min-height: 100%; display: grid; }
-.embed-root .home-pay .pay-panel { height: 100%; grid-template-rows: auto minmax(0, 1fr); }
-.embed-root .home-pay .pay-body, .embed-root .home-pay .pay-grid { min-height: 0; height: 100%; }
-.embed-root .home-pay .pay-grid { align-items: stretch; }
-.embed-root .home-pay .pay-left { grid-template-rows: auto minmax(0, 1fr) auto; }
-.embed-root .home-pay .pay-left > .pay-inset { display: grid; min-height: 0; }
-.embed-root .home-pay .pay-bars { height: 100%; }
-.embed-root .home-pay .pay-day { grid-template-rows: minmax(0, 1fr) auto auto; min-height: 0; }
-.embed-root .home-pay .pay-track { height: auto; min-height: 32px; }
-.embed-root .home-pay .pay-list { align-content: start; }
-.embed-root .s-panel { min-height: 100%; grid-template-rows: auto minmax(0, 1fr); }
-.embed-root .s-grid { min-height: 0; }
-.embed-root .s-timer { align-content: center; }
-.embed-root .s-week { align-content: center; }
-
-/* Sixers: a bigger scoreboard, centred in the space, with room to breathe. */
-.embed-root .h-panel.sx { justify-content: center; }
-.embed-root .sx-game { gap: var(--s5); }
-.embed-root .sx-inset { padding: var(--s4) var(--s5); }
-.embed-root .sx-scores { padding: 0 var(--s2); }
-.embed-root .sx-big, .embed-root .sx-big .h-roll { font-size: 44px; }
-.embed-root .is-tiny ~ * .sx-big { font-size: var(--fs-28); }
-.embed-root.is-tiny .sx-big, .embed-root.is-tiny .sx-big .h-roll { font-size: var(--fs-28); }
-.embed-root.is-tiny .sx-game { gap: var(--s3); }
-.embed-root.is-tiny .sx-inset { padding: var(--s3) var(--s4); }
-
-/* ---- Polish pass, fixes ---- */
-.embed-root .home-pay .pay-panel { height: auto; }
-.embed-root .home-pay .pay-body { display: grid; }
-.embed-root .home-pay .pay-body, .embed-root .home-pay .pay-grid { height: auto; }
-.embed-root .home-pay[data-fit="3"] .pay-week { min-height: 32px; }
-.embed-root .home-pay[data-fit="3"] .pay-nav .h-ibtn { width: 32px; height: 32px; }
-.embed-root .h-panelhost .h-panel.sx { min-height: 100% !important; } /* the card sets its own inline minimum for the island */
-
-/* ---- Polish pass, round two ---- */
-.embed-root .home-pay[data-fit] .pay-panel { align-items: stretch; }
-.embed-root .home-pay[data-fit] .pay-list { align-content: space-between; }
-.embed-root .home-pay[data-fit="3"] .pay-list { align-content: start; }
-
-/* Sixers: type stays on the 28 step. The scoreboard is an inset card that fills the space, Maxey's line sits under it. */
-.embed-root .sx-big, .embed-root .sx-big .h-roll { font-size: var(--fs-28); }
-.embed-root .h-panel.sx { justify-content: stretch; }
-.embed-root .sx-game { flex: 1 1 auto; grid-template-rows: minmax(0, 1fr) auto; gap: var(--s2); }
-.embed-root .sx-scores { align-content: center; padding: var(--s4) var(--s6); border-radius: 24px; background: var(--fill-2); }
-.embed-root .sx-next { flex: 1 1 auto; }
-.embed-root .sx-ncount { align-self: stretch; justify-content: center; }
-.embed-root.is-tiny .embed-bar { padding: var(--s1) var(--s3) 0; }
-.embed-root .home-pay[data-fit="3"] .pay-shift { padding: 1px var(--s1); } .embed-root .home-pay[data-fit="3"] .pay-list { padding: var(--s1) var(--s3); }
-.embed-root .home-pay[data-fit] .pay-track { height: auto; min-height: 32px; }
+/* ===== Fitting: home.ts steps data-fit 0 to 3 on a panel until it fits the shell body. ===== */
+.sh-body .h-panel.sx { min-height: 100%; }
+.sh-body .pay-list { max-height: none; overflow: visible; }
+.sh-body .home-pay .pay-panel { gap: var(--s3); }

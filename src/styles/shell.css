@@ -1,0 +1,58 @@
+/* Shell (card 15): the 600 x 290 panel from the Home2 board. Values are the board's, so keep them as they are. */
+
+.sh {
+  --sh-border: rgba(211, 155, 101, 0.20); --sh-text: #F5F5F7;
+  --sh-pt: 10px; --sh-pr: 16px; --sh-pb: 12px; --sh-pl: 16px;
+  position: relative; box-sizing: border-box; width: 600px; height: 290px; flex: none; overflow: hidden;
+  border-radius: 26px; border: 1px solid var(--sh-border); transition: border-color 180ms ease;
+  padding: var(--sh-pt) var(--sh-pr) var(--sh-pb) var(--sh-pl);
+  display: flex; flex-direction: column;
+  color: var(--sh-text); background: #0E0D14; font-family: var(--font); font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased;
+}
+.sh *, .sh *::before, .sh *::after { box-sizing: border-box; }
+
+/* One skin per tab: tinted gradient plus the soft corner glow. The open tab's is opaque, the others fade out and stop painting. */
+.sh-skin { position: absolute; inset: 0; overflow: hidden; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 180ms ease, visibility 0s linear 180ms; }
+.sh-skin.is-on { opacity: 1; visibility: visible; transition: opacity 180ms ease; }
+
+/* Header: title and grey line on the left, the rail on the right. */
+.sh-head { position: relative; height: 32px; flex: none; display: flex; align-items: center; justify-content: space-between; }
+.sh-lead { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.sh-title { margin: 0; font-size: var(--fs-15); font-weight: 600; white-space: nowrap; }
+.sh-meta { font-size: var(--fs-13); font-weight: 500; color: rgba(245, 245, 247, 0.5); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sh-meta[hidden] { display: none; }
+
+.sh-rail { display: flex; align-items: center; gap: 0; }
+.sh-tab {
+  appearance: none; border: 0; margin: 0; padding: 0; cursor: pointer; font: inherit;
+  width: 32px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  background: transparent; color: var(--rail);
+  transition: color 150ms ease, background-color 150ms ease, transform 120ms ease;
+}
+.sh-tab:hover { background: rgba(255, 255, 255, 0.08); color: #F2F2F4; }
+.sh-tab:active { transform: scale(0.96); }
+.sh-tab:focus-visible { outline: 2px solid #D8C28C; outline-offset: 2px; }
+/* The open tab: the icon takes the tab's colour on a soft pill. */
+.sh-tab[aria-selected='true'] { background: rgba(255, 255, 255, 0.10); color: var(--tab); }
+.sh-tab:disabled { opacity: 0.4; cursor: default; }
+.sh-div { width: 1px; height: 14px; margin: 0 4px; background: rgba(255, 255, 255, 0.14); flex: none; }
+
+/* Body: panels sit on top of each other and crossfade. */
+.sh-body { position: relative; flex: 1 1 0; min-height: 0; margin-top: 8px; overflow: hidden; scrollbar-width: none; overscroll-behavior: contain; }
+.sh-body::-webkit-scrollbar { display: none; }
+.sh-body.is-scroll { -webkit-mask-image: linear-gradient(#000 calc(100% - 16px), transparent); mask-image: linear-gradient(#000 calc(100% - 16px), transparent); }
+.sh-body .h-panel { left: 0; right: 0; top: 0; }
+
+/* Tabs not built yet. */
+.sh-soon { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
+.sh-soon-t { font-size: var(--fs-15); font-weight: 600; color: var(--tab); }
+
+@media (prefers-reduced-motion: reduce) {
+  .sh, .sh-skin, .sh-tab { transition-duration: 1ms; }
+}
+
+/* Non-embedded desktop: the panel hangs under the island, centred. */
+.home-shell { position: fixed; top: 56px; left: 50%; margin-left: -300px; }
+
+/* The panels were drawn for a pure black island. Until cards 16 and 19 to 23 restyle them, let the tab's tint show through. */
+.sh-body .pay-panel { background: transparent; }

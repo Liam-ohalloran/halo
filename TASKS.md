@@ -253,7 +253,9 @@ Add a `/components` page showing each one, and the `/motion` page from HALO.md 3
 
 ## Shared rules for cards 15 to 23 (the 600 × 290 redesign)
 - The designs are in `design/boards/` (drop in from Opus). Open the matching `.dc.html` file in a browser and copy it exactly: sizes, colours, radii, spacing. Ignore `support.js` and the `{{ }}` holes, they are canvas tooling only.
-- Window 600 × 290, radius 26. Background is the tab's colour as a tinted gradient plus a soft corner glow. Never remove the glow.
+- The tabs ARE the island. There is no separate panel. The 200 × 34 pill at the top of the screen grows into the 600 × 290 window, so the window is the island's expanded state: black, flat top edge joined to the top of the screen, the same ears at the top corners, rounded only at the bottom (radius 26). The boards show four rounded corners only because they are drawn floating on a canvas.
+- Nothing ever scrolls. Every tab fits inside 600 × 290 with overflow hidden on an inner wrapper (never on the element with the ears). If there is more data than fits, show the top items and a "+3 more" line, never a scrollbar.
+- Window 600 × 290, radius 26 (bottom corners). Background is the tab's colour as a tinted gradient plus a soft corner glow. Never remove the glow.
 - Text: primary #F5F5F7, label rgba(245,245,247,0.85), meta rgba(245,245,247,0.5). `font-variant-numeric: tabular-nums` on every number. Font Onest.
 - Cards: radius 12, 1 px border tinted with the tab colour, soft radial tint inside.
 - Tab colours: amber #D39B65 (Home, Alerts, Laptop), violet #B59AE3 (Study, Night, Claude), sage #91BDA0 (Pay, Money), cyan #8FCFE0 (Marks, Shelf, Widgets), sky #88B5E0 (Sixers), gold #D8C28C (milestones, unread), rose #D99FB3 (Controls, warnings).
@@ -282,8 +284,28 @@ Add a `/components` page showing each one, and the `/motion` page from HALO.md 3
 
 ---
 
+## Card 15b · The island is the window
+**Model:** Sonnet · **Size:** medium · **Needs:** 15 · **Boards:** IslandLive, IslandDemo, Home2
+
+**Goal:** fix card 15. The island and the tab panel are two separate things and the panel scrolls. They must be one object.
+
+**Build:**
+1. One element pinned top centre, flat top edge touching the top of the screen, ears at both top corners, black base with the tab's tint and glow layered on top when expanded.
+2. Collapsed it is the island (200 × 34). Click, or hover for 300 ms, grows it into the 600 × 290 tab window. Click outside, Escape, or moving away for 1 s shrinks it back.
+3. Grow: width, height and bottom radius over 520 ms with `cubic-bezier(0.34, 1.45, 0.5, 1)`. Shrink: 380 ms with `cubic-bezier(0.4, 0, 0.2, 1)`. Content fades in only after the size settles and fades out first when closing. Reduced motion: just a quick fade.
+4. Remove the separate panel, the gap between pill and panel, and the page scrollbar. The "Signed in as" footer and "Add to Home Screen" move into Settings.
+5. Every tab's content sits in an inner wrapper with overflow hidden. Home must fit next shift, next test and coming up (max 3 rows, then "+N more").
+6. `?embed=1` shows only this object on a transparent background. On the phone PWA it sits under the real Dynamic Island the same way.
+
+**Done when**
+- [ ] No scrollbar anywhere at 600 × 290 on every tab
+- [ ] Screenshots of collapsed, mid grow and expanded on each built tab
+- [ ] Short recording of open and close
+- [ ] PR opened, not merged
+
+---
 ## Card 16 · Home, Pay and Study restyle
-**Model:** Sonnet · **Size:** medium · **Needs:** 15 · **Boards:** Home2, Pay3, Study3
+**Model:** Sonnet · **Size:** medium · **Needs:** 15b · **Boards:** Home2, Pay3, Study3
 
 **Goal:** the three main tabs redone to match their boards, with the same live data as now.
 
@@ -300,7 +322,7 @@ Add a `/components` page showing each one, and the `/motion` page from HALO.md 3
 ---
 
 ## Card 17 · Island idle and live states
-**Model:** Sonnet · **Size:** medium · **Needs:** 15 · **Board:** IslandLive.dc.html
+**Model:** Sonnet · **Size:** medium · **Needs:** 15b · **Board:** IslandLive.dc.html
 
 **Goal:** the island itself, resting and showing one live thing at a time.
 

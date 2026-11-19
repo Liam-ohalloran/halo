@@ -161,9 +161,10 @@ async function start() {
     const render = (signedIn: boolean, email = '') => {
       if (signedIn) {
         document.documentElement.classList.remove('signin')
-        mountHome(app)
-        // Embedded in NotchPixel the strip would cover the panel. Sign out lives in the settings popover instead.
-        if (!isEmbed()) mountSignedInNote(app, supabase, email)
+        // Card 15b: on desktop and embedded, "Signed in as" and "Add to Home Screen" live in Settings (the More tab).
+        mountHome(app, { account: { email, onSignOut: () => void supabase.auth.signOut() } })
+        // The phone keeps its stack for now, so it keeps the footer too.
+        if (!isEmbed() && matchMedia('(max-width: 480px)').matches) mountSignedInNote(app, supabase, email)
       } else {
         mountSignIn(app, supabase, linkError ? "That link didn't work. Send a new one." : undefined)
       }

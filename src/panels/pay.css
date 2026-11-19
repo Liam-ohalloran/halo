@@ -96,7 +96,7 @@
 .home-pay[data-fit="2"] .pay-shift { padding: 2px var(--s1); }
 .home-pay[data-fit="1"] .pay-list, .home-pay[data-fit="2"] .pay-list { gap: 0; }
 /* Wide: the week switcher and totals stack on the left, the shift list takes the full height on the right. */
-@media (min-width: 640px) {
+@container (min-width: 560px) {
   .home-pay[data-fit="1"] .pay-panel, .home-pay[data-fit="2"] .pay-panel { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--s4); align-items: start; }
   .home-pay[data-fit="1"] .pay-nav, .home-pay[data-fit="2"] .pay-nav { grid-column: 1; }
   .home-pay[data-fit="1"] .pay-body:has(> .pay-grid), .home-pay[data-fit="2"] .pay-body:has(> .pay-grid),

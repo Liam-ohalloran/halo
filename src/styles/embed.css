@@ -1,18 +1,20 @@
 /* Embedded mode (Halo inside NotchPixel's web tab). Pure black, edge to edge, no island shell, ears, key line or glow.
    Tokens only (HALO.md 3.2). Compact layouts come from the size classes on .embed-root and from data-fit on each panel. */
 
-html.embed, html.embed.home, html.embed body, html.embed.home body, html.embed.signin, html.embed.signin body { background: #000; margin: 0; height: 100%; overflow: hidden; }
+html.embed, html.embed.home, html.embed body, html.embed.home body, html.embed.signin, html.embed.signin body { background: transparent; margin: 0; height: 100%; overflow: hidden; }
+html.embed.signin, html.embed.signin body { background: #000; }
 html.embed #app { height: 100%; }
 
 .embed-root {
   position: fixed; inset: 0; box-sizing: border-box; overflow: hidden;
-  padding-top: var(--embed-top, 0px); background: #000; color: var(--text-1);
+  padding-top: var(--embed-top, 0px); background: transparent; color: var(--text-1);
   font-family: var(--font); font-size: var(--fs-15); font-weight: 500; -webkit-font-smoothing: antialiased;
 }
 .embed-root *, .embed-root *::before, .embed-root *::after { box-sizing: border-box; }
 
-/* The 600 x 290 panel sits centred at the top. A smaller window scales it down from the top centre (EmbedShell). */
-.embed-slot { position: absolute; top: var(--embed-top, 0px); left: 50%; width: 600px; height: 290px; margin-left: -300px; transform-origin: top center; }
+/* The island window pins itself top centre (shell.css). A smaller window scales it down from the top centre via --fit (EmbedShell). */
+.embed-root { pointer-events: none; }
+.embed-root .sh { pointer-events: auto; }
 
 /* Top padding and sign out, shown on the More tab under "Coming soon". */
 .embed-set { display: flex; align-items: center; gap: var(--s3); }

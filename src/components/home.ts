@@ -16,8 +16,9 @@ import { createStudyTimer } from '../panels/studyTimer'
 import { mountPay } from '../panels/pay'
 import { supabase, supabaseBackend } from '../supabase'
 import { isEmbed } from '../lib/embed'
-import { EmbedShell, EmbedSettings } from './EmbedShell'
-import { Shell } from './Shell'
+import { EmbedShell } from './EmbedShell'
+import { Shell, type ShellHandle } from './Shell'
+import { SettingsPanel, type Account } from './Settings'
 import { parseTab, type TabId as ShellTabId } from '../styles/tabs'
 import type { Backend } from '../types'
 import { supabaseNowSource, getTravelMinutes, type NowData, type NowSource } from '../lib/now'
@@ -37,6 +38,8 @@ export interface HomeOptions {
   api?: Backend
   /** Tab to start on (dev previews). Otherwise the last tab used. */
   tab?: string
+  /** Who is signed in, for the Settings panel on the More tab (it used to be a footer under the page). */
+  account?: Account
   /** Sixers feed, swapped for recorded JSON in dev previews. Defaults to the nba edge function. */
   sixers?: () => Promise<NbaResponse>
 }
@@ -63,8 +66,29 @@ function startTab(o: { tab?: string }): ShellTabId {
 const TAB_TINT: Record<TabId, string> = { now: '#FF9F0A', study: '#BF5AF2', pay: '#30D158', sixers: SIXERS_BLUE }
 const QUIET = '#C7C7CC' // glow colour when no content has one
 const CHROME = 22 + 44 + 12 + 22 // top padding, tab bar, row gap, bottom padding (matches the demo content)
-const MAX_FIT = 2 // compact layout steps a panel may take before it is allowed to scroll
-const MAX_FIT_EMBED = 3 // embedded in NotchPixel there is one more step, because the window can be any size
+/** The island adapter: home.ts drives the closed island through the same handle the phone's Island has. */
+function shellIsland(sh: ShellHandle): IslandHandle {
+  const content: Partial<Record<IslandState, Node[]>> = {}
+  const paint = () => sh.pill.replaceChildren(...(content[sh.collapsed] ?? []))
+  const api = {
+    get state(): IslandState { return sh.isOpen ? 'expanded' : sh.collapsed },
+    setState: (s: IslandState) => { if (s === 'resting' || s === 'compact' || s === 'wide') { sh.setCollapsed(s); paint() } },
+    setContent: (s: IslandState, c: Node | Node[]) => { content[s] = Array.isArray(c) ? c : [c]; if (s === sh.collapsed) paint() },
+    swapContent: (s: IslandState, c: Node | Node[]) => api.setContent(s, c),
+    open: () => sh.open(),
+    close: () => sh.close(),
+    alert: () => {},
+    setExpandedHeight: () => {},
+    setTint: (hex: string) => sh.setKey(hex),
+    setColours: (l: string) => sh.setKey(l),
+    setPulse: () => {},
+    setDisabled: () => {},
+    getBoundingClientRect: () => sh.el.getBoundingClientRect(),
+  }
+  return api as unknown as IslandHandle
+}
+
+const MAX_FIT = 2// compact layout steps a panel may take before it is allowed to scroll
 const REFRESH_MS = 5 * 60_000
 
 export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
@@ -92,23 +116,27 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   let activeTab: ShellTabId = startTab(o)
   let panelFor: (id: ShellTabId) => HTMLElement = () => document.createElement('div')
   let showShellTab: (id: ShellTabId, emitted?: boolean) => void = () => {}
-  const sh = phone ? null : Shell({ active: activeTab, now: clock, onChange: (id) => showShellTab(id, true) })
+  // Card 15b: on desktop the shell IS the island. Collapsed it is the pill, open it is the 600 x 290 window. Embedded
+  // in NotchPixel the window is always shown, so nothing hovers or closes it.
+  const sh = phone ? null : Shell({
+    active: activeTab, now: clock, open: embed || !!o.open, auto: !embed,
+    onChange: (id) => showShellTab(id, true),
+    onToggle: (isOpen) => { applyTint(); if (!isOpen) queueMicrotask(syncBase) },
+  })
   const embedRoot = embed ? EmbedShell() : null
-  const isl: IslandHandle = embedRoot ?? Island({
+  const isl: IslandHandle = sh ? shellIsland(sh) : Island({
     initial: 'resting', base: 'resting', stageHeight: stageH, tint: QUIET, label: 'Halo island',
-    hover: !phone && !sh && matchMedia('(hover: hover)').matches,
-    toggleOnClick: !phone && !sh,
+    hover: false,
+    toggleOnClick: !phone,
     onState: (s) => {
       // The base can only change while the island is closed, otherwise it would collapse under the user.
       applyTint()
       if (s !== 'expanded' && s !== 'alert') queueMicrotask(syncBase)
     },
   })
-  if (sh && !embedRoot) isl.open = () => {}
-  const stage = embedRoot ?? h('div', { class: 'home-stage' }, isl)
-  if (embedRoot && sh) embedRoot.panelSlot.append(sh.el)
+  const stage: HTMLElement = embedRoot ?? sh?.el ?? h('div', { class: 'home-stage' }, isl)
+  if (embedRoot && sh) embedRoot.append(sh.el)
   app.replaceChildren(stage)
-  if (sh && !embedRoot) app.append(h('div', { class: 'home-shell' }, sh.el))
   const shell = sh // the shell drives layout where the old embedded shell did
 
   // ---- Expanded content: tab bar and one panel per tab
@@ -149,7 +177,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     if (id === 'study') el = StudyPanel(api, timer, () => requestAnimationFrame(relayout))
     else {
       const root = h('div', { class: 'home-pay' })
-      unmountPay = mountPay(root, api, (cb) => { payListeners.add(cb); return () => payListeners.delete(cb) })
+      unmountPay = mountPay(root, api, (cb) => { payListeners.add(cb); return () => payListeners.delete(cb) }, { maxShifts: sh ? 4 : undefined })
       el = root
     }
     made[id] = el
@@ -164,20 +192,18 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     if (!el) return
     // Embedded, the panel host fills whatever is left under the tab bar, so the room is the viewport's.
     const room = shell ? host.clientHeight : stageH - 4 - CHROME
-    const maxFit = shell ? MAX_FIT_EMBED : MAX_FIT
+    const maxFit = MAX_FIT
     // Start roomy and compact the layout one step at a time until the panel fits, so the island can
     // spring to the full content height with nothing clipped and nothing to scroll.
+    // The window is always 600 x 290, so the shell uses the tightest layout every panel has and shell.css trims it further.
+    // Nothing ever scrolls (card 15b): the host clips, and a panel shows its top items then "+N more".
+    if (shell) { el.dataset.fit = '2'; return }
     let fit = 0
     el.dataset.fit = '0'
     let ph = el.offsetHeight // layout height: ignores the slide and scale of a tab switch
     while (ph > room && fit < maxFit) {
       el.dataset.fit = String(++fit)
       ph = el.offsetHeight
-    }
-    if (shell) {
-      host.style.overflowY = ph > room ? 'auto' : 'hidden'
-      host.classList.toggle('is-scroll', ph > room)
-      return
     }
     host.style.height = `${Math.min(ph, room)}px`
     host.style.overflowY = ph > room ? 'auto' : 'hidden'
@@ -221,12 +247,13 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     requestAnimationFrame(() => phoneShow(activeId, false))
   }
   // Desktop and embed: the shell shows the panel for the active tab. Tabs without a panel yet show "Coming soon".
+  let settings: HTMLElement | undefined
   panelFor = (id) => {
     const p = toPanel(id)
     if (p) return getPanel(p)
     const soon = sh!.soon(id)
     // Embedded, the top padding and sign out used to sit behind a gear. They live on More until card 23.
-    if (id === 'more' && embed && !soon.querySelector('.embed-set')) soon.append(EmbedSettings({ onSignOut: () => void supabase.auth.signOut() }))
+    if (id === 'more') return (settings ??= SettingsPanel({ account: o.account, embed, onSignOut: () => void supabase.auth.signOut() }))
     return soon
   }
   showShellTab = (id, fromShell = false) => {
@@ -378,7 +405,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   const onVisible = () => { if (document.hidden) stop(); else { start(); void refresh() } }
   const onOnline = () => void refresh()
   // Tapping or clicking anywhere outside the open island closes it (phones have no Escape key).
-  const onOutside = (e: PointerEvent) => { if (isl.state === 'expanded' && !(e.target as Element).closest('.h-island')) isl.close() }
+  const onOutside = (e: PointerEvent) => { if (!sh && isl.state === 'expanded' && !(e.target as Element).closest('.h-island')) isl.close() }
   document.addEventListener('pointerdown', onOutside)
   document.addEventListener('visibilitychange', onVisible)
   addEventListener('online', onOnline)
@@ -388,7 +415,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   void refresh()
   start()
   void timer.init().then(() => syncIsland(clock())).catch(() => {})
-  if (o.open && !phone) requestAnimationFrame(() => requestAnimationFrame(() => isl.open()))
+  if (o.open && !phone && !sh) requestAnimationFrame(() => requestAnimationFrame(() => isl.open()))
 
   return () => {
     stop(); ro.disconnect(); unsub(); unsubTimer(); unmountPay(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()

@@ -7,9 +7,8 @@ import { SHELL_H, SHELL_W } from './Shell'
 import { TOP_MAX, TOP_STEP, embedTop, setEmbedTop } from '../lib/embed'
 
 // Embedded mode (HALO.md 3.9, v1 inside NotchPixel's web tab): NotchPixel is already the island, so Halo draws no
-// island, ears, key line or glow of its own. Since card 15 the page is a pure black field with the 600 x 290 shell
-// panel on it, centred at the top and scaled down only if the window is smaller than the panel. It answers to the
-// same handle as Island so home.ts can drive either one.
+// island of its own. Since card 15b the page is transparent and holds only the island window (Shell), pinned top
+// centre and scaled down only if the window is smaller than 600 x 290.
 
 export interface EmbedShellHandle extends IslandHandle {
   /** Where the 600 x 290 panel goes. */
@@ -18,9 +17,7 @@ export interface EmbedShellHandle extends IslandHandle {
 
 export function EmbedShell(): EmbedShellHandle {
   const root = h('div', { class: 'embed-root', 'data-state': 'expanded' }) as unknown as EmbedShellHandle
-  const slot = h('div', { class: 'embed-slot' })
-  root.append(slot)
-  root.panelSlot = slot
+  root.panelSlot = root as unknown as HTMLDivElement // the object pins itself to the top of the page
 
   document.documentElement.style.setProperty('--embed-top', `${embedTop()}px`)
 
@@ -28,7 +25,7 @@ export function EmbedShell(): EmbedShellHandle {
   const fit = () => {
     const top = parseFloat(getComputedStyle(root).paddingTop) || 0
     const s = Math.min(1, root.clientWidth / SHELL_W, Math.max(root.clientHeight - top, 1) / SHELL_H)
-    slot.style.transform = s < 1 ? `scale(${s})` : ''
+    root.style.setProperty('--fit', String(s))
   }
   new ResizeObserver(fit).observe(root)
 

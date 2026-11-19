@@ -12,7 +12,7 @@ import {
 // Built from library parts only. Two columns when the island is wide (NotchPixel), one column on a phone.
 
 export const SHIFT_COLOUR = '#FF9F0A'
-const MAX_ROWS = 4
+const MAX_ROWS = 3
 
 export interface NowPanelHandle {
   el: HTMLDivElement
@@ -111,7 +111,7 @@ export function NowPanel(): NowPanelHandle {
     return h('section', { class: `n-card n-today${items.length ? '' : ' n-empty'}`, 'aria-label': 'Today' },
       h('div', { class: 'n-row between' }, label('TODAY'), h('span', { class: 'n-date' }, fmtDayMonth(now))),
       body,
-      more > 0 ? h('div', { class: 'n-more' }, `${more} more`) : null)
+      more > 0 ? h('div', { class: 'n-more' }, `+${more} more`) : null)
   }
 
   const keyOf = (items: TimelineItem[]) => items.map((i) => `${i.id}:${i.status}`).join('|')

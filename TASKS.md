@@ -331,14 +331,14 @@ Add a `/components` page showing each one, and the `/motion` page from HALO.md 3
 ---
 
 ## Card 17 · Island idle and live states
-**Model:** Sonnet · **Size:** medium · **Needs:** 15b · **Source:** prototype compact pill, plus the Pinterest picks below
+**Model:** Sonnet · **Size:** medium · **Needs:** 15b · **Source:** prototype, the LIVE buttons and the change buttons under the island
 
 **Goal:** the closed island, resting and showing one live thing at a time.
 
 **Build:**
 1. Sizes: idle 200 × 34, compact 300 × 40, wide 400 × 40. Ears via `::before` and `::after` radial masks. Never put `overflow: hidden` on the element with the ears.
 2. States, highest priority wins: Leave now, Live game, Study timer, Shift soon (within 2 hours), Music, Charging (3 seconds on plug in), Idle with unread (gold dot), Idle.
-3. Styles Liam picked: **charging pill** (black pill, glowing progress bar with percent, small pill sitting above it) for Charging and the pay week; **outlined timer island** (bigger black island with a glowing coloured border) for Study timer and Shift soon.
+3. Copy each state from the prototype: Leave now 400 × 46 pulsing red with a minutes chip, Live game 400 × 40 (logos, scores, red live dot, quarter and clock), Study timer and Shift soon as the **outlined island** 380 × 64 (glowing coloured border, big time, pause and stop or leave by), Music 300 × 38 (art, title, moving bars), Charging 220 × 34 plus a separate floating pill under it with the green bar and time to full (gone after 3 s), Idle with a gold unread dot.
 4. Size changes animate over 380 ms with `cubic-bezier(0.4, 0, 0.2, 1)`, content fades in after the size settles.
 5. Music and Charging come from the helper and stay hidden if it isn't running. Live game comes from the `nba` function.
 6. **HUD pills for every change Liam makes on the laptop** (prototype: the "Try a change" buttons and the − = [ ] M keys). The closed island grows to a 310 to 360 × 44 pill for about 1.7 s, then settles back. Repeat presses reset the timer and the bar slides live, it never re-pops.
@@ -358,7 +358,7 @@ Add a `/components` page showing each one, and the `/motion` page from HALO.md 3
 ---
 
 ## Card 18 · Notification banners and the alert animation
-**Model:** Sonnet · **Size:** medium · **Needs:** 17, 20
+**Model:** Sonnet · **Size:** medium · **Needs:** 17, 20 · **Source:** prototype, the NOTIFY buttons under the island
 
 **Goal:** alerts pop out of the island, then settle back.
 

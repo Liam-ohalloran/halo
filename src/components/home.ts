@@ -16,6 +16,8 @@ import { StudyPill } from '../panels/studyPill'
 import { createStudyTimer } from '../panels/studyTimer'
 import { PayPanel } from '../panels/pay'
 import { WeekPanel } from '../panels/week'
+import { AlertsPanel } from '../panels/alerts'
+import { buildAlertsView, createAlertsStore } from '../lib/alerts'
 import type { PvRoot } from '../ui/charts'
 import { supabase, supabaseBackend } from '../supabase'
 import { isEmbed } from '../lib/embed'
@@ -281,7 +283,12 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   let settings: HTMLElement | undefined
   const weekListeners = new Set<() => void>()
   let weekPanel: ReturnType<typeof WeekPanel> | null = null
+  // Alerts (card 20). One shared list feeds the tab and the island's gold dot. Desktop and embed only.
+  const alertsStore = sh ? createAlertsStore(api) : null
+  const unsubAlerts = alertsStore?.subscribe(() => sh!.setUnread(buildAlertsView(alertsStore.rows()).unread))
+  let alertsPanel: ReturnType<typeof AlertsPanel> | null = null
   panelFor = (id) => {
+    if (id === 'alerts' && alertsStore) return (alertsPanel ??= AlertsPanel(alertsStore, clock))
     if (id === 'week') return (weekPanel ??= WeekPanel(api, (cb) => { weekListeners.add(cb); return () => weekListeners.delete(cb) }, clock))
     const p = toPanel(id)
     if (p) return getPanel(p)
@@ -433,7 +440,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     refreshTimer = window.setInterval(() => void refresh(), REFRESH_MS)
   }
   function stop() { clearInterval(tickTimer); clearInterval(refreshTimer) }
-  const onVisible = () => { syncHomeActive(); if (document.hidden) stop(); else { start(); void refresh() } }
+  const onVisible = () => { syncHomeActive(); if (document.hidden) stop(); else { start(); void refresh(); void alertsStore?.load() } }
   const onOnline = () => void refresh()
   // Tapping or clicking anywhere outside the open island closes it (phones have no Escape key).
   const onOutside = (e: PointerEvent) => { if (!sh && isl.state === 'expanded' && !(e.target as Element).closest('.h-island')) isl.close() }
@@ -449,7 +456,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   if (o.open && !phone && !sh) requestAnimationFrame(() => requestAnimationFrame(() => isl.open()))
 
   return () => {
-    stop(); ro.disconnect(); unsub(); unsubTimer(); payPanel?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
+    stop(); ro.disconnect(); unsub(); unsubTimer(); payPanel?.destroy(); alertsPanel?.destroy(); unsubAlerts?.(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
     document.removeEventListener('pointerdown', onOutside)
     document.removeEventListener('visibilitychange', onVisible)
     removeEventListener('online', onOnline)

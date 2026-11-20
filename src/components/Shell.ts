@@ -58,6 +58,8 @@ export interface ShellHandle {
   readonly collapsed: CollapsedState
   /** Key line colour of the closed island, from its content. */
   setKey(hex: string): void
+  /** Unread alerts. Above zero, the resting island shows a small gold dot (card 20, card 17 restyles it). */
+  setUnread(n: number): void
 }
 
 const style = (el: HTMLElement, css: string) => { el.setAttribute('style', css); return el }
@@ -140,7 +142,8 @@ export function Shell(o: ShellOptions): ShellHandle {
 
   skinsEl.append(...skins.values())
   inner.append(header, host)
-  clip.append(skinsEl, pill, inner)
+  const dot = h('span', { class: 'sh-dot', 'aria-hidden': 'true' })
+  clip.append(skinsEl, pill, dot, inner)
   el.append(clip)
 
   // ---- Coming soon panels, one per tab, made on demand
@@ -247,5 +250,9 @@ export function Shell(o: ShellOptions): ShellHandle {
     el, host, get active() { return active }, setActive, refreshMeta, soon,
     get isOpen() { return isOpen }, open, close, pill, setCollapsed, get collapsed() { return collapsed },
     setKey: (hex) => el.style.setProperty('--k', hex),
+    setUnread: (n) => {
+      el.dataset.unread = n > 0 ? '1' : '0'
+      pill.setAttribute('aria-label', n > 0 ? `Open Halo, ${n} new ${n === 1 ? 'alert' : 'alerts'}` : 'Open Halo')
+    },
   }
 }

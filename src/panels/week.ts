@@ -133,7 +133,7 @@ export function WeekPanel(api: Backend, subscribe: (cb: () => void) => () => voi
       if (Number.isFinite(i)) select(i)
       root.querySelectorAll('.calEv.sel').forEach((x) => x.classList.remove('sel'))
       evEl.classList.add('sel')
-      tip(root, `${ev.title}. ${fmtRange(ev)}`)
+      tip(root, `${ev.label} · ${fmtRange(ev)}`)
       setTimeout(() => evEl.classList.remove('sel'), 2400)
       return
     }

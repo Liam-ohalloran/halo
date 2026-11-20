@@ -63,9 +63,9 @@ export const TAB_THEMES: Record<TabId, TabTheme> = {
     glow: corner('136,181,224', 0.18, 'left:-80px;top:-90px', 320, 220), layers: [],
   },
   week: {
-    id: 'week', label: 'Week', aria: 'Week', colour: '#D8C28C', rail: '#D5D5DC',
-    bg: neutral('#1C1B21', '#141418', '#0F0F12'), border: NEUTRAL_BORDER, pad: [10, 18, 14, 18], text: '#F2F2F4',
-    glow: corner('216,194,140', 0.10, 'left:-90px;top:-110px'), layers: [],
+    id: 'week', label: 'Week', aria: 'Week', colour: '#FF8A1E', shadow: '#FF8A1E', rail: '#FF8A1E',
+    bg: '#000', border: 'rgba(255,255,255,0.08)', pad: [10, 16, 12, 16], text: '#F5F7FF',
+    glow: 'display:none', layers: [],
   },
   more: {
     id: 'more', label: 'More', aria: 'More tabs', colour: '#D8C28C', rail: '#B9B9C2',

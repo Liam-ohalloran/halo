@@ -49,6 +49,17 @@ export const supabaseBackend: Backend = {
     ) as Test[]
   },
 
+  async testsBetween(from, to) {
+    return must(
+      await supabase
+        .from('tests')
+        .select('id,subject,title,due_at')
+        .gte('due_at', from.toISOString())
+        .lt('due_at', to.toISOString())
+        .order('due_at', { ascending: true }),
+    ) as Test[]
+  },
+
   async shiftsBetween(from, to) {
     return must(
       await supabase

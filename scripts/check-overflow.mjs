@@ -16,7 +16,9 @@ import { chromium } from 'playwright'
 import { pathToFileURL } from 'node:url'
 
 export const ALL_TABS = ['home', 'music', 'study', 'pay', 'sixers', 'week', 'more', 'controls']
-export const DEFAULT_TABS = ['home', 'pay', 'study']
+export const DEFAULT_TABS = ['home', 'pay', 'study', 'week']
+/** The Week tab has its own fixtures: a normal week, and a busy one with clashes and a crowded EARLY row. */
+export const API_FOR = (tab, state) => (tab === 'week' && state !== 'empty' ? (state === 'busy' ? 'weekbusy' : 'week') : state)
 
 /** Runs inside the page. Returns a list of problems. */
 export function auditInPage() {
@@ -98,7 +100,7 @@ export async function checkTab(browser, base, tab, state) {
   const page = await ctx.newPage()
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
-  await page.goto(`${base}?demo=soon&tab=${tab}&open=1&home=${state}&api=${state}&sixers=${state === 'empty' ? 'none' : 'final-win'}`)
+  await page.goto(`${base}?demo=soon&tab=${tab}&open=1&home=${state}&api=${API_FOR(tab, state)}&sixers=${state === 'empty' ? 'none' : 'final-win'}`)
   await page.waitForSelector('.sh[data-open="true"] .sh-body > *')
   await page.waitForTimeout(1600)
   const problems = await page.evaluate(auditInPage)
@@ -114,7 +116,7 @@ async function main() {
   const browser = await chromium.launch()
   let failed = 0
   for (const tab of tabs) {
-    for (const state of ['full', 'empty']) {
+    for (const state of tab === 'week' ? ['full', 'busy', 'empty'] : ['full', 'empty']) {
       const problems = await checkTab(browser, 'http://localhost:5251/halo/', tab, state)
       console.log(`${problems.length ? 'FAIL' : 'ok  '} ${tab} (${state})`)
       for (const p of problems) console.log(`       ${p}`)

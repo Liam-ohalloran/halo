@@ -15,6 +15,7 @@ import { StudyPanel, ICONS_NEEDED as STUDY_ICONS } from '../panels/study'
 import { StudyPill } from '../panels/studyPill'
 import { createStudyTimer } from '../panels/studyTimer'
 import { PayPanel } from '../panels/pay'
+import { WeekPanel } from '../panels/week'
 import type { PvRoot } from '../ui/charts'
 import { supabase, supabaseBackend } from '../supabase'
 import { isEmbed } from '../lib/embed'
@@ -278,7 +279,10 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   }
   // Desktop and embed: the shell shows the panel for the active tab. Tabs without a panel yet show "Coming soon".
   let settings: HTMLElement | undefined
+  const weekListeners = new Set<() => void>()
+  let weekPanel: ReturnType<typeof WeekPanel> | null = null
   panelFor = (id) => {
+    if (id === 'week') return (weekPanel ??= WeekPanel(api, (cb) => { weekListeners.add(cb); return () => weekListeners.delete(cb) }, clock))
     const p = toPanel(id)
     if (p) return getPanel(p)
     const soon = sh!.soon(id)
@@ -436,7 +440,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   document.addEventListener('pointerdown', onOutside)
   document.addEventListener('visibilitychange', onVisible)
   addEventListener('online', onOnline)
-  const unsub = source.onChange(() => { void refresh(); payListeners.forEach((f) => f()) })
+  const unsub = source.onChange(() => { void refresh(); payListeners.forEach((f) => f()); weekListeners.forEach((f) => f()) })
 
   render()
   void refresh()

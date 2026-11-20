@@ -12,6 +12,8 @@ import {
 
 const KEY = 'halo.study.timer.v1'
 export const TARGET_MIN = 25
+/** The lengths the Study tab offers, in minutes. */
+export const LENGTHS = [25, 50] as const
 
 const store = {
   get(): string | null { try { return localStorage.getItem(KEY) } catch { return null } },
@@ -27,6 +29,8 @@ export interface StudyTimerHandle {
   readonly ready: boolean
   init(): Promise<void>
   setSubject(name: string): void
+  /** Change the focus length. Only while idle. */
+  setLength(min: number): void
   start(): Promise<void>
   pause(): void
   resume(): void
@@ -48,6 +52,8 @@ export function plainError(e: unknown): string {
 
 export function createStudyTimer(api: Backend, defaultSubject: string): StudyTimerHandle {
   let state: TimerState = parseState(store.get()) ?? idleState(defaultSubject, TARGET_MIN)
+  // The length survives a reload and carries over to the next session, so it is read back from the saved state.
+  let lenMin = Math.round(state.targetMs / 60_000) || TARGET_MIN
   let busy = false
   let ready = false
   let finishing = false
@@ -87,10 +93,10 @@ export function createStudyTimer(api: Backend, defaultSubject: string): StudyTim
     try {
       if (s.sessionId) {
         const row = await api.stopSession(s.sessionId, new Date(endedAt(s, now)))
-        set(idleState(s.subject, TARGET_MIN))
+        set(idleState(s.subject, lenMin))
         logged(row, kind)
       } else {
-        set(idleState(s.subject, TARGET_MIN))
+        set(idleState(s.subject, lenMin))
       }
     } catch (e) {
       set(pause(s, now))
@@ -116,9 +122,9 @@ export function createStudyTimer(api: Backend, defaultSubject: string): StudyTim
       const local = state
       if (!offline && remote && (local.status === 'idle' || local.sessionId !== remote.id)) {
         // A session is open in Supabase that this browser does not know about, for example started on the phone.
-        state = begin(idleState(remote.subject, TARGET_MIN), remote.id, Date.parse(remote.started_at))
+        state = begin(idleState(remote.subject, lenMin), remote.id, Date.parse(remote.started_at))
       } else if (!offline && !remote && local.status !== 'idle') {
-        state = idleState(local.subject, TARGET_MIN) // closed somewhere else
+        state = idleState(local.subject, lenMin) // closed somewhere else
       }
       ready = true
       save()
@@ -130,6 +136,12 @@ export function createStudyTimer(api: Backend, defaultSubject: string): StudyTim
     setSubject(name) {
       if (state.status !== 'idle') return
       set({ ...state, subject: name })
+    },
+
+    setLength(min) {
+      if (state.status !== 'idle' || !(min > 0)) return
+      lenMin = min
+      set({ ...state, targetMs: min * 60_000 })
     },
 
     async start() {

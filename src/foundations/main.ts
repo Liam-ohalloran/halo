@@ -203,7 +203,7 @@ function typeSection() {
       h('div', { class: 'sp-row' }, h('span', { class: 'label' }, 'Body 15 / 400'), h('div', { class: 'sp-body' }, 'Your next shift starts in 1 hour 42 minutes. Leave by 5:05.')),
     ),
   )
-  return h('section', { class: 'f-sec' }, h('h2', {}, 'Type'), h('p', { class: 'f-note' }, 'Onest, self-hosted. The glow is the light spill from HALO.md 3.1b, amber for a shift.'), specimen)
+  return h('section', { class: 'f-sec' }, h('h2', {}, 'Type'), h('p', { class: 'f-note' }, 'Inter Tight and Geist Mono, self-hosted. The glow is the light spill from HALO.md 3.1b, amber for a shift.'), specimen)
 }
 
 function iconSection() {

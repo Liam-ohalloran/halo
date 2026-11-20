@@ -18,9 +18,10 @@ test('every tab has a full theme and an icon', () => {
 })
 
 test('tab colours come from the shared rules', () => {
-  assert.equal(TAB_THEMES.home.colour, '#D39B65')
-  assert.equal(TAB_THEMES.study.colour, '#B59AE3')
-  assert.equal(TAB_THEMES.pay.colour, '#91BDA0')
+  // Home, Study and Pay follow the approved prototype (card 16).
+  assert.equal(TAB_THEMES.home.colour, '#FFC23D')
+  assert.equal(TAB_THEMES.study.colour, '#9fb0ff')
+  assert.equal(TAB_THEMES.pay.colour, '#5CFF7A')
   assert.equal(TAB_THEMES.sixers.colour, '#88B5E0')
   assert.equal(TAB_THEMES.controls.colour, '#D99FB3')
 })

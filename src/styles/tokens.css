@@ -1,9 +1,11 @@
 /* Halo design tokens. Source of truth: HALO.md section 3.2 */
-@font-face { font-family: 'Onest'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/onest-latin-400-normal.woff2') format('woff2'); }
-@font-face { font-family: 'Onest'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/onest-latin-500-normal.woff2') format('woff2'); }
-@font-face { font-family: 'Onest'; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/onest-latin-600-normal.woff2') format('woff2'); }
-@font-face { font-family: 'Onest'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/onest-latin-700-normal.woff2') format('woff2'); }
-@font-face { font-family: 'Onest'; font-style: normal; font-weight: 800; font-display: swap; src: url('/fonts/onest-latin-800-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Inter Tight'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/inter-tight-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Inter Tight'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/inter-tight-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Inter Tight'; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/inter-tight-latin-600-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Inter Tight'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/inter-tight-latin-700-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Inter Tight'; font-style: normal; font-weight: 800; font-display: swap; src: url('/fonts/inter-tight-latin-800-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Geist Mono'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/geist-mono-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Geist Mono'; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/geist-mono-latin-600-normal.woff2') format('woff2'); }
 
 :root {
   /* colour */
@@ -49,6 +51,7 @@
   --fs-21: 21px;
   --fs-28: 28px;
 
-  /* font: Onest, self-hosted (HALO.md 3.2) */
-  --font: 'Onest', system-ui, sans-serif;
+  /* fonts: Inter Tight for UI and numbers, Geist Mono for caps labels, self-hosted (HALO.md 3.0, 3.2) */
+  --font: 'Inter Tight', system-ui, sans-serif;
+  --mono: 'Geist Mono', ui-monospace, monospace;
 }

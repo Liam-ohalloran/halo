@@ -197,3 +197,35 @@ export function calcWeek(shifts: PayShift[], weekStart: Date, s: Settings): Week
     net: round2(gross - tax),
   }
 }
+
+/* ---------- the Pay tab's charging bar and curve (card 16) ---------- */
+
+/** Hours at which the charging bar turns to overtime stripes, and the full width of the bar. */
+export const CHARGE_OT_HOURS = 10
+export const CHARGE_MAX_HOURS = 24
+/** Overtime pays this much extra an hour on hours past 10 in a pay week (from the payslip). */
+export const OT_EXTRA_RATE = 2
+
+/** The bar is 24 hours wide, or hours + 2 when the week is bigger, so the knob never runs off the end. */
+export const chargeScale = (hours: number): number => Math.max(CHARGE_MAX_HOURS, hours + 2)
+
+/** Gross pay banked by the end of each day of the week, Monday first. The last value is the week's gross. */
+export function cumulativeGross(week: WeekPay): number[] {
+  let run = 0
+  return week.days.map((d) => { run += d.gross; return round2(run) })
+}
+
+/** The charging bar as fractions of its full width: solid up to 10 hours, stripes past it. `scale` is the bar's width in hours. */
+export function chargeBar(hours: number): { base: number; over: number; scale: number } {
+  const h = Math.max(0, hours)
+  const scale = chargeScale(h)
+  return { base: Math.min(h, CHARGE_OT_HOURS) / scale, over: Math.max(0, h - CHARGE_OT_HOURS) / scale, scale }
+}
+
+/** The extra overtime pays: $2 an hour on hours past 10 in the week. Not the pay for those hours. Zero at 10 hours or under. */
+export function overtimePay(week: WeekPay): number {
+  return round2(Math.max(0, week.hours - CHARGE_OT_HOURS) * OT_EXTRA_RATE)
+}
+
+/** What an hour on a Sunday pays. */
+export const sundayRate = (s: Settings): number => round2(s.weekday_rate * s.sunday_multiplier)

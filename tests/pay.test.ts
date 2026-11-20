@@ -219,3 +219,44 @@ test('shifts outside the week are ignored and the list is in time order', () => 
   assert.equal(w.shifts[0].shift.starts_at, '2026-11-17T12:00+08:00')
   assert.equal(w.gross, 160)
 })
+
+// ---- Card 16: the Pay tab's charging bar and curve ----
+import { CHARGE_MAX_HOURS, CHARGE_OT_HOURS, chargeBar, chargeScale, cumulativeGross, overtimePay, sundayRate } from '../src/lib/pay.ts'
+
+test('cumulativeGross adds each day to the last and ends on the week gross', () => {
+  // Wed 18 Nov 4 pm to 9 pm = 5 h, no break (not over 5 h) = $100. Sat 21 Nov 9 am to 3 pm = 6 h, 5.5 paid = $110.
+  const shifts: PayShift[] = [
+    { starts_at: '2026-11-18T16:00:00+08:00', ends_at: '2026-11-18T21:00:00+08:00', is_public_holiday: false },
+    { starts_at: '2026-11-21T09:00:00+08:00', ends_at: '2026-11-21T15:00:00+08:00', is_public_holiday: false },
+  ]
+  const wk = calcWeek(shifts, perthWeekStart(new Date('2026-11-19T12:00:00+08:00')), S)
+  assert.deepEqual(cumulativeGross(wk), [0, 0, 100, 100, 100, 210, 210])
+})
+
+test('chargeBar is solid to 10 hours, then overtime stripes, and never passes 24', () => {
+  assert.deepEqual(chargeBar(0), { base: 0, over: 0, scale: 24 })
+  assert.deepEqual(chargeBar(6), { base: 6 / CHARGE_MAX_HOURS, over: 0, scale: 24 })
+  assert.deepEqual(chargeBar(15.5), { base: CHARGE_OT_HOURS / CHARGE_MAX_HOURS, over: 5.5 / CHARGE_MAX_HOURS, scale: 24 })
+})
+
+test('the bar scale is max(24, hours + 2), so the knob always stops short of the end', () => {
+  assert.equal(chargeScale(10), 24)
+  assert.equal(chargeScale(22), 24)
+  assert.equal(chargeScale(24.8), 26.8)
+  for (const h of [0, 8, 22, 24, 24.8, 40]) { const b = chargeBar(h); assert.ok(b.base + b.over < 1 || h === 0) }
+  const b = chargeBar(40)
+  assert.ok(Math.abs(b.base + b.over - 40 / 42) < 1e-9)
+})
+
+test('overtimePay is the extra $2 an hour on hours past 10, and zero at 10 or under', () => {
+  const week = (hours: number, gross: number) => ({ hours, gross }) as never
+  assert.equal(overtimePay(week(10, 200)), 0)
+  assert.equal(overtimePay(week(8, 160)), 0)
+  assert.equal(overtimePay(week(15.5, 310)), 11) // 5.5 h over 10 x $2, not the pay for those hours
+  assert.equal(overtimePay(week(24.75, 500)), 29.5)
+})
+
+test('sundayRate is the base rate times the Sunday multiplier', () => {
+  assert.equal(sundayRate(DEFAULTS), 22.36)
+  assert.equal(sundayRate(S), 25)
+})

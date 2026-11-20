@@ -1,0 +1,84 @@
+/* Card 16: the approved prototype's foundations (design/prototype/index.html, HALO.md 3.0).
+   Tokens, the tile colour classes, the pop in entrance and the small pieces every prototype tab shares.
+   Everything is scoped to .pv (one prototype view) so the older panels keep their own look. */
+:root {
+  --amber: #FF8A1E; --gold: #FFC23D; --green: #5CFF7A; --cobalt: #3D5AFE; --blue: #3D9BFF; --mag: #FF2FA3;
+  --purple: #BF5AF2; --red: #FF453A; --pearl: #F5F7FF; --fog: #AEB6C2;
+  --slow: 1;
+  --spring: cubic-bezier(.34, 1.5, .5, 1);
+  --ease: cubic-bezier(.4, 0, .2, 1);
+}
+
+.pv { position: relative; height: 100%; font-family: var(--font); color: var(--pearl); font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; user-select: none; }
+.pv *, .pv *::before, .pv *::after { box-sizing: border-box; }
+.pv button { font-family: inherit; }
+.pv .caps { font-family: var(--mono); font-size: 8px; letter-spacing: .14em; text-transform: uppercase; font-weight: 600; }
+.pv .num { font-variant-numeric: tabular-nums; }
+.pv :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* ---- Entrance: tiles pop in, rings fill, numbers count up. It plays when the tab is switched to, never on a press. ---- */
+.pv .pop { opacity: 0; transform: scale(.92) translateY(-8px); animation: none; } /* the old screens define .pop as an animation */
+.pv.on .pop {
+  opacity: 1; transform: none;
+  transition: opacity calc(260ms * var(--slow)) var(--ease), transform calc(520ms * var(--slow)) var(--spring);
+  transition-delay: calc((60ms + var(--i, 0) * 45ms) * var(--slow));
+}
+.pv.on .pop.t:hover, .pv.on .pop.dp:hover { transition-delay: 0s; }
+.pv.still .pop, .pv.still .pop * { transition: none !important; transition-delay: 0s !important; }
+
+/* ---- Tiles (Home's own tile and the colour tile family) ---- */
+.pv .t {
+  position: relative; border-radius: 20px; padding: 9px 12px; overflow: hidden; cursor: default;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), inset 0 0 0 1px rgba(255,255,255,.05);
+}
+.pv .t.s2 { grid-column: span 2; } .pv .t.s3 { grid-column: span 3; } .pv .t.s4 { grid-column: span 4; } .pv .t.r2 { grid-row: span 2; }
+.pv .t .caps { display: block; }
+.pv .big { font-size: 21px; font-weight: 800; letter-spacing: -.02em; line-height: 1; margin-top: 5px; white-space: nowrap; }
+.pv .big small { font-size: 12px; font-weight: 600; opacity: .6; letter-spacing: 0; }
+.pv .sub { font-size: 10px; margin-top: 3px; opacity: .7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pv .vis { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); }
+
+.pv .amber { background: radial-gradient(200px 110px at 15% 120%, rgba(255,170,40,.5), transparent 70%), linear-gradient(160deg, #2b1700, #110800 70%); } .pv .amber .caps { color: var(--gold); }
+.pv .green { background: radial-gradient(140px 90px at 90% 120%, rgba(92,255,122,.3), transparent 70%), linear-gradient(150deg, #04210f, #06130a); } .pv .green .caps { color: var(--green); }
+.pv .blue { background: radial-gradient(150px 90px at 100% 0, rgba(150,190,255,.45), transparent 70%), linear-gradient(170deg, #24407a, #0f1a38); } .pv .blue .caps { color: #b9cdff; }
+.pv .cobalt { background: radial-gradient(160px 100px at 100% 0, rgba(110,140,255,.45), transparent 70%), linear-gradient(160deg, #101d6e, #070c33); } .pv .cobalt .caps { color: #9fb0ff; }
+.pv .mag { background: radial-gradient(200px 80px at 0% 130%, rgba(255,47,163,.6), transparent 70%), linear-gradient(90deg, #1a0612, #0b0b0e 70%); } .pv .mag .caps { color: #ffb3df; }
+.pv .purple { background: radial-gradient(130px 90px at 100% 0, rgba(230,170,255,.45), transparent 70%), linear-gradient(160deg, #5a1f86, #24093a); } .pv .purple .caps { color: #e2b8ff; }
+.pv .red { background: radial-gradient(120px 80px at 100% 120%, rgba(237,23,76,.5), transparent 70%), linear-gradient(160deg, #4a0a1c, #1a0309); } .pv .red .caps { color: #ff9fb3; }
+.pv .gold { background: radial-gradient(150px 100px at 85% 120%, rgba(255,194,61,.45), transparent 70%), linear-gradient(160deg, #2b1d00, #110b00); } .pv .gold .caps { color: var(--gold); }
+.pv .night { background: radial-gradient(200px 140px at 85% 0, rgba(160,140,255,.4), transparent 70%), linear-gradient(170deg, #1a1450, #06051a); } .pv .night .caps { color: #c3b8ff; }
+.pv .teal { background: radial-gradient(150px 90px at 100% 120%, rgba(61,214,255,.35), transparent 70%), linear-gradient(160deg, #06323d, #031418); } .pv .teal .caps { color: #9ee8ff; }
+.pv .dark { background: linear-gradient(160deg, #17171d, #0e0e12); } .pv .dark .caps { color: var(--fog); }
+.pv .ink { background: #07070b; } .pv .ink .caps { color: var(--fog); }
+
+/* ---- Small shared pieces ---- */
+.pv .chipb { font-family: var(--mono); font-size: 8.5px; font-weight: 600; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+.pv .toggle { display: flex; gap: 2px; padding: 2px; border-radius: 999px; background: rgba(255,255,255,.08); }
+.pv .toggle button { border: 0; background: none; font-family: var(--mono); font-size: 8.5px; font-weight: 600; color: var(--fog); padding: 3px 9px; border-radius: 999px; cursor: pointer; transition: background .2s, color .2s, transform .3s var(--spring); }
+.pv .toggle button:hover { color: #fff; }
+.pv .toggle button:active { transform: scale(.94); }
+.pv .toggle button.on { background: var(--pearl); color: #000; }
+.pv .play {
+  width: 34px; height: 34px; border-radius: 50%; border: 0; background: #fff; color: #000; display: grid; place-items: center; cursor: pointer;
+  box-shadow: 0 0 18px -2px rgba(255,255,255,.5); transition: transform .3s var(--spring), box-shadow .2s;
+}
+.pv .play:hover { box-shadow: 0 0 22px 0 rgba(255,255,255,.7); }
+.pv .play:active { transform: scale(.9); }
+.pv .play svg { width: 13px; height: 13px; }
+
+/* Loading: a shimmer block, never a spinner (HALO.md 3.6). */
+.pv .skel { display: block; border-radius: 6px; background: linear-gradient(90deg, rgba(255,255,255,.07), rgba(255,255,255,.16), rgba(255,255,255,.07)); background-size: 200% 100%; animation: pvShimmer 1.4s linear infinite; }
+@keyframes pvShimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+/* A line of help text that fades in over the panel when a tile is tapped. */
+.pv .pv-tip {
+  position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%) translateY(6px); max-width: 90%; padding: 4px 12px; border-radius: 999px; z-index: 6;
+  background: rgba(0,0,0,.88); box-shadow: inset 0 0 0 1px rgba(255,255,255,.16); font-size: 11px; font-weight: 600; white-space: nowrap; opacity: 0; pointer-events: none;
+  transition: opacity .25s var(--ease), transform .35s var(--spring);
+}
+.pv .pv-tip.show { opacity: 1; transform: translateX(-50%); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pv .pop, .pv.on .pop { opacity: 1; transform: none; transition: none; }
+  .pv .skel { animation: none; }
+}

@@ -1,83 +1,43 @@
-/* Study panel (card 08). Tokens only (HALO.md 3.2). Spacing on the 4 px base, type from the 11 13 15 17 21 28 scale. */
+/* Study tab (card 16), colour tiles family. Copied from the prototype's STUDY section: a dotted ring timer,
+   today, streak, this week, top subject and a row per subject. A fixed 4 x 3 grid of 70 px rows, so nothing scrolls. */
+.study-pv .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(3, 70px); gap: 8px; height: 100%; }
+.study-pv .t { min-width: 0; }
+.study-pv .vis { top: 8px; right: 8px; transform: none; }
+.study-pv .stWk { display: flex; gap: 2px; margin-top: 6px; }
+.study-pv .stWk i { flex: 1; height: 13px; border-radius: 4px; font-style: normal; font-family: var(--mono); font-size: 7px; font-weight: 600; display: grid; place-items: center; color: rgba(255,255,255,.55); background: rgba(255,255,255,.08); transition: background .3s, color .3s, box-shadow .3s; }
+.study-pv .stWk i.on { background: var(--green); color: #04210f; box-shadow: 0 0 8px -1px var(--green); }
+.study-pv .stTimer { padding: 9px 12px 8px; }
+.study-pv .stRing { position: relative; height: 118px; margin-top: 2px; }
+.study-pv .stRing svg.dots { position: absolute; left: 4px; top: -4px; width: 124px; height: 124px; }
+.study-pv .stRing .face { position: absolute; left: 4px; top: -4px; width: 124px; height: 124px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.study-pv .stRing .face b { font-size: 24px; font-weight: 800; }
+.study-pv .stRing .face .caps { color: #9fb0ff; margin-top: 3px; }
+.study-pv .stSide { position: absolute; right: 4px; top: 12px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.study-pv .stSide .toggle { flex-direction: column; border-radius: 14px; }
+.study-pv .stStop { width: 24px; height: 24px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer; color: #fff; background: rgba(255,255,255,.14); box-shadow: inset 0 0 0 1px rgba(255,255,255,.2); transition: transform .3s var(--spring), background .2s; }
+.study-pv .stStop:hover { background: rgba(255,255,255,.24); }
+.study-pv .stStop:active { transform: scale(.88); }
+.study-pv .stStop svg { width: 9px; height: 9px; }
+.study-pv .stStop[hidden] { display: none; }
+.study-pv .play:disabled, .study-pv .stStop:disabled, .study-pv .toggle button:disabled { opacity: .45; cursor: default; }
 
-.s-panel { container-type: inline-size; display: grid; gap: var(--s3); color: var(--text-1); }
-.s-chips { display: flex; flex-wrap: wrap; gap: var(--s2); }
-.s-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: var(--s3); align-items: stretch; }
+.study-pv .stSubs { padding: 8px 12px; }
+.study-pv .subrows { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px 10px; margin-top: 5px; }
+.study-pv .sr { display: flex; align-items: center; gap: 6px; cursor: pointer; border: 0; background: none; color: inherit; text-align: left; border-radius: 8px; padding: 2px 4px; transition: background .2s, transform .3s var(--spring); min-width: 0; }
+.study-pv .sr:hover, .study-pv .sr.on { background: rgba(255,255,255,.07); }
+.study-pv .sr:active { transform: scale(.97); }
+.study-pv .sr[aria-disabled='true'] { cursor: default; opacity: .6; }
+.study-pv .sr span { font-size: 9.5px; font-weight: 700; width: 46px; flex: none; white-space: nowrap; }
+.study-pv .sr .dts { display: flex; gap: 2px; flex: none; }
+.study-pv .sr .dts i { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,.12); transition: background .3s, box-shadow .3s; }
+.study-pv .sr .bh { width: 6px; height: 6px; border-radius: 50%; background: var(--red); box-shadow: 0 0 6px var(--red); flex: none; margin-left: 1px; }
+.study-pv .sr .bh[hidden] { display: none; }
 
-/* Timer. Inset rounded container, radius concentric with the island (outer 48, padding 24 -> inner 24). */
-.s-timer { --c: var(--hb); display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "ring side" "btns btns" "note note"; align-items: center; gap: var(--s3) var(--s4); background: var(--fill-2); border-radius: 24px; padding: var(--s4); min-width: 0; align-content: center; }
-.s-ring { grid-area: ring; }
-.s-ring .h-ring-txt { font-size: var(--fs-28); font-weight: 700; letter-spacing: -0.01em; }
-.s-side { grid-area: side; display: grid; gap: var(--s1); min-width: 0; align-content: center; }
-.s-subject { font-size: var(--fs-21); font-weight: 700; line-height: 1.15; color: var(--c); overflow-wrap: anywhere; }
-.s-status { font-size: var(--fs-13); font-weight: 500; color: var(--text-2); }
-.s-btns { grid-area: btns; display: flex; gap: var(--s2); }
-.s-btns .h-btn { flex: 1 1 0; min-width: 0; }
-.s-btns [hidden] { display: none; }
-.s-note { grid-area: note; font-size: var(--fs-13); font-weight: 500; color: var(--text-2); }
-.s-note:empty { display: none; }
-.s-note.bad { color: var(--alert); }
-
-/* This week */
-.s-week { display: grid; gap: var(--s3); align-content: start; background: var(--fill-2); border-radius: 24px; padding: var(--s4); min-width: 0; }
-.s-weekhead { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); }
-.s-total { font-size: var(--fs-17); font-weight: 700; font-variant-numeric: tabular-nums; }
-.s-total .h-roll-ch { white-space: pre; }
-.s-weekbody { display: grid; gap: var(--s3); min-width: 0; }
-.s-bars { display: grid; gap: var(--s2); }
-.s-bar { display: grid; grid-template-columns: 84px minmax(0, 1fr) 44px; align-items: center; gap: var(--s2); font-size: var(--fs-13); font-weight: 600; }
-.s-bname { display: inline-flex; align-items: center; gap: var(--s2); min-width: 0; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.s-bname i { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
-.s-track { position: relative; display: block; height: 10px; border-radius: 5px; background: var(--fill-1); }
-.s-fill { position: absolute; inset: 0 auto 0 0; border-radius: 5px; background: var(--c); min-width: 0; transition: width var(--t-ring) var(--ease-ring); }
-.s-goal { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--text-1); opacity: 0.9; }
-.s-mins { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-2); }
-.s-bar.flag .s-mins { color: var(--text-1); }
-.s-callout { --c: var(--alert); display: flex; align-items: flex-start; gap: var(--s2); padding: var(--s3); border-radius: 16px; background: color-mix(in srgb, var(--c) 20%, transparent); font-size: var(--fs-13); font-weight: 500; line-height: 1.4; color: var(--text-1); }
-.s-callout b { font-weight: 700; color: var(--c); }
-.s-callout .h-icon { flex: none; color: var(--c); margin-top: 1px; }
-.s-callout.ok { --c: var(--pay); }
-.s-callout.ok span { color: var(--text-1); }
-.s-skel { display: grid; gap: var(--s3); }
-.s-skelrow { display: flex; align-items: center; gap: var(--s3); }
-.s-week .h-state { padding: var(--s2) 0; }
-
-/* Compact fits. Home sets data-fit on the panel: 0 roomy, 1 compact, 2 tightest. It steps up until the panel fits the window,
-   so the island can spring to the full content height with no scrolling (HALO.md 3.5). */
-.s-panel[data-fit="1"], .s-panel[data-fit="2"] { gap: var(--s2); }
-.s-panel[data-fit="1"] .s-grid, .s-panel[data-fit="2"] .s-grid { gap: var(--s2); }
-.s-panel[data-fit="1"] .s-chips, .s-panel[data-fit="2"] .s-chips { gap: var(--s1) var(--s2); }
-.s-panel[data-fit="1"] .s-timer, .s-panel[data-fit="1"] .s-week, .s-panel[data-fit="2"] .s-timer, .s-panel[data-fit="2"] .s-week { padding: var(--s3); }
-.s-panel[data-fit="1"] .s-week, .s-panel[data-fit="1"] .s-weekbody, .s-panel[data-fit="2"] .s-week, .s-panel[data-fit="2"] .s-weekbody { gap: var(--s2); }
-.s-panel[data-fit="1"] .s-bars, .s-panel[data-fit="2"] .s-bars { gap: var(--s1); }
-.s-panel[data-fit="1"] .s-callout, .s-panel[data-fit="2"] .s-callout { padding: var(--s2) var(--s3); }
-.s-panel[data-fit="2"] .s-timer { gap: var(--s2) var(--s3); }
-.s-panel[data-fit="2"] .s-bar { gap: var(--s2); }
-.s-panel[data-fit="2"] .s-callout { line-height: 1.3; }
-
-/* Narrow (iPhone, 390): stack the two cards. The container is the panel, so this also works inside a narrow island. */
-@container (max-width: 520px) {
-  .s-grid { grid-template-columns: minmax(0, 1fr); }
-}
-
-/* Compact pill */
-.s-pill-t { font-size: var(--fs-15); font-weight: 700; white-space: nowrap; }
-.s-pill-r { display: inline-flex; align-items: center; gap: var(--s1); }
-.s-pill-n { font-size: var(--fs-17); font-weight: 700; font-variant-numeric: tabular-nums; }
-.s-pill-pause { display: none; color: var(--text-2); }
-.s-pill-r.paused .s-pill-pause { display: inline-flex; }
-.s-pill-r.paused .s-pill-n { opacity: 0.7; }
-
-/* Page chrome for /study */
-.s-page { max-width: 880px; margin: 0 auto; padding: var(--s6) var(--s4) 96px; }
-.s-page h1 { margin: 0; font-size: var(--fs-28); font-weight: 700; letter-spacing: -0.01em; }
-.s-page .s-lead { margin: var(--s2) 0 var(--s4); color: var(--text-2); font-size: var(--fs-13); font-weight: 500; }
-.s-stage { position: relative; border-radius: 20px; overflow: hidden; background: linear-gradient(180deg, #2a2a36, #1b1b24); }
-.s-stage .h-island { display: block; }
-.s-bar-row { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s4); }
-
-/* Short viewports (the NotchPixel web tab is about 420 tall): the page heading would push the island off screen. */
-@media (max-height: 520px) {
-  .s-page { padding-top: var(--s2); }
-  .s-page h1, .s-page .s-lead { display: none; }
-}
+/* Loading and error. The numbers wait behind a shimmer, the subjects tile carries the retry. */
+.study-pv.is-loading .big, .study-pv.is-loading .sub { color: transparent !important; border-radius: 6px; background: linear-gradient(90deg, rgba(255,255,255,.07), rgba(255,255,255,.16), rgba(255,255,255,.07)); background-size: 200% 100%; animation: pvShimmer 1.4s linear infinite; }
+.study-pv.is-loading .big { width: 70px; height: 21px; } .study-pv.is-loading .sub { width: 54px; height: 11px; opacity: 1; }
+.study-pv.is-loading .vis { visibility: hidden; }
+.study-pv .stErr { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; gap: 12px; background: #0e0e12; z-index: 2; font-size: 11px; font-weight: 600; }
+.study-pv.is-err .stErr { display: flex; }
+.study-pv .stErr button { height: 26px; padding: 0 12px; border-radius: 999px; border: 0; background: var(--pearl); color: #000; font-size: 11px; font-weight: 700; cursor: pointer; transition: transform .3s var(--spring); }
+.study-pv .stErr button:active { transform: scale(.94); }

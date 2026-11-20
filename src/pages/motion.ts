@@ -111,5 +111,5 @@ app.append(h('div', { class: 'p-page' },
   ),
 ))
 
-// Island sizes depend on the font, so re-measure panels once Onest has loaded.
+// Island sizes depend on the font, so re-measure panels once Inter Tight has loaded.
 document.fonts?.ready.then(() => ex.relayout())

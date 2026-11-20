@@ -1,17 +1,18 @@
 // Embedded mode screenshots (Halo inside NotchPixel's web tab, ?embed=1) at 684x453 and 600x300.
-// Also checks that nothing is clipped or covered. Usage: node scripts/shots-embed.mjs   (saves to screenshots/embed/)
+// Since card 15b the page is transparent and holds only the always open island window. Also checks that nothing is clipped or covered. Usage: node scripts/shots-embed.mjs   (saves to screenshots/embed/)
 import { createServer } from 'vite'
 import { chromium } from 'playwright'
 import { mkdirSync } from 'node:fs'
 
 const dir = 'screenshots/embed'
 mkdirSync(dir, { recursive: true })
-const server = await createServer({ server: { port: 5233, strictPort: true }, logLevel: 'error' })
+const server = await createServer({ server: { port: 5233 }, logLevel: 'error' })
 await server.listen()
+const PORT = server.httpServer.address().port
 const sizes = { '684x453': [684, 453], '600x300': [600, 300] }
 const shots = [
-  ['now', 'soon', 'now', null], ['study', 'soon', 'study', null], ['pay', 'soon', 'pay', null],
-  ['sixers-live', 'soon', 'sixers', 'live'], ['sixers-next', 'soon', 'sixers', 'next'], ['now-empty', 'empty', 'now', null], ['pay-empty', 'empty', 'pay', null],
+  ['now', 'soon', 'home', null], ['study', 'soon', 'study', null], ['pay', 'soon', 'pay', null],
+  ['sixers-live', 'soon', 'sixers', 'live'], ['sixers-next', 'soon', 'sixers', 'next'], ['now-empty', 'empty', 'home', null], ['pay-empty', 'empty', 'pay', null],
 ]
 const browser = await chromium.launch()
 const problems = []
@@ -22,13 +23,13 @@ for (const [size, [width, height]] of Object.entries(sizes)) {
     const page = await ctx.newPage()
     page.on('pageerror', (e) => problems.push(`${name} ${size}: ${e.message}`))
     page.on('console', (m) => m.type() === 'error' && !/Failed to load resource|fetch/i.test(m.text()) && problems.push(`${name} ${size}: ${m.text()}`))
-    await page.goto(`http://localhost:5233/halo/?embed=1&demo=${mode}&tab=${tab}${sx ? `&sixers=${sx}` : ''}`)
+    await page.goto(`http://localhost:${PORT}/halo/?embed=1&demo=${mode}&tab=${tab}${sx ? `&sixers=${sx}` : ''}`)
     await page.waitForTimeout(2200)
     const r = await page.evaluate(() => {
       const root = document.querySelector('.embed-root')
-      const host = document.querySelector('.h-panelhost')
+      const host = document.querySelector('.sh-body')
       const panel = host?.querySelector('.h-panel')
-      const out = { embed: !!root, shell: !!document.querySelector('.h-island, .h-spill, .h-isl-svg'), bg: getComputedStyle(document.body).backgroundColor, fit: panel?.dataset.fit, host: host && [host.clientWidth, host.clientHeight], panelH: panel?.offsetHeight, scroll: host?.classList.contains('is-scroll'), docScroll: [document.documentElement.scrollWidth, document.documentElement.scrollHeight], clipped: [], bar: null }
+      const out = { embed: !!root, shell: !!document.querySelector('.h-island, .h-spill, .h-isl-svg, .home-shell'), bg: getComputedStyle(document.body).backgroundColor + '/' + getComputedStyle(document.querySelector('.embed-root')).backgroundColor, fit: panel?.dataset.fit, host: host && [host.clientWidth, host.clientHeight], panelH: panel?.offsetHeight, scroll: [...document.querySelectorAll('*')].some((el) => /(auto|scroll)/.test(getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight + 1 && el !== document.documentElement && el !== document.body), docScroll: [document.documentElement.scrollWidth, document.documentElement.scrollHeight], clipped: [], bar: null }
       const hr = host?.getBoundingClientRect()
       if (hr && panel) {
         // Anything inside the panel that pokes past the host edge is clipped.
@@ -45,18 +46,16 @@ for (const [size, [width, height]] of Object.entries(sizes)) {
     await page.screenshot({ path: `${dir}/${name}-${size}.png` })
     await ctx.close()
   }
-  // Settings popover, top padding 24, and the signed-out screen.
+  // Settings (the More tab), top padding 24, and the signed-out screen.
   const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 2, colorScheme: 'dark' })
   const page = await ctx.newPage()
-  await page.goto(`http://localhost:5233/halo/?embed=1&demo=soon&tab=pay&top=24`)
+  await page.goto(`http://localhost:${PORT}/halo/?embed=1&demo=soon&tab=more&top=24`)
   await page.waitForTimeout(1500)
-  await page.click('[data-settings]')
-  await page.waitForTimeout(500)
   await page.screenshot({ path: `${dir}/settings-top24-${size}.png` })
   await ctx.close()
   const c2 = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 2, colorScheme: 'dark' })
   const p2 = await c2.newPage()
-  await p2.goto(`http://localhost:5233/halo/?embed=1`)
+  await p2.goto(`http://localhost:${PORT}/halo/?embed=1`)
   await p2.waitForTimeout(1500)
   await p2.screenshot({ path: `${dir}/signin-${size}.png` })
   await c2.close()

@@ -32,8 +32,8 @@ const freezeAt = (page, t) => page.evaluate((t) => { for (const a of document.ge
 const box = (page) => page.evaluate(() => { const r = document.querySelector('.sh').getBoundingClientRect(); return { w: r.width, h: r.height, top: r.top, left: r.left } })
 
 // ---- 1. Collapsed, mid grow, expanded for every tab. Desktop page, so the object sits on a plain background.
-const VIEW = { width: 760, height: 330 }
-const CLIP = { x: 60, y: 0, width: 640, height: 320 }
+const VIEW = { width: 760, height: 400 }
+const CLIP = { x: 60, y: 0, width: 640, height: 390 }
 const CLIP_SMALL = { x: 60, y: 0, width: 640, height: 90 }
 for (const tab of ALL) {
   const { ctx, page } = await open(`?demo=soon&tab=${tab}`, VIEW)
@@ -65,7 +65,7 @@ for (const tab of ALL) {
     const host = document.querySelector('.sh-body')
     const panel = host.firstElementChild
     return {
-      w: b.width, h: b.height, top: b.top, radius: cs.borderBottomLeftRadius, topRadius: cs.borderTopLeftRadius,
+      w: b.width, h: b.height, top: b.top, shadow: cs.boxShadow, glowVar: cs.getPropertyValue('--glow').trim(), radius: cs.borderBottomLeftRadius, topRadius: cs.borderTopLeftRadius,
       earW: ear.width, earContent: ear.content, shOverflow: cs.overflow, clipOverflow: getComputedStyle(clipEl).overflow,
       docScroll: [document.documentElement.scrollWidth, document.documentElement.scrollHeight, innerWidth, innerHeight],
       scrollers, hostOverflow: getComputedStyle(host).overflowY, hostH: host.clientHeight, panelH: panel?.scrollHeight ?? 0, fit: panel?.dataset?.fit,
@@ -74,6 +74,7 @@ for (const tab of ALL) {
   if (r.w !== 600 || r.h !== 290 || r.top !== 0) note(`${tab}: open is ${r.w} x ${r.h} at ${r.top}`)
   if (r.radius !== '26px' || r.topRadius !== '0px') note(`${tab}: radii bottom ${r.radius} top ${r.topRadius}`)
   if (r.earW !== '10px' || r.shOverflow !== 'visible' || r.clipOverflow !== 'hidden') note(`${tab}: ears or overflow wrong ${JSON.stringify([r.earW, r.shOverflow, r.clipOverflow])}`)
+  if (r.shadow === 'none' || !r.glowVar) note(`${tab}: glow outside the bottom edge is missing (${r.shadow})`)
   if (r.scrollers.length) note(`${tab}: scrolling element ${r.scrollers}`)
   if (r.docScroll[0] > r.docScroll[2] || r.docScroll[1] > r.docScroll[3]) note(`${tab}: page scrolls ${r.docScroll}`)
   if (r.panelH > r.hostH + 1) note(`${tab}: panel is ${r.panelH}px in a ${r.hostH}px window, content is cut off`)

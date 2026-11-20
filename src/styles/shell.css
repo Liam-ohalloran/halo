@@ -5,7 +5,7 @@
    Grow 520 ms with a springy curve, shrink 380 ms. Content fades in after the size settles and out before it shrinks. */
 .sh {
   --sh-border: rgba(211, 155, 101, 0.20); --sh-text: #F5F5F7;
-  --cw: 200px; --ch: 34px; --cr: 17px; --k: #C7C7CC;
+  --glow: #D39B65; --cw: 200px; --ch: 34px; --cr: 17px; --k: #C7C7CC;
   --grow: 520ms; --shrink: 380ms; --out: 120ms; --in: 160ms;
   --ease-grow: cubic-bezier(0.34, 1.45, 0.5, 1); --ease-shrink: cubic-bezier(0.4, 0, 0.2, 1);
   position: fixed; top: var(--embed-top, 0px); left: 50%; z-index: 5; box-sizing: border-box; flex: none;
@@ -23,7 +23,14 @@
     border-radius var(--grow) var(--ease-grow), border-color 180ms ease, box-shadow 180ms ease;
 }
 /* The closed island carries a 1 px key line in its content colour (HALO.md 3.1). */
-.sh[data-open='false'] { box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--k) 30%, transparent), inset 1px 0 0 color-mix(in srgb, var(--k) 30%, transparent), inset -1px 0 0 color-mix(in srgb, var(--k) 30%, transparent); }
+.sh[data-open='false'] {
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--k) 30%, transparent), inset 1px 0 0 color-mix(in srgb, var(--k) 30%, transparent), inset -1px 0 0 color-mix(in srgb, var(--k) 30%, transparent),
+    0 4px 14px color-mix(in srgb, var(--k) 26%, transparent), 0 10px 40px color-mix(in srgb, var(--k) 14%, transparent);
+}
+/* Open: a soft glow in the tab colour sits just outside the bottom edge. Never remove it (HALO.md 3.1b). */
+.sh[data-open='true'] {
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--glow) 30%, transparent), 0 16px 56px color-mix(in srgb, var(--glow) 20%, transparent), 0 30px 110px color-mix(in srgb, var(--glow) 12%, transparent);
+}
 .sh *, .sh *::before, .sh *::after { box-sizing: border-box; }
 
 /* Ears: the small inverse curves where the island meets the top edge. They sit on the element, outside the clip. */

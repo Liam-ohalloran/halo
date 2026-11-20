@@ -437,6 +437,7 @@ Add a `/components` page showing each one, and the `/motion` page from HALO.md 3
 **Build:**
 1. Night (black island): wind down time, sleep arc to tomorrow's first event, the four tick cards. Night mode switch dims the UI and mutes banners except leave reminders.
 2. Hide and reorder tabs (Edit mode in Launch or a long press on the tab bar), saved in a `settings` row so the phone matches.
+3. Swap the card 15 icon rail and the "Home Sat 21 Nov" title for the prototype's top bar: one glass pill of tab icons where the selected tab grows into a white pill with its label, the time on the right, and arrow keys stepping through tabs.
 
 **Done when**
 - [ ] Order survives reload on both devices, screenshots

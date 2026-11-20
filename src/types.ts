@@ -44,6 +44,8 @@ export interface Backend {
   stopSession(id: string, endedAt?: Date): Promise<StudySession>
   /** Tests due after `now`, soonest first. */
   upcomingTests(now: Date): Promise<Test[]>
+  /** Tests due in [from, to), soonest first (the Week tab). */
+  testsBetween(from: Date, to: Date): Promise<Test[]>
   /** Subjects seen in tests and past study sessions. */
   subjects(): Promise<string[]>
   /** Realtime: called whenever a shift row changes. Returns unsubscribe. */

@@ -12,10 +12,32 @@ function at(day: Date, h: number, m = 0): string {
   return d.toISOString()
 }
 
+/** Perth (+08:00) time on Sat 21 Nov 2026 plus `d` days: the fixed week the Week tab fixtures hang off (the demo clock). */
+const perthAt = (d: number, h: number, m = 0) => new Date(Date.UTC(2026, 10, 21 + d, h - 8, m)).toISOString()
+const shiftRow = (id: string, title: string, station: string, d: number, h1: number, h2: number): Shift =>
+  ({ id, title, station, starts_at: perthAt(d, Math.floor(h1), (h1 % 1) * 60), ends_at: perthAt(d, Math.floor(h2), (h2 % 1) * 60), is_public_holiday: false })
+const testRow = (id: string, subject: string, title: string, d: number, h: number, m = 0): Test => ({ id, subject, title, due_at: perthAt(d, h, m) })
+/** The Week tab fixtures. `week` is a normal week, `weekbusy` adds clashes and a crowded EARLY row. */
+function weekFixture(busy: boolean): { shifts: Shift[]; tests: Test[] } {
+  const shifts = [
+    shiftRow('w1', 'SATURDAY PA 6:30-3', 'PA', 0, 6.5, 15), shiftRow('w2', 'SUNDAY PL 6-2', 'PL', 1, 6, 14),
+    shiftRow('w3', 'TUESDAY PI 7:30-12', 'PI', 3, 7.5, 12), shiftRow('w4', 'THURSDAY PA 5:30-9', 'PA', 5, 5.5, 9), shiftRow('w5', 'FRIDAY PB 9:30-2', 'PB', 6, 9.5, 14),
+  ]
+  const tests = [
+    testRow('x1', 'Chemistry', 'Organic chemistry test', 2, 10, 15), testRow('x2', 'Methods', 'Calculus test', 3, 8), testRow('x3', 'English', 'Text response', 4, 0), testRow('x4', 'Specialist', 'Complex numbers test', 5, 13),
+  ]
+  if (busy) {
+    shifts.push(shiftRow('w6', 'SUNDAY EXTRA PA 10-1', 'PA', 1, 10, 13), shiftRow('w7', 'TUESDAY CLOSE 3-9', 'CL', 3, 15, 21.5), shiftRow('w8', 'WEDNESDAY PA 4-8', 'PA', 4, 16, 20), shiftRow('w9', 'FRIDAY PA 9-5', 'PA', 6, 9, 17))
+    tests.push(testRow('x5', 'Human Biology', 'Genetics test', 3, 8, 30), testRow('x6', 'Religion', 'Reflection due', 3, 9), testRow('x7', 'Human Biology', 'Lab report', 5, 0), testRow('x8', 'Chemistry', 'Titration prac', 5, 5), testRow('x9', 'Methods', 'Quiz', 4, 16, 30))
+  }
+  return { shifts, tests }
+}
+
 export function mockBackend(mode: string): Backend {
   const now = new Date()
   const mon = weekStart(now)
-  const shifts: Shift[] =
+  const wk = mode === 'week' || mode === 'weekbusy' ? weekFixture(mode === 'weekbusy') : null
+  const shifts: Shift[] = wk ? wk.shifts :
     mode === 'empty'
       ? []
       : [
@@ -25,7 +47,7 @@ export function mockBackend(mode: string): Backend {
           { id: '4', title: 'Checkout', station: 'Front end', starts_at: at(addDays(mon, 6), 10), ends_at: at(addDays(mon, 6), 16), is_public_holiday: false },
           { id: '5', title: 'Checkout', station: 'Front end', starts_at: new Date(now.getTime() + 26 * HOUR + 14 * 6e4).toISOString(), ends_at: new Date(now.getTime() + 31 * HOUR).toISOString(), is_public_holiday: false },
         ]
-  const tests: Test[] =
+  const tests: Test[] = wk ? wk.tests :
     mode === 'empty'
       ? []
       : [
@@ -59,6 +81,7 @@ export function mockBackend(mode: string): Backend {
     nextShift: (n) => gate(shifts.filter((s) => new Date(s.ends_at) > n).sort((a, b) => a.starts_at.localeCompare(b.starts_at))[0] ?? null),
     nextTest: (n) => gate(tests.find((t) => new Date(t.due_at) > n) ?? null),
     upcomingTests: (n) => gate(tests.filter((t) => new Date(t.due_at) > n)),
+    testsBetween: (a, b) => gate(tests.filter((t) => new Date(t.due_at) >= a && new Date(t.due_at) < b)),
     shiftsBetween: (a, b) => gate(shifts.filter((s) => new Date(s.starts_at) < b && new Date(s.ends_at) > a)),
     settings: () => gate({ ...DEFAULT_SETTINGS }),
     activeSession: () => gate(active),

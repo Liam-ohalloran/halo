@@ -1,0 +1,67 @@
+/* Week tab (card 19), compact grid family. Copied from the prototype's WEEK standard calendar: a #1c1c1e card, a header
+   row of days, an EARLY row, then the 6am to 10pm grid. Fixed heights, so the window never scrolls. */
+.week-pv .cal { height: 100%; border-radius: 18px; background: #1c1c1e; box-shadow: inset 0 0 0 1px rgba(255,255,255,.07); padding: 6px 10px 6px 0; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+.week-pv .calHd, .week-pv .calAll, .week-pv .calBody { display: grid; grid-template-columns: 38px repeat(7, minmax(0, 1fr)); }
+.week-pv .calMo { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
+.week-pv .calMo b { font-size: 11px; font-weight: 800; color: #FF453A; }
+.week-pv .calMo span { font-size: 7.5px; color: #9a9aa2; font-weight: 600; white-space: nowrap; }
+.week-pv .calD { display: flex; align-items: center; justify-content: center; gap: 4px; padding: 2px 0 5px; cursor: pointer; border: 0; background: none; color: inherit; font: inherit; border-radius: 8px; }
+.week-pv .calD small { font-size: 8.5px; font-weight: 700; color: #9a9aa2; letter-spacing: .04em; }
+.week-pv .calD b { font-size: 12px; font-weight: 800; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; transition: background .25s, color .25s; }
+.week-pv .calD b.tm { background: #FF453A; color: #fff; }
+.week-pv .calD.on b:not(.tm) { background: #fff; color: #000; }
+.week-pv .calD:hover b:not(.tm):not(.on) { background: rgba(255,255,255,.12); }
+.week-pv .calD.on:hover b:not(.tm) { background: #fff; }
+.week-pv .calD:active { transform: scale(.94); }
+.week-pv .calD { transition: transform .3s var(--spring); }
+.week-pv .calAll { border-top: 1px solid rgba(255,255,255,.08); border-bottom: 1px solid rgba(255,255,255,.08); height: 32px; flex: none; }
+.week-pv .calLbl { font-size: 7px; font-weight: 700; color: #9a9aa2; text-align: right; padding: 5px 6px 0 0; text-transform: uppercase; letter-spacing: .06em; }
+.week-pv .calAc { display: flex; flex-direction: column; gap: 2px; padding: 3px 2px; border-left: 1px solid rgba(255,255,255,.06); min-width: 0; overflow: hidden; }
+.week-pv .calAc.on, .week-pv .calCol.on { background: rgba(255,255,255,.035); }
+.week-pv .calChip {
+  display: block; text-align: left; border: 0; font-family: inherit; font-size: 7.5px; font-weight: 800; line-height: 12px; height: 12px; flex: none; padding: 0 5px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;
+  color: color-mix(in srgb, var(--c) 45%, white); background: color-mix(in srgb, var(--c) 28%, #1c1c1e); transition: filter .2s, transform .3s var(--spring);
+}
+.week-pv .calChip:hover { filter: brightness(1.25); }
+.week-pv .calChip:active { transform: scale(.94); }
+.week-pv .calChip.more { color: #9a9aa2; background: rgba(255,255,255,.07); text-align: center; }
+.week-pv .calBody { position: relative; flex: 1; min-height: 0; margin-top: 6px; }
+.week-pv .calTimes { position: relative; }
+.week-pv .calTimes span { position: absolute; right: 6px; transform: translateY(-50%); font-size: 7px; font-weight: 600; color: #7c7c84; white-space: nowrap; }
+.week-pv .calCol { position: relative; border-left: 1px solid rgba(255,255,255,.06); cursor: pointer; min-width: 0; }
+.week-pv .calLn { position: absolute; left: 0; right: 0; height: 1px; background: rgba(255,255,255,.06); }
+.week-pv .calEv {
+  position: absolute; display: block; min-height: 13px; text-align: left; border: 0; font-family: inherit; border-radius: 5px; padding: 1px 2px 1px 5px; overflow: hidden; cursor: pointer; min-width: 0;
+  background: color-mix(in srgb, var(--c) 30%, #1c1c1e); box-shadow: inset 2px 0 0 var(--c); transition: filter .2s, transform .3s var(--spring);
+}
+.week-pv .calEv:hover { filter: brightness(1.25); }
+.week-pv .calEv:active { transform: scale(.96); }
+.week-pv .calEv b { display: block; font-size: 7.5px; font-weight: 800; line-height: 10px; color: color-mix(in srgb, var(--c) 40%, white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.week-pv .calEv span { display: block; font-size: 7px; line-height: 9px; color: color-mix(in srgb, var(--c) 30%, #ddd); opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.week-pv .calEv.sel { filter: brightness(1.3); box-shadow: inset 2px 0 0 var(--c), 0 0 0 1px color-mix(in srgb, var(--c) 70%, transparent); z-index: 2; }
+/* The entrance (events grow in from the top) plays only when the tab is switched to, never on a data refresh or a tap. */
+.week-pv.ev-in .calEv { animation: calIn calc(500ms * var(--slow)) var(--spring) both; }
+@keyframes calIn { from { opacity: 0; transform: scaleY(.6); transform-origin: top; } to { opacity: 1; transform: none; } }
+
+.week-pv .calFocus:focus-visible, .week-pv .calEv:focus-visible, .week-pv .calChip:focus-visible, .week-pv .calD:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+
+/* States: loading shimmer, empty note, error sentence with a retry. */
+.week-pv .calNote { position: absolute; left: 38px; right: 10px; top: 50%; transform: translateY(-50%); text-align: center; pointer-events: none; display: none; }
+.week-pv .calNote b { display: block; font-size: 12px; font-weight: 800; color: #e5e5ea; }
+.week-pv .calNote span { display: block; font-size: 9px; color: #9a9aa2; margin-top: 3px; }
+.week-pv.is-empty .calNote { display: block; }
+.week-pv .calErr { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: #1c1c1e; z-index: 5; }
+.week-pv .calErr p { margin: 0; font-size: 11px; font-weight: 700; color: #e5e5ea; }
+.week-pv .calErr button { border: 0; border-radius: 999px; padding: 6px 14px; font-size: 10px; font-weight: 800; color: #000; background: #fff; cursor: pointer; transition: transform .3s var(--spring); }
+.week-pv .calErr button:active { transform: scale(.94); }
+.week-pv.is-err .calErr { display: flex; }
+.week-pv.is-loading .calEv, .week-pv.is-loading .calChip { visibility: hidden; }
+.week-pv.is-loading .calBody::after {
+  content: ""; position: absolute; left: 38px; right: 0; top: 0; bottom: 0; pointer-events: none;
+  background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,.06) 50%, transparent 70%) 0 0 / 200% 100%; animation: calShim 1.3s linear infinite;
+}
+@keyframes calShim { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .week-pv.ev-in .calEv { animation: none; }
+  .week-pv.is-loading .calBody::after { animation: none; }
+}

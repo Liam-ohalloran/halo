@@ -68,6 +68,8 @@ The open panel is **600 × 290**, radius 26, matching NotchPixel's panel. The cu
 
 ## 3. Design rules (non-negotiable)
 
+> **3.0 Approved prototype (20 Nov 2026, wins over everything below).** The look is now `design/prototype/index.html`. Where this section disagrees with it (font, colours, card style, tab bar, Controls panel, Music card), the prototype wins. Fonts are Inter Tight and Geist Mono, not Onest. Four tab families: colour tiles, black island, glass, compact grid (see TASKS.md shared rules). Pressing something inside a tab only updates what changed, never re-renders or flashes the whole tab.
+
 These come from Apple's Live Activities guidelines, WWDC23 "Design dynamic Live Activities", and the best Mac notch apps (Alcove, NotchNook, boring.notch). Halo must never look AI-made.
 
 ### 3.1 The island
@@ -172,7 +174,7 @@ Opens on the last tab used, or Music while something is playing (setting).
 11, 13, 15, 17, 21, 28   /* nothing else */
 ```
 
-- **Font:** **Onest** (Google Fonts, weights 400, 500, 600, 700, 800). Stack: `'Onest', system-ui, sans-serif`. Self-host the woff2 files in `public/fonts/` so it works offline. Never Inter.
+- **Font:** **Inter Tight** (UI and numbers, 500 to 800) and **Geist Mono** (caps labels). Self-host the woff2 files in `public/fonts/` so it works offline. (Onest was the old choice, replaced by the prototype.)
 - **Numbers:** always `font-variant-numeric: tabular-nums`. Numbers that change roll (animate digit by digit), never jump.
 - **Weights inside the island:** 500 minimum. Titles 700.
 - **Text contrast:** 4.5:1 minimum, including secondary text.

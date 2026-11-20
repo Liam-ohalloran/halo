@@ -213,7 +213,7 @@ Add a `/components` page showing each one, and the `/motion` page from HALO.md 3
 
 ---
 
-## Card 13 · Music tab
+## Card 13 · Music tab (superseded by card 24, skip)
 **Model:** Sonnet · **Size:** medium · **Needs:** card 12 · **REVIEW WITH OPUS**
 
 **Goal:** the Music tab, matching the "Music · final style" board.
@@ -234,7 +234,7 @@ Add a `/components` page showing each one, and the `/motion` page from HALO.md 3
 
 ---
 
-## Card 14 · Controls tab
+## Card 14 · Controls tab (superseded by card 24, skip)
 **Model:** Sonnet · **Size:** medium · **Needs:** card 12
 
 **Goal:** the Controls tab, matching the "Controls · final style" board, working through the helper.
@@ -251,18 +251,22 @@ Add a `/components` page showing each one, and the `/motion` page from HALO.md 3
 
 ---
 
-## Shared rules for cards 15 to 23 (the 600 × 290 redesign)
-- The designs are in `design/boards/` (drop in from Opus). Open the matching `.dc.html` file in a browser and copy it exactly: sizes, colours, radii, spacing. Ignore `support.js` and the `{{ }}` holes, they are canvas tooling only.
-- The tabs ARE the island. There is no separate panel. The 200 × 34 pill at the top of the screen grows into the 600 × 290 window, so the window is the island's expanded state: black, flat top edge joined to the top of the screen, the same ears at the top corners, rounded only at the bottom (radius 26). The boards show four rounded corners only because they are drawn floating on a canvas.
-- Nothing ever scrolls. Every tab fits inside 600 × 290 with overflow hidden on an inner wrapper (never on the element with the ears). If there is more data than fits, show the top items and a "+3 more" line, never a scrollbar.
-- Window 600 × 290, radius 26 (bottom corners). Background is the tab's colour as a tinted gradient plus a soft corner glow. Never remove the glow.
-- Text: primary #F5F5F7, label rgba(245,245,247,0.85), meta rgba(245,245,247,0.5). `font-variant-numeric: tabular-nums` on every number. Font Onest.
-- Cards: radius 12, 1 px border tinted with the tab colour, soft radial tint inside.
-- Tab colours: amber #D39B65 (Home, Alerts, Laptop), violet #B59AE3 (Study, Night, Claude), sage #91BDA0 (Pay, Money), cyan #8FCFE0 (Marks, Shelf, Widgets), sky #88B5E0 (Sixers), gold #D8C28C (milestones, unread), rose #D99FB3 (Controls, warnings).
+## Shared rules for cards 16 to 24 (the approved prototype)
+- **The design source is `design/prototype/index.html`.** Open it in Chrome, click each tab, and copy it exactly: sizes, colours, gradients, glows, radii, fonts, spacing and motion. The old `design/boards/` files are superseded for anything the prototype shows. If a board and the prototype disagree, the prototype wins.
+- The prototype is one HTML file with fake data. Port its CSS and markup into the real components and wire them to the real data sources. Never ship the fake numbers (they are marked "sample" or "mock" in the prototype).
+- **Four tab families, never a new theme per tab:**
+  1. **Colour tiles** (Home uses its dense grid variant, Money, Study, Marks): gradient tiles, caps label, big number, one visual each.
+  2. **Black island** (Pay, Alerts, Night, Sixers, Audio): black cards, glowing lines, rounded pills, shaped glows.
+  3. **Glass** (Claude, Shelf, Music, Launch): liquid glass cards over blurred colour blobs.
+  4. **Compact grid** (Week, Widgets, Controls): #1c1c1e tiles, 1 px border, blue selection.
+- Tab order: Home, Pay, Week, Study, Music, Sixers, Money, Controls, Audio, Launch, Alerts, Claude, Night, Marks, Shelf, Widgets. Arrow keys step through them.
+- Window 600 × 290, the island IS the window (card 15b). Content area 564 × 226. **Nothing ever scrolls.** If there is more data than fits, show the top items and "+N more".
+- Fonts: Inter Tight (UI and numbers) and Geist Mono (caps labels), self-hosted in `public/fonts/`. Tabular numbers everywhere.
+- **No flash on interaction.** Pressing something inside a tab updates only what changed. Never rebuild the whole tab, never fade it out and back in. The entrance animation (tiles pop in, rings fill, numbers count up) plays only when you switch to a tab.
+- Text never overflows, clips or overlaps. Run the overflow check from `scripts/check-overflow.mjs` (port it from the audit in the prototype handover, see card 16) on every tab before opening the PR.
 - No em dashes, hyphens used as dashes or semicolons in on-screen copy.
-- Keep every existing feature and data source working. This is a restyle unless the card says new.
-- Respect `prefers-reduced-motion`. Every button gets hover, active and focus-visible states.
-- Done means: Playwright screenshots at 600 × 290 of every state in `screenshots/card-NN/`, no text overflow or wrapping that the board doesn't show, PR opened, not merged.
+- Keep every existing feature and data source working. Respect `prefers-reduced-motion`. Every button has hover, active and focus-visible states.
+- Done means: Playwright screenshots at 600 × 290 of every state in `screenshots/card-NN/`, overflow check passing, PR opened, not merged.
 
 ---
 
@@ -304,139 +308,154 @@ Add a `/components` page showing each one, and the `/motion` page from HALO.md 3
 - [ ] PR opened, not merged
 
 ---
-## Card 16 · Home, Pay and Study restyle
-**Model:** Sonnet · **Size:** medium · **Needs:** 15b · **Boards:** Home2, Pay3, Study3
+## Card 16 · Prototype foundations, then Home, Pay and Study
+**Model:** Sonnet · **Size:** large · **Needs:** 15b merged · **Source:** `design/prototype/index.html` (tabs Home, Pay, Study)
 
-**Goal:** the three main tabs redone to match their boards, with the same live data as now.
+**Goal:** bring the prototype's look into the real app and rebuild the three main tabs on real data.
 
 **Build:**
-1. Home: next shift card, today's tasks, coming up list, exactly as Home2. Times never wrap ("10 pm", "Sun 10:00").
-2. Pay: this week total big, shift list chips (nowrap), weekday and weekend split, as Pay3.
-3. Study: timer ring, subject chips, next test card, as Study3. Subject colours as now.
+1. Foundations: copy the prototype's `:root` tokens (colours, `--spring`, `--ease`, `--slow`), the tile colour classes (amber, green, blue, cobalt, mag, purple, red, gold, night, teal, dark, ink), the pop in animation and the SVG helpers (`ring`, `arc`, `curve`, `spark`) into `src/styles/proto.css` and `src/ui/charts.ts`. Swap Onest for Inter Tight and Geist Mono.
+2. `scripts/check-overflow.mjs`: Playwright opens every tab and fails if any text is truncated, clipped by its card or overlapping other text (copy the logic from the `audit` notes at the bottom of this card).
+3. **Home** (dense widget grid, 5 × 3): next shift with countdown bar, pay this week with sparkline, Perth weather, laptop battery ring, study streak, Spotify (wide), Sixers score (wide), ATAR, alerts, daily games, coming up (wide, 3 items), Claude orb. Each widget opens its tab. Widgets whose data source isn't built yet (ATAR, alerts, games) show a quiet empty state, not fake numbers.
+4. **Pay** (black island): THIS/NEXT week toggle, charging bar with the overtime stripes past 10 h, cumulative pay curve, four pills (tax, take home, Sunday rate, the other week). Uses `src/lib/pay.ts`.
+5. **Study** (colour tiles): dotted ring timer with 25/50 lengths, today, streak, this week, top subject, subject rows. Keeps the existing timer logic.
 
 **Done when**
-- [ ] Real Supabase data shows in all three
-- [ ] Empty states styled (no shifts, no tasks, no tests)
-- [ ] Screenshots of each, filled and empty
+- [ ] Real Supabase data in all three, empty states styled
+- [ ] Overflow check passes on all three
+- [ ] Screenshots filled and empty
+- [ ] **REVIEW WITH OPUS**
+
+**Overflow audit logic:** for every visible element with its own text: fail if `scrollWidth > clientWidth` with overflow not visible (truncated), if its box sticks out of the nearest ancestor with overflow hidden (clipped), or if its text box intersects another text box that isn't its parent or child (overlap). Skip panels that are meant to sit on top (player card, add sheet) when they are closed.
 
 ---
 
 ## Card 17 · Island idle and live states
-**Model:** Sonnet · **Size:** medium · **Needs:** 15b · **Board:** IslandLive.dc.html
+**Model:** Sonnet · **Size:** medium · **Needs:** 15b · **Source:** prototype compact pill, plus the Pinterest picks below
 
-**Goal:** the island itself, resting and showing one live thing at a time.
+**Goal:** the closed island, resting and showing one live thing at a time.
 
 **Build:**
-1. Sizes: idle 200 × 34 r17, compact 300 × 40 r20, wide 400 × 40 r20. Ears drawn with `::before` and `::after` radial masks exactly like the board. Never put `overflow: hidden` on the element with the ears, clip an inner wrapper instead.
+1. Sizes: idle 200 × 34, compact 300 × 40, wide 400 × 40. Ears via `::before` and `::after` radial masks. Never put `overflow: hidden` on the element with the ears.
 2. States, highest priority wins: Leave now, Live game, Study timer, Shift soon (within 2 hours), Music, Charging (3 seconds on plug in), Idle with unread (gold dot), Idle.
-3. Each state has a thin bottom key line and a soft glow in its colour, as the board shows.
-4. Size changes animate width, height and radius over 380 ms with `cubic-bezier(0.4, 0, 0.2, 1)`. Content fades in after the size settles.
-5. Music and Charging come from the helper and just stay hidden if it isn't running. Live game comes from the `nba` function.
-6. A `/island` dev page with buttons to force each state.
+3. Styles Liam picked: **charging pill** (black pill, glowing progress bar with percent, small pill sitting above it) for Charging and the pay week; **outlined timer island** (bigger black island with a glowing coloured border) for Study timer and Shift soon.
+4. Size changes animate over 380 ms with `cubic-bezier(0.4, 0, 0.2, 1)`, content fades in after the size settles.
+5. Music and Charging come from the helper and stay hidden if it isn't running. Live game comes from the `nba` function.
+6. **HUD pills for every change Liam makes on the laptop** (prototype: the "Try a change" buttons and the − = [ ] M keys). The closed island grows to a 310 to 360 × 44 pill for about 1.7 s, then settles back. Repeat presses reset the timer and the bar slides live, it never re-pops.
+   - Sliders (bar with knob and number, icon changes with level): volume (labelled with the output device), brightness, keyboard light.
+   - Toggles (icon, title, sub line, On/Off chip, red when it's a mute): mute, mic, Bluetooth device connect and disconnect, Wi-Fi, airplane mode, night light, focus, noise cancelling, caps lock.
+   - Choices (chips with the picked one lit): power mode, EQ preset, audio output switch.
+   - Charging: plug in fills a green bar to the battery %, unplug shows "On battery".
+   - Screenshot saved.
+   The helper watches Windows for these (volume and mute through pycaw, brightness through WMI, the rest through its existing events) and pushes them over its websocket. HUD pills sit above every live state except Leave now.
+7. A `/island` dev page with buttons to force each state and fire each HUD.
 
 **Done when**
-- [ ] Every state on `/island`, screenshots of each
+- [ ] Every state and every HUD on `/island`, screenshots of each
+- [ ] Holding volume up shows the bar sliding, not flashing
 - [ ] Priority order unit tested
 
 ---
 
 ## Card 18 · Notification banners and the alert animation
-**Model:** Sonnet · **Size:** medium · **Needs:** 17, 20 · **Boards:** IslandAlerts.dc.html, IslandDemo.dc.html
+**Model:** Sonnet · **Size:** medium · **Needs:** 17, 20
 
-**Goal:** the island grows into a 520 × 84 banner for an alert, then settles back.
+**Goal:** alerts pop out of the island, then settle back.
 
 **Build:**
-1. Banner 520 × 84, radius 34: icon tile 44 round on the left, title and body (both single line, ellipsis), time top right, optional action button.
-2. Eight types with their colours and icons from the board: shift cover, leave reminder, new mark, call, Sixers final, battery low, task done, focus done.
-3. Animation: open over 520 ms with `cubic-bezier(0.34, 1.45, 0.5, 1)`, content fades in after 0.22 s, holds 4 s (hovering pauses the timer), closes over 380 ms back to whatever live state was showing.
-4. A queue: one banner at a time, the next one waits.
-5. Banners are fed from the `alerts` table (card 20) through Supabase realtime.
-6. Actions only open things (a link, a tab) or snooze. Never post, reply or submit anything anywhere. "Open Blink" just opens Blink.
-7. Add every type to `/island` with a "Play" button.
+1. Style Liam picked: **expanding stack.** New alerts appear as small pills stacked on top of the island, and hovering one expands it into a 520 × 84 card (icon tile, title and body single line, time, optional action).
+2. Types with their colours: shift cover, leave reminder, new mark, call, Sixers final, battery low, task done, focus done.
+3. Open over 520 ms with `cubic-bezier(0.34, 1.45, 0.5, 1)`, hold 4 s (hover pauses), close over 380 ms back to the live state.
+4. Queue, one at a time. Fed from the `alerts` table (card 20) through Supabase realtime.
+5. Actions only open things (a link, a tab) or snooze. Never post, reply or submit anything anywhere.
+6. Every type on `/island` with a Play button.
 
 **Done when**
-- [ ] A row inserted into `alerts` shows a banner within 2 seconds
-- [ ] Screenshots of all 8 types, plus a short screen recording of one playing
+- [ ] A row inserted into `alerts` shows within 2 seconds
+- [ ] Screenshots of all types and a short recording
 
 ---
 
 ## Card 19 · Week tab
-**Model:** Sonnet · **Size:** medium · **Needs:** 15 · **Board:** Week.dc.html
+**Model:** Sonnet · **Size:** medium · **Needs:** 15b · **Source:** prototype Week tab
 
-**Goal:** the next 7 days at a glance.
+**Goal:** a standard week calendar.
 
 **Build:**
-1. Seven day columns as the board: shifts, tests and events from the existing Supabase tables (the TickTick sync).
-2. Today highlighted, tests use the subject colour, shifts amber.
-3. Titles may wrap to two lines, never truncate mid word.
+1. Header row with day and date (tomorrow red circle, selected day white circle), times 6am to 10pm down the side, seven columns.
+2. Events as coloured blocks from the TickTick sync tables: shifts amber, tutoring blue, sport green, Sixers red, tests in their subject colour.
+3. Anything before 6am or without a time goes in the EARLY row at the top. Events that clash sit side by side.
+4. Tap a day to select it, tap an event for its full title and time.
 
 **Done when**
-- [ ] Matches the board with real data
-- [ ] Screenshots of a busy week and an empty week
+- [ ] Real data, busy week and empty week screenshots, overflow check passes
 
 ---
 
 ## Card 20 · Alerts tab and `alerts` table
-**Model:** Sonnet · **Size:** medium · **Needs:** 15 · **Board:** Alerts.dc.html
-
-**Goal:** one place where every alert lands, and the table the banners read.
+**Model:** Sonnet · **Size:** medium · **Needs:** 15b · **Source:** prototype Alerts tab
 
 **Build:**
-1. Migration: table `alerts` (id, user_id, type, title, body, action_label, action_url, created_at, read_at) with RLS so a user only sees their own rows. Enable realtime on it.
-2. The tab lists alerts newest first, unread with a gold dot, tap marks read. "Mark all read".
-3. The island's unread dot (card 17) reads the unread count from here.
-4. Write `docs/alerts.md` explaining how a scheduled task inserts a row (the insert uses the service role key in the scheduled task only, never in the repo or frontend).
+1. Migration: `alerts` (id, user_id, type, title, body, action_label, action_url, created_at, read_at) with RLS and realtime.
+2. Tab as the prototype: shaped glow banner for the most important alert, ALL/SCHOOL/WORK/PHONE filter, clear all, island pills that dismiss on tap.
+3. Unread count feeds the island gold dot (card 17).
+4. `docs/alerts.md`: how a scheduled task inserts a row (service role key only in the scheduled task, never in the repo or frontend).
 
 **Done when**
-- [ ] RLS tested with two users
-- [ ] Screenshots of the tab with and without alerts
+- [ ] RLS tested with two users, screenshots with and without alerts
 
 ---
 
 ## Card 21 · Money and Marks tabs
-**Model:** Sonnet · **Size:** medium · **Needs:** 15 · **Boards:** Money.dc.html, Marks.dc.html
-
-**Goal:** two new tabs.
+**Model:** Sonnet · **Size:** medium · **Needs:** 16 · **Source:** prototype Money and Marks tabs
 
 **Build:**
-1. Money: earned this month and this year from the shifts data and the pay rules in HALO.md section 4, plus a savings goal (name, target, saved so far) stored in a new `goals` table with RLS, editable in the tab.
-2. Marks: a `marks` table (subject, assessment, score, out_of, weighting, date) with RLS. Manual entry form in the tab. Shows each subject's running average in its colour and the latest results list. No scraping SEQTA.
+1. Money (colour tiles): earned this week and month from shifts and `src/lib/pay.ts`, spending by category, subscriptions, goals rings (`goals` table, editable), recent list, safe to spend. No bank connection in this card: spending and subscriptions are manual rows (`money_items` table with RLS). Never anything that moves money.
+2. Marks (colour tiles): `marks` table (subject, assessment, score, out_of, weighting, date) with RLS and a manual entry form. ATAR ring, subject tiles with sparklines, best and most improved. No scraping SEQTA.
 
 **Done when**
-- [ ] Both work with real rows
-- [ ] Screenshots, filled and empty
+- [ ] Both work with real rows, filled and empty screenshots
 
 ---
 
 ## Card 22 · Claude, Shelf and Widgets tabs
-**Model:** Sonnet · **Size:** medium · **Needs:** 15 · **Boards:** Claude.dc.html, Shelf.dc.html, Widgets.dc.html
-
-**Goal:** three new tabs.
+**Model:** Sonnet · **Size:** medium · **Needs:** 16 · **Source:** prototype Claude, Shelf and Widgets tabs
 
 **Build:**
-1. Claude: quick launch buttons (open claude.ai, open Claude Code docs) and a "Recent tasks" list read from a new `task_runs` table (name, status, finished_at, summary) with RLS that scheduled tasks can insert into. No API key anywhere in the frontend.
-2. Shelf: drop files, links or text. Files go to a private Supabase Storage bucket `shelf`, metadata in a `shelf_items` table, both with RLS. Tap to open or copy, swipe or button to delete.
-3. Widgets: Perth weather from Open-Meteo (free, no key), a clock, and countdowns stored in a `countdowns` table (for example Doomsday on 18 Dec).
+1. Claude (glass): the orb, ask box and quick pills. Recent tasks from a `task_runs` table that scheduled tasks insert into. No API key in the frontend.
+2. Shelf (glass): drop files, links or text into a private `shelf` bucket plus `shelf_items` table, both RLS. Phone, copy path, open, remove.
+3. Widgets (compact grid): clock, week strip, countdowns (`countdowns` table: Doomsday 18 Dec, birthday 4 Dec, Christmas), year dot grid, daily games ticks, battery, next up. Perth weather from Open-Meteo.
 
 **Done when**
-- [ ] Shelf works between laptop and phone
-- [ ] Screenshots of all three
+- [ ] Shelf works between laptop and phone, screenshots of all three
 
 ---
 
-## Card 23 · Night, Laptop, More and tab order
-**Model:** Sonnet · **Size:** medium · **Needs:** 15, 12 · **Boards:** Night.dc.html, Laptop.dc.html, More.dc.html
-
-**Goal:** the last three tabs plus hiding and reordering.
+## Card 23 · Night tab and tab order
+**Model:** Sonnet · **Size:** small · **Needs:** 16
 
 **Build:**
-1. Night: tomorrow's first event and shift, a suggested bedtime, and a Night mode switch (role="switch") that dims the whole UI and mutes banners except leave reminders. Saved per device.
-2. Laptop: battery health, storage, uptime from a new helper endpoint `GET /system` (add it to the helper with psutil, same token rules). Static warranty card: depot warranty until February 2027. Shows "Helper not running" when it's off.
-3. More: a launcher grid of every tab. Long press or an Edit button lets you hide tabs and drag to reorder. At most 8 visible in the rail. Saved in a `settings` row in Supabase so the phone matches.
+1. Night (black island): wind down time, sleep arc to tomorrow's first event, the four tick cards. Night mode switch dims the UI and mutes banners except leave reminders.
+2. Hide and reorder tabs (Edit mode in Launch or a long press on the tab bar), saved in a `settings` row so the phone matches.
 
 **Done when**
-- [ ] Hidden and reordered tabs stay that way after reload on both devices
-- [ ] Screenshots of all three
+- [ ] Order survives reload on both devices, screenshots
+
+---
+
+## Card 24 · Music, Sixers, Controls, Audio and Launch
+**Model:** Sonnet · **Size:** large · **Needs:** 12 merged, 16 · **Source:** prototype Music, Sixers, Controls and Launch tabs · **Replaces cards 13 and 14**
+
+**Build:**
+1. Music (glass, always Spotify): real album art from the helper, the two accent colours pulled from the cover tint the blurred background and the wave progress, play, skip, shuffle, like, up next. Hidden state when the helper is off.
+2. Sixers (black island): restyle card 09's data into the scoreboard plus Box, Leaders, Team and Form views, sortable box score, player card. Times in Perth time.
+3. Controls (compact grid with colour): brightness and volume sliders, Wi-Fi, Bluetooth, Night light, Focus, Mute, battery, power mode, audio output, all through the helper. Disabled look when the helper is off.
+4. Audio (black island): big mute button (blue, red when muted), master volume slider, output device picker, mic mute with live level meter, headphone ANC toggle, per app mixer (Spotify, Chrome, Discord, Teams) and EQ presets. All through the helper (pycaw for per app volume).
+5. Launch (glass): apps with real icons from the helper, sites grouped School, Work, Build, search with `/`, edit mode to remove and reorder, add sheet. Saved in Supabase.
+
+**Done when**
+- [ ] Works with the helper on and off, screenshots of every view
+- [ ] **REVIEW WITH OPUS**
 
 ---
 

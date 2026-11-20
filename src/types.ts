@@ -29,6 +29,18 @@ export interface StudySession {
   minutes: number | null
 }
 
+/** One row of the alerts table (card 20). `read_at` null means unread. */
+export interface AlertRow {
+  id: string
+  type: string
+  title: string
+  body: string
+  action_label: string | null
+  action_url: string | null
+  created_at: string
+  read_at: string | null
+}
+
 /** Everything the UI needs from the database. Real impl talks to Supabase; dev impl is in-memory. */
 export interface Backend {
   /** The shift happening now, or else the next one. */
@@ -48,6 +60,12 @@ export interface Backend {
   testsBetween(from: Date, to: Date): Promise<Test[]>
   /** Subjects seen in tests and past study sessions. */
   subjects(): Promise<string[]>
+  /** Unread alerts, newest first (the Alerts tab and the island's gold dot). */
+  unreadAlerts(): Promise<AlertRow[]>
+  /** Mark alerts read. Only ever sets read_at, never anything else. */
+  markAlertsRead(ids: string[]): Promise<void>
+  /** Realtime: called whenever an alert row is inserted or changed. Returns unsubscribe. */
+  onAlertsChange(cb: () => void): () => void
   /** Realtime: called whenever a shift row changes. Returns unsubscribe. */
   onShiftsChange(cb: () => void, onStatus?: (live: boolean) => void): () => void
 }

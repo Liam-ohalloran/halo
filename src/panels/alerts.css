@@ -1,0 +1,81 @@
+/* Alerts tab (card 20), black island family. Copied from the prototype's ALERTS block: a black banner with a shaped glow,
+   the filter and CLEAR ALL on the left, the top alert on the right, then island pills in two columns.
+   78 + 8 + 3 x 40 + 2 x 8 = 222, so it fits the 226 px content area and nothing scrolls. */
+.alerts-pv { --g: #8E8E93; }
+.alerts-pv .take { position: relative; height: 78px; border-radius: 26px; background: #000; overflow: hidden; display: flex; align-items: center; padding: 0 16px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.07); }
+.alerts-pv .take svg.shp { pointer-events: none; position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+.alerts-pv .take svg .glow, .alerts-pv .take svg .line { stroke: var(--g); transition: stroke .4s var(--ease), opacity .4s; }
+.alerts-pv .take.idle svg .glow { opacity: .12; }
+.alerts-pv .take.idle svg .line { opacity: .35; }
+.alerts-pv .lf { position: relative; display: flex; flex-direction: column; gap: 6px; }
+.alerts-pv .clr { align-self: flex-start; border: 0; color: var(--fog); background: rgba(255,255,255,.07); cursor: pointer; transition: transform .3s var(--spring), background .2s, color .2s, opacity .2s; }
+.alerts-pv .clr:hover:not(:disabled) { background: rgba(255,255,255,.14); color: #fff; }
+.alerts-pv .clr:active:not(:disabled) { transform: scale(.94); }
+.alerts-pv .clr:disabled { opacity: .45; cursor: default; }
+
+.alerts-pv .tx { position: relative; margin-left: auto; text-align: right; max-width: 178px; min-width: 0; }
+.alerts-pv .tx small { display: block; font-family: var(--mono); font-size: 8px; letter-spacing: .14em; color: var(--g); white-space: nowrap; font-weight: 600; margin-bottom: 1px; }
+.alerts-pv .heroBtn { display: block; width: 100%; max-width: 100%; border: 0; padding: 0; margin: 0; background: none; color: inherit; text-align: right; cursor: pointer; border-radius: 6px; transition: transform .3s var(--spring); }
+.alerts-pv .heroBtn:disabled { cursor: default; }
+.alerts-pv .heroBtn:hover:not(:disabled) { transform: scale(1.02); }
+.alerts-pv .heroBtn:active:not(:disabled) { transform: scale(.97); }
+.alerts-pv .heroBtn b { display: block; font-size: 20px; line-height: 24px; font-weight: 800; letter-spacing: -.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.alerts-pv .heroBtn span { display: block; font-size: 10px; line-height: 13px; color: rgba(255,255,255,.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.alerts-pv .act { display: inline-block; margin-top: 3px; font-family: var(--mono); font-size: 8px; letter-spacing: .08em; font-weight: 700; color: #000; background: var(--g); border-radius: 999px; padding: 2px 8px; text-decoration: none; text-transform: uppercase; transition: transform .3s var(--spring), filter .2s; }
+.alerts-pv .act[hidden] { display: none; }
+.alerts-pv .act:hover { filter: brightness(1.12); }
+.alerts-pv .act:active { transform: scale(.94); }
+.alerts-pv .tx.swap { animation: alSwap calc(380ms * var(--slow)) var(--spring) both; }
+@keyframes alSwap { from { opacity: 0; transform: translateY(4px) scale(.98); } to { opacity: 1; transform: none; } }
+
+.alerts-pv .ap { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.alerts-pv .ip {
+  height: 40px; min-width: 0; border-radius: 20px; background: #000; display: flex; align-items: center; gap: 9px; padding: 0 12px 0 5px; cursor: pointer; border: 0; color: inherit; text-align: left; font: inherit;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.07), 0 8px 20px -12px var(--c, #fff); transition: transform .45s var(--spring), opacity .3s, filter .2s;
+}
+.alerts-pv .ip:hover { transform: scale(1.03); }
+.alerts-pv .ip:active { transform: scale(.97); }
+.alerts-pv .ip .ai { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; flex: none; color: #fff; }
+.alerts-pv .ip .ai svg { width: 14px; height: 14px; }
+.alerts-pv .ip .t2 { min-width: 0; flex: 1; }
+.alerts-pv .ip .t2 b { display: block; font-size: 11px; line-height: 14px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.alerts-pv .ip .t2 span { display: block; font-size: 8.5px; line-height: 11px; color: rgba(255,255,255,.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.alerts-pv .ip .w { font-family: var(--mono); font-size: 8px; color: var(--c); font-weight: 700; flex: none; }
+.alerts-pv .ip.gone { transform: scale(.2); opacity: 0; pointer-events: none; }
+.alerts-pv .ip.dim { opacity: .18; }
+/* The "+N more" cell takes the last slot when there are more than six. It is not a button, nothing happens on a tap. */
+.alerts-pv .ip.more { cursor: default; --c: #AEB6C2; }
+.alerts-pv .ip.more:hover, .alerts-pv .ip.more:active { transform: none; }
+.alerts-pv .ip.more[hidden] { display: none; }
+.alerts-pv .ip.more .mc { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; flex: none; background: rgba(255,255,255,.1); font-family: var(--mono); font-size: 9px; font-weight: 700; }
+
+/* A new alert pops in on its own. The whole tab only does it when you switch to it. */
+.alerts-pv .ip.fresh { animation: alFresh calc(520ms * var(--slow)) var(--spring) both; }
+.alerts-pv.al-in .ip { animation: alFresh calc(520ms * var(--slow)) var(--spring) both; animation-delay: calc((90ms + var(--i, 0) * 45ms) * var(--slow)); }
+@keyframes alFresh { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: none; } }
+
+.alerts-pv .ip:focus-visible, .alerts-pv .heroBtn:focus-visible, .alerts-pv .clr:focus-visible, .alerts-pv .act:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* States: loading shimmer, empty note, error sentence with a retry. */
+.alerts-pv .txSk { display: none; position: absolute; right: 16px; top: 0; bottom: 0; width: 150px; flex-direction: column; align-items: flex-end; justify-content: center; gap: 6px; }
+.alerts-pv .txSk i { height: 9px; width: 100%; } .alerts-pv .txSk i:nth-child(1) { width: 60%; } .alerts-pv .txSk i:nth-child(2) { height: 16px; } .alerts-pv .txSk i:nth-child(3) { width: 80%; }
+.alerts-pv.is-loading .tx { visibility: hidden; }
+.alerts-pv.is-loading .txSk { display: flex; }
+.alerts-pv.is-loading .ap { visibility: hidden; }
+.alerts-pv.is-loading .ap::before { content: ""; visibility: visible; grid-column: 1 / -1; height: 136px; border-radius: 20px; background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,.06) 50%, transparent 70%) 0 0 / 200% 100%; animation: alShim 1.3s linear infinite; }
+@keyframes alShim { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.alerts-pv .alNote { position: absolute; left: 0; right: 0; top: 152px; text-align: center; pointer-events: none; display: none; }
+.alerts-pv .alNote b { display: block; font-size: 12px; font-weight: 800; color: #e5e5ea; }
+.alerts-pv .alNote span { display: block; font-size: 9px; color: #9a9aa2; margin-top: 3px; }
+.alerts-pv.is-empty:not(.is-loading) .alNote { display: block; }
+.alerts-pv .alErr { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: #000; border-radius: 26px; z-index: 5; box-shadow: inset 0 0 0 1px rgba(255,255,255,.07); }
+.alerts-pv .alErr p { margin: 0; font-size: 11px; font-weight: 700; color: #e5e5ea; }
+.alerts-pv .alErr button { border: 0; border-radius: 999px; padding: 6px 14px; font-size: 10px; font-weight: 800; color: #000; background: #fff; cursor: pointer; transition: transform .3s var(--spring); }
+.alerts-pv .alErr button:active { transform: scale(.94); }
+.alerts-pv.is-err .alErr { display: flex; }
+
+@media (prefers-reduced-motion: reduce) {
+  .alerts-pv .ip, .alerts-pv .heroBtn, .alerts-pv .clr, .alerts-pv .act { transition: opacity .2s; }
+  .alerts-pv .ip.fresh, .alerts-pv.al-in .ip, .alerts-pv .tx.swap { animation: none; }
+  .alerts-pv.is-loading .ap::before { animation: none; }
+}

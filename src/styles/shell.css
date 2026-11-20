@@ -54,6 +54,9 @@
   white-space: nowrap; overflow: hidden; font-size: var(--fs-15); font-weight: 500;
   opacity: 1; visibility: visible; transition: opacity 160ms ease calc(var(--out) + var(--shrink) - 40ms);
 }
+/* Unread alerts: a small gold dot on the resting island only (card 20). */
+.sh-dot { position: absolute; top: calc(var(--ch) / 2 - 3px); right: 18px; width: 6px; height: 6px; border-radius: 50%; background: #FFC23D; box-shadow: 0 0 8px 1px rgba(255, 194, 61, 0.7); opacity: 0; pointer-events: none; transition: opacity 200ms ease; }
+.sh[data-unread='1'][data-collapsed='resting']:not([data-open='true']) .sh-dot { opacity: 1; }
 .sh-pill:focus-visible { outline: 2px solid #D8C28C; outline-offset: -3px; border-radius: 0 0 var(--cr) var(--cr); }
 .sh[data-open='true'] .sh-pill { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 90ms ease, visibility 0s linear 90ms; }
 

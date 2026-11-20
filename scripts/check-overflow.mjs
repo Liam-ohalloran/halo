@@ -15,10 +15,10 @@ import { createServer } from 'vite'
 import { chromium } from 'playwright'
 import { pathToFileURL } from 'node:url'
 
-export const ALL_TABS = ['home', 'music', 'study', 'pay', 'sixers', 'week', 'more', 'controls']
-export const DEFAULT_TABS = ['home', 'pay', 'study', 'week']
+export const ALL_TABS = ['home', 'music', 'study', 'pay', 'sixers', 'week', 'alerts', 'more', 'controls']
+export const DEFAULT_TABS = ['home', 'pay', 'study', 'week', 'alerts']
 /** The Week tab has its own fixtures: a normal week, and a busy one with clashes and a crowded EARLY row. */
-export const API_FOR = (tab, state) => (tab === 'week' && state !== 'empty' ? (state === 'busy' ? 'weekbusy' : 'week') : state)
+export const API_FOR = (tab, state) => (tab === 'week' && state !== 'empty' ? (state === 'busy' ? 'weekbusy' : 'week') : tab === 'alerts' ? (state === 'busy' ? 'alertsmany' : state === 'empty' ? 'alertsempty' : 'alerts') : state)
 
 /** Runs inside the page. Returns a list of problems. */
 export function auditInPage() {
@@ -116,7 +116,7 @@ async function main() {
   const browser = await chromium.launch()
   let failed = 0
   for (const tab of tabs) {
-    for (const state of tab === 'week' ? ['full', 'busy', 'empty'] : ['full', 'empty']) {
+    for (const state of tab === 'week' || tab === 'alerts' ? ['full', 'busy', 'empty'] : ['full', 'empty']) {
       const problems = await checkTab(browser, 'http://localhost:5251/halo/', tab, state)
       console.log(`${problems.length ? 'FAIL' : 'ok  '} ${tab} (${state})`)
       for (const p of problems) console.log(`       ${p}`)

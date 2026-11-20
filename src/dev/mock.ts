@@ -1,5 +1,5 @@
 // Dev-only fixtures for screenshots and design review. Never shipped (guarded by import.meta.env.DEV).
-import type { Backend, Shift, StudySession, Test } from '../types'
+import type { AlertRow, Backend, Shift, StudySession, Test } from '../types'
 import { DEFAULT_SETTINGS } from '../types'
 import { weekStart, addDays } from '../time'
 
@@ -31,6 +31,26 @@ function weekFixture(busy: boolean): { shifts: Shift[]; tests: Test[] } {
     tests.push(testRow('x5', 'Human Biology', 'Genetics test', 3, 8, 30), testRow('x6', 'Religion', 'Reflection due', 3, 9), testRow('x7', 'Human Biology', 'Lab report', 5, 0), testRow('x8', 'Chemistry', 'Titration prac', 5, 5), testRow('x9', 'Methods', 'Quiz', 4, 16, 30))
   }
   return { shifts, tests }
+}
+
+/** The Alerts tab fixtures, hung off the demo clock (Sat 21 Nov 2026, 3:48 pm Perth). `alerts` is a normal list, `alertsmany` overflows
+ *  the pills, `alertslong` has very long text, `alertsempty` has none. Any other mode shows the normal list. */
+function alertsFixture(mode: string): AlertRow[] {
+  if (mode === 'alertsempty' || mode === 'empty') return []
+  const ago = (min: number) => perthAt(0, 15, 48 - min)
+  const row = (id: string, type: string, title: string, body: string, min: number, extra: Partial<AlertRow> = {}): AlertRow =>
+    ({ id, type, title, body, action_label: null, action_url: null, created_at: ago(min), read_at: null, ...extra })
+  const base = [
+    row('a1', 'shift_cover', 'Cover: Sat 5 to 10', 'Blink, grill close', 4, { action_label: 'Open Blink', action_url: 'https://example.com/blink' }),
+    row('a2', 'task_done', 'Chem summary done', 'TickTick', 60),
+    row('a3', 'message', 'New message', 'Messages, hidden', 120),
+    row('a4', 'new_mark', 'Mark released', 'SEQTA, Human Bio', 180),
+    row('a5', 'sixers_final', 'Sixers 118 to 104', 'Final, beat the Bucks', 240),
+    row('a6', 'battery_low', 'Battery 10%', 'Laptop, plug in', 300),
+  ]
+  if (mode === 'alertsmany') base.push(row('a7', 'call', 'Missed call', 'Mum', 330), row('a8', 'focus_done', 'Focus done', 'Methods, 50 min', 400), row('a9', 'message', 'New message', 'Messages, hidden', 480), row('a10', 'task_done', 'Maths sheet done', 'TickTick', 600))
+  if (mode === 'alertslong') base[2] = row('a3', 'message', 'A very long message title that keeps going and going past the edge of the pill', 'Messages with a body line that is also far too long to ever fit in one line here', 120)
+  return base
 }
 
 export function mockBackend(mode: string): Backend {
@@ -70,6 +90,15 @@ export function mockBackend(mode: string): Backend {
   let active: StudySession | null = stored ??
     (mode === 'running' ? { id: 'a', subject: 'Specialist', started_at: new Date(now.getTime() - 17 * 6e4 - 23e3).toISOString(), ended_at: null, minutes: null } : null)
 
+  const alerts = alertsFixture(mode)
+  const alertListeners = new Set<() => void>()
+  // Dev only: lets a test play the part of the scheduled task that inserts a row.
+  ;(globalThis as unknown as { __mockAlerts?: unknown }).__mockAlerts = {
+    insert: (r: Partial<AlertRow> & { id: string; type: string; title: string }) => {
+      alerts.unshift({ body: '', action_label: null, action_url: null, created_at: new Date().toISOString(), read_at: null, ...r })
+      alertListeners.forEach((f) => f())
+    },
+  }
   const gate = async <T>(v: T): Promise<T> => {
     if (mode === 'loading') await new Promise(() => {})
     await sleep(120)
@@ -100,6 +129,12 @@ export function mockBackend(mode: string): Backend {
       keep(null)
       return gate(s)
     },
+    unreadAlerts: () => gate(alerts.filter((a) => !a.read_at).map((a) => ({ ...a }))),
+    async markAlertsRead(ids) {
+      for (const a of alerts) if (ids.includes(a.id)) a.read_at = new Date().toISOString()
+      await sleep(80)
+    },
+    onAlertsChange(cb) { alertListeners.add(cb); return () => alertListeners.delete(cb) },
     onShiftsChange(_cb, onStatus) {
       setTimeout(() => onStatus?.(mode !== 'error'), 200)
       return () => {}

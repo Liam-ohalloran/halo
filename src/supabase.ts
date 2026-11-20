@@ -1,4 +1,4 @@
-import type { Backend, Settings, Shift, StudySession, Test } from './types'
+import type { AlertRow, Backend, Settings, Shift, StudySession, Test } from './types'
 import { DEFAULT_SETTINGS } from './types'
 import { supabase } from './lib/supabase'
 
@@ -69,6 +69,29 @@ export const supabaseBackend: Backend = {
         .gt('ends_at', from.toISOString())
         .order('starts_at'),
     ) as Shift[]
+  },
+
+  async unreadAlerts() {
+    return must(
+      await supabase
+        .from('alerts')
+        .select('id,type,title,body,action_label,action_url,created_at,read_at')
+        .is('read_at', null)
+        .order('created_at', { ascending: false })
+        .limit(50),
+    ) as AlertRow[]
+  },
+
+  async markAlertsRead(ids) {
+    if (!ids.length) return
+    const res = await supabase.from('alerts').update({ read_at: new Date().toISOString() }).in('id', ids).is('read_at', null)
+    if (res.error) throw new Error(res.error.message)
+  },
+
+  onAlertsChange(cb) {
+    // Row level security applies to the stream, so only this user's rows arrive.
+    const ch = supabase.channel(`alerts-${Math.random().toString(36).slice(2)}`).on('postgres_changes', { event: '*', schema: 'public', table: 'alerts' }, () => cb()).subscribe()
+    return () => { void supabase.removeChannel(ch) }
   },
 
   async settings() {

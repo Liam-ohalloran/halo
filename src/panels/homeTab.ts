@@ -148,7 +148,7 @@ export function HomeTab(o: HomeTabOptions): HomeTabHandle {
     if (shift === undefined) return paint('shift', 'load', `${dh('bolt', 'Next shift')}${skel()}${skel('s')}`)
     if (!shift) return empty('shift', 'bolt', 'Next shift', 'None', 'Nothing rostered')
     const sv = shiftView(shift, now, getTravelMinutes())
-    const big = sv.phase === 'live' ? 'Now' : `${clockShort(sv.start)}<small> ${dow3(sv.start)}</small>`
+    const big = sv.phase === 'live' ? 'Now' : `${fmtClockPm(sv.start).replace(/ (am|pm)$/, "")}<small> ${dow3(sv.start)}</small>`
     paint('shift', `s:${shift.id}:${sv.phase}`, `${dh('bolt', sv.phase === 'live' ? 'On shift' : 'Next shift')}<div class="dpV num">${big}</div><div class="dpBar"><i data-bar="0"></i></div><div class="dpS num"></div>`)
     tickShift(now)
   }

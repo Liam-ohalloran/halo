@@ -7,9 +7,10 @@ import assert from 'node:assert/strict'
 
 const dir = 'screenshots/08'
 mkdirSync(dir, { recursive: true })
-const server = await createServer({ server: { port: 5199, strictPort: true }, logLevel: 'error' })
+const server = await createServer({ server: { port: 5199 }, logLevel: 'error' }) // takes the next free port when 5199 is busy
 await server.listen()
-const URL = (mode) => `http://localhost:5199/halo/study/?mock=${mode}`
+const PORT = server.httpServer.address().port
+const URL = (mode) => `http://localhost:${PORT}/halo/study/?mock=${mode}`
 const sizes = { 'notchpixel-680x420': [680, 420], 'iphone-390x844': [390, 844] }
 const browser = await chromium.launch()
 const errors = []

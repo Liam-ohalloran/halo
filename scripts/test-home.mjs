@@ -1,4 +1,6 @@
 // Home smoke test: signed in, hover, click, switch every tab, check nothing freezes and nothing logs an error.
+// Desktop (680 x 420) is the card 15b island window: hover 300 ms opens, leaving for 1 s closes, the rail has 8 tabs.
+// The 390 wide phone keeps the old island and four tabs.
 // Usage: node scripts/test-home.mjs <base url> [screenshot dir]
 //   node scripts/test-home.mjs https://liam-ohalloran.github.io/halo/ screenshots/home/live
 // Signed in is simulated in the test browser only: a stored session plus empty answers for the Supabase calls.
@@ -40,9 +42,10 @@ for (const [size, [width, height]] of Object.entries({ 'notchpixel-680x420': [68
   })
 
   await page.goto(base)
-  await page.waitForSelector('.h-island', { timeout: 15000 })
+  const phone = width < 500
+  await page.waitForSelector(phone ? '.h-island' : '.sh', { timeout: 15000 })
   await page.waitForTimeout(800)
-  const state = () => page.evaluate(() => document.querySelector('.h-island')?.dataset.state)
+  const state = () => page.evaluate((phone) => phone ? document.querySelector('.h-island')?.dataset.state : (document.querySelector('.sh')?.dataset.open === 'true' ? 'expanded' : 'resting'), phone)
   const responsive = async (label) => {
     const r = await Promise.race([page.evaluate(() => new Promise((res) => setTimeout(() => res('ok'), 100))), new Promise((res) => setTimeout(() => res('FROZEN'), 4000))])
     check(r === 'ok', `${label}: page responsive`)
@@ -51,41 +54,43 @@ for (const [size, [width, height]] of Object.entries({ 'notchpixel-680x420': [68
   const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor + '|' + getComputedStyle(document.documentElement).backgroundColor)
   check(bg === 'rgb(11, 11, 16)|rgb(11, 11, 16)', `background is #0b0b10 (${bg})`)
   check((await state()) === 'resting', 'starts resting')
-  check((await fps()) > 20, 'animation loop running when idle')
+  if (phone) check((await fps()) > 20, 'animation loop running when idle')
 
   const hasHover = width > 500
   if (hasHover) {
     await page.mouse.move(width / 2, 12, { steps: 4 })
-    await page.waitForTimeout(900)
+    await page.waitForTimeout(1000)
     await responsive('hover')
     check((await state()) === 'expanded', 'hover opens the island')
     await page.mouse.move(width / 2, height - 6, { steps: 6 })
-    await page.waitForTimeout(1200)
+    await page.waitForTimeout(1700)
     await responsive('leave')
     check((await state()) === 'resting', 'leaving closes the island')
   }
-  // Click to open (tap on the phone).
-  if (hasHover) { await page.mouse.move(width / 2, 14); await page.mouse.down(); await page.mouse.up() } else await page.touchscreen.tap(width / 2, 14)
-  await page.waitForTimeout(900)
-  check((await state()) === 'expanded', 'click opens the island')
+  // Desktop: click opens the window. The phone's island never opens (card 10): its panels are a swipeable stack under it.
+  if (hasHover) { await page.mouse.move(width / 2, 14); await page.mouse.down(); await page.mouse.up(); await page.waitForTimeout(900) }
+  check((await state()) === (phone ? 'resting' : 'expanded'), phone ? 'tap leaves the phone island resting' : 'click opens the island')
   const tabs = await page.getByRole('tab').all()
-  check(tabs.length === 4, `tab bar has Now, Study, Pay, Sixers (${tabs.length} tabs)`)
-  for (const name of ['Now', 'Study', 'Pay', 'Sixers', 'Study', 'Now', 'Sixers', 'Pay']) {
+  check(tabs.length === (phone ? 4 : 8), `tab bar has ${phone ? 'Now, Study, Pay, Sixers' : 'the eight rail tabs'} (${tabs.length} tabs)`)
+  const home = phone ? 'Now' : 'Home'
+  for (const name of [home, 'Study', 'Pay', 'Sixers', 'Study', home, 'Sixers', 'Pay']) {
     await page.getByRole('tab', { name }).click()
     await page.waitForTimeout(700)
     await responsive(`tab ${name}`)
     const sel = await page.getByRole('tab', { name }).getAttribute('aria-selected')
-    check(sel === 'true' && (await state()) === 'expanded', `tab ${name} selected and island still open`)
+    check(sel === 'true' && (await state()) === (phone ? 'resting' : 'expanded'), `tab ${name} selected and ${phone ? 'island still resting' : 'island still open'}`)
   }
-  for (const name of ['Now', 'Study', 'Pay', 'Sixers']) {
+  for (const name of [home, 'Study', 'Pay', 'Sixers']) {
     await page.getByRole('tab', { name }).click()
     await page.waitForTimeout(900)
     if (shotDir) await page.screenshot({ path: `${shotDir}/${name.toLowerCase()}-${size}.png` })
   }
-  await page.keyboard.press('Escape')
-  await page.waitForTimeout(1000)
-  check((await state()) === 'resting', 'Escape closes the island')
-  check((await fps()) > 20, 'animation loop still healthy after the run')
+  if (!phone) {
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(1000)
+    check((await state()) === 'resting', 'Escape closes the island')
+  }
+  if (phone) check((await fps()) > 20, 'animation loop still healthy after the run')
   check(errors.length === 0, `no console or page errors${errors.length ? ': ' + [...new Set(errors)].join(' | ') : ''}`)
   await ctx.close()
 }

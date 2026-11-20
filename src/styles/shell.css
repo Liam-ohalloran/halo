@@ -1,19 +1,66 @@
 /* Shell (card 15): the 600 x 290 panel from the Home2 board. Values are the board's, so keep them as they are. */
 
+/* The island is the window (card 15b). One element, pinned top centre, flat top edge on the top of the screen.
+   Collapsed it is the island (--cw x --ch, set by Shell.setCollapsed). Open it is 600 x 290 with the bottom radius at 26.
+   Grow 520 ms with a springy curve, shrink 380 ms. Content fades in after the size settles and out before it shrinks. */
 .sh {
   --sh-border: rgba(211, 155, 101, 0.20); --sh-text: #F5F5F7;
-  --sh-pt: 10px; --sh-pr: 16px; --sh-pb: 12px; --sh-pl: 16px;
-  position: relative; box-sizing: border-box; width: 600px; height: 290px; flex: none; overflow: hidden;
-  border-radius: 26px; border: 1px solid var(--sh-border); transition: border-color 180ms ease;
-  padding: var(--sh-pt) var(--sh-pr) var(--sh-pb) var(--sh-pl);
-  display: flex; flex-direction: column;
-  color: var(--sh-text); background: #0E0D14; font-family: var(--font); font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased;
+  --glow: #D39B65; --cw: 200px; --ch: 34px; --cr: 17px; --k: #C7C7CC;
+  --grow: 520ms; --shrink: 380ms; --out: 120ms; --in: 160ms;
+  --ease-grow: cubic-bezier(0.34, 1.45, 0.5, 1); --ease-shrink: cubic-bezier(0.4, 0, 0.2, 1);
+  position: fixed; top: var(--embed-top, 0px); left: 50%; z-index: 5; box-sizing: border-box; flex: none;
+  width: var(--cw); height: var(--ch); border-radius: 0 0 var(--cr) var(--cr);
+  transform: translateX(-50%) scale(var(--fit, 1)); transform-origin: top center;
+  background: #000; border: 1px solid transparent; border-top: 0;
+  color: var(--sh-text); font-family: var(--font); font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased;
+  /* Closing: wait for the content to fade, then shrink. */
+  transition: width var(--shrink) var(--ease-shrink) var(--out), height var(--shrink) var(--ease-shrink) var(--out),
+    border-radius var(--shrink) var(--ease-shrink) var(--out), border-color 180ms ease var(--out), box-shadow 180ms ease;
+}
+.sh[data-open='true'] {
+  width: 600px; height: 290px; --cr: 26px; border-radius: 0 0 26px 26px; border-color: var(--sh-border);
+  transition: width var(--grow) var(--ease-grow), height var(--grow) var(--ease-grow),
+    border-radius var(--grow) var(--ease-grow), border-color 180ms ease, box-shadow 180ms ease;
+}
+/* The closed island carries a 1 px key line in its content colour (HALO.md 3.1). */
+.sh[data-open='false'] {
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--k) 30%, transparent), inset 1px 0 0 color-mix(in srgb, var(--k) 30%, transparent), inset -1px 0 0 color-mix(in srgb, var(--k) 30%, transparent),
+    0 4px 14px color-mix(in srgb, var(--k) 26%, transparent), 0 10px 40px color-mix(in srgb, var(--k) 14%, transparent);
+}
+/* Open: a soft glow in the tab colour sits just outside the bottom edge. Never remove it (HALO.md 3.1b). */
+.sh[data-open='true'] {
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--glow) 30%, transparent), 0 16px 56px color-mix(in srgb, var(--glow) 20%, transparent), 0 30px 110px color-mix(in srgb, var(--glow) 12%, transparent);
 }
 .sh *, .sh *::before, .sh *::after { box-sizing: border-box; }
 
-/* One skin per tab: tinted gradient plus the soft corner glow. The open tab's is opaque, the others fade out and stop painting. */
-.sh-skin { position: absolute; inset: 0; overflow: hidden; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 180ms ease, visibility 0s linear 180ms; }
-.sh-skin.is-on { opacity: 1; visibility: visible; transition: opacity 180ms ease; }
+/* Ears: the small inverse curves where the island meets the top edge. They sit on the element, outside the clip. */
+.sh::before, .sh::after { content: ''; position: absolute; top: 0; width: 10px; height: 10px; pointer-events: none; }
+.sh::before { left: -11px; background: radial-gradient(circle at 0 100%, transparent 9.5px, #000 10px); }
+.sh::after { right: -11px; background: radial-gradient(circle at 100% 100%, transparent 9.5px, #000 10px); }
+
+/* The only overflow hidden: an inner wrapper that follows the rounded bottom. Never on .sh, or the ears would be cut. */
+.sh-clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
+.sh-skins { position: absolute; inset: 0; opacity: 0; transition: opacity var(--out) ease; }
+.sh[data-open='true'] .sh-skins { opacity: 1; transition: opacity 220ms ease; }
+
+/* Closed content: the live pills. Fades in after the shrink, out as soon as the grow starts. */
+.sh-pill {
+  appearance: none; border: 0; margin: 0; padding: 0 var(--s4); font: inherit; color: var(--text-1); background: transparent; cursor: pointer;
+  position: absolute; top: 0; left: 0; right: 0; height: var(--ch); display: flex; align-items: center; justify-content: space-between; gap: var(--s2);
+  white-space: nowrap; overflow: hidden; font-size: var(--fs-15); font-weight: 500;
+  opacity: 1; visibility: visible; transition: opacity 160ms ease calc(var(--out) + var(--shrink) - 40ms);
+}
+.sh-pill:focus-visible { outline: 2px solid #D8C28C; outline-offset: -3px; border-radius: 0 0 var(--cr) var(--cr); }
+.sh[data-open='true'] .sh-pill { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 90ms ease, visibility 0s linear 90ms; }
+
+/* Open content: a fixed 600 x 290 layer, centred and clipped by the rounded bottom, so it never reflows while the size moves. */
+.sh-inner {
+  --sh-pt: 10px; --sh-pr: 16px; --sh-pb: 12px; --sh-pl: 16px;
+  position: absolute; top: 0; left: 50%; width: 598px; height: 289px; margin-left: -299px; overflow: hidden;
+  padding: var(--sh-pt) var(--sh-pr) var(--sh-pb) var(--sh-pl); display: flex; flex-direction: column;
+  opacity: 0; visibility: hidden; transition: opacity var(--out) ease, visibility 0s linear var(--out);
+}
+.sh[data-open='true'] .sh-inner { opacity: 1; visibility: visible; transition: opacity var(--in) ease var(--grow), visibility 0s; }
 
 /* Header: title and grey line on the left, the rail on the right. */
 .sh-head { position: relative; height: 32px; flex: none; display: flex; align-items: center; justify-content: space-between; }
@@ -38,21 +85,76 @@
 .sh-div { width: 1px; height: 14px; margin: 0 4px; background: rgba(255, 255, 255, 0.14); flex: none; }
 
 /* Body: panels sit on top of each other and crossfade. */
-.sh-body { position: relative; flex: 1 1 0; min-height: 0; margin-top: 8px; overflow: hidden; scrollbar-width: none; overscroll-behavior: contain; }
-.sh-body::-webkit-scrollbar { display: none; }
-.sh-body.is-scroll { -webkit-mask-image: linear-gradient(#000 calc(100% - 16px), transparent); mask-image: linear-gradient(#000 calc(100% - 16px), transparent); }
+.sh-body { position: relative; flex: 1 1 0; min-height: 0; margin-top: 8px; overflow: hidden; container-type: inline-size; }
 .sh-body .h-panel { left: 0; right: 0; top: 0; }
 
 /* Tabs not built yet. */
 .sh-soon { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
 .sh-soon-t { font-size: var(--fs-15); font-weight: 600; color: var(--tab); }
 
+/* Reduced motion: no size animation, just a quick fade between the island and the window. */
 @media (prefers-reduced-motion: reduce) {
-  .sh, .sh-skin, .sh-tab { transition-duration: 1ms; }
+  .sh, .sh[data-open='true'] { transition: border-color 1ms, box-shadow 1ms; }
+  .sh-skin, .sh-tab { transition-duration: 1ms; }
+  .sh-skins, .sh[data-open='true'] .sh-skins { transition: opacity 150ms ease; }
+  .sh-inner, .sh[data-open='true'] .sh-inner { transition: opacity 150ms ease 0s, visibility 0s; }
+  .sh[data-open='true'] .sh-pill, .sh-pill { transition: opacity 150ms ease; }
 }
-
-/* Non-embedded desktop: the panel hangs under the island, centred. */
-.home-shell { position: fixed; top: 56px; left: 50%; margin-left: -300px; }
 
 /* The panels were drawn for a pure black island. Until cards 16 and 19 to 23 restyle them, let the tab's tint show through. */
 .sh-body .pay-panel { background: transparent; }
+
+/* Settings on the More tab: signed in as, Add to Home Screen, sign out. */
+.set-panel { height: 100%; display: flex; flex-direction: column; justify-content: center; gap: var(--s3); padding: 0 var(--s2); }
+.set-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s4); min-height: 44px; padding: 0 var(--s4); border-radius: 12px; border: 1px solid rgba(216, 194, 140, 0.18); background: rgba(255, 255, 255, 0.04); }
+.set-row .embed-set { width: 100%; justify-content: space-between; }
+.set-k { font-size: var(--fs-13); font-weight: 600; color: rgba(245, 245, 247, 0.85); white-space: nowrap; }
+.set-v { font-size: var(--fs-13); font-weight: 500; color: rgba(245, 245, 247, 0.5); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.set-link, .set-btn { appearance: none; border: 0; background: transparent; font: inherit; font-size: var(--fs-13); font-weight: 600; color: #D8C28C; cursor: pointer; text-decoration: none; padding: 6px 10px; margin: 0 -10px; border-radius: 8px; white-space: nowrap; }
+.set-link:hover, .set-btn:hover { background: rgba(255, 255, 255, 0.08); }
+.set-link:active, .set-btn:active { transform: scale(0.96); }
+.set-link:focus-visible, .set-btn:focus-visible { outline: 2px solid #D8C28C; outline-offset: 2px; }
+
+/* ---- Fitting the 600 x 290 window (card 15b). Nothing scrolls, so each built tab is tightened to fit and shows its top
+   items then "+N more". The tab panels keep their own layouts, these only trim spacing. ---- */
+.sh .sh-body .n-panel { height: 100%; gap: 8px; }
+.sh .sh-body .n-left { gap: 8px; }
+.sh .sh-body .n-card { padding: 8px 12px; gap: 4px; border-radius: 16px; }
+.sh .sh-body .n-row { gap: 12px; }
+.sh .sh-body .n-title, .sh .sh-body .n-ttl, .sh .sh-body .n-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sh .sh-body .n-title { font-size: var(--fs-15); }
+.sh .sh-body .n-trow { padding: 4px 8px; }
+.sh .sh-body .n-list { gap: 0; }
+.sh .sh-body .n-more { padding: 0 8px; line-height: 1.2; }
+
+.sh .sh-body .home-pay .pay-panel { gap: 6px 16px; }
+.sh .sh-body .pay-nav .h-ibtn { width: 32px; height: 32px; }
+.sh .sh-body .pay-week { min-height: 32px; min-width: 120px; }
+.sh .sh-body .pay-week span { display: none; }
+.sh .sh-body .pay-totals { gap: 4px 16px; }
+.sh .sh-body .pay-gross { font-size: var(--fs-21); }
+.sh .sh-body .pay-sub { font-size: var(--fs-17); }
+.sh .sh-body .pay-inset { padding: 8px; }
+.sh .sh-body .pay-track { height: 28px; }
+.sh .sh-body .pay-day i { display: none; }
+.sh .sh-body .pay-day b { margin-top: 0; }
+.sh .sh-body .pay-left { gap: 6px; }
+.sh .sh-body .pay-note { line-height: 1.2; }
+.sh .sh-body .pay-more { padding: 4px; font-size: var(--fs-13); font-weight: 600; color: var(--text-2); }
+
+.sh .sh-body .s-panel { gap: 8px; height: 100%; }
+.sh .sh-body .s-chips { flex-wrap: nowrap; gap: 4px; }
+.sh .sh-body .s-chips .h-chip { flex: none; height: 28px; padding: 0 8px; gap: 4px; }
+.sh .sh-body .s-grid { gap: 8px; min-height: 0; }
+.sh .sh-body .s-timer { padding: 8px 12px; gap: 6px 12px; border-radius: 16px; }
+.sh .sh-body .s-ring .h-ring { width: 72px; height: 72px; }
+.sh .sh-body .s-ring .h-ring-txt { font-size: var(--fs-17); }
+.sh .sh-body .s-subject { font-size: var(--fs-17); }
+.sh .sh-body .s-week { padding: 8px 12px; gap: 6px; border-radius: 16px; }
+.sh .sh-body .s-weekbody { gap: 6px; }
+.sh .sh-body .s-bars { gap: 4px; }
+.sh .sh-body .s-callout { padding: 6px 10px; line-height: 1.3; border-radius: 12px; }
+.sh .sh-body .pay-when { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sh .sh-body .s-bars { gap: 2px; }
+.sh .sh-body .s-callout { padding: 4px 10px; }
+.sh .sh-body .s-ring .h-ring, .sh .sh-body .s-ring .h-ring svg { width: 80px; height: 80px; }

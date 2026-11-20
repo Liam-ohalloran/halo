@@ -3,14 +3,26 @@ import { h } from './dom'
 import { tabMeta } from '../lib/shell-meta'
 import { RAIL, RAIL_ICONS, TAB_THEMES, type TabId, type TabTheme } from '../styles/tabs'
 
-// Shell (card 15): the 600 x 290 panel every tab sits in, copied from the Home2 board.
+// Shell (cards 15 and 15b): the island IS the window. One element pinned top centre, flat top edge on the top of the
+// screen, ears at both top corners, black base. Collapsed it is the island (200 x 34). A click, or a hover for 300 ms,
+// grows it into the 600 x 290 tab window, with the tab's tint and corner glow layered over the black. Click outside,
+// Escape, or moving away for 1 s shrinks it back. The content fades in only after the size settles and fades out
+// first when closing (shell.css has the timings).
 // Header: title and a small grey line on the left, the icon rail on the right. Under it the tab's panel.
-// Each tab has its own tinted frame and corner glow (src/styles/tabs.ts). Switching tabs crossfades the frame
-// and the panel in 180 ms. Tabs that are not built yet show an empty panel in their colour that says "Coming soon".
+// Switching tabs crossfades the frame and the panel in 180 ms. Tabs that are not built yet say "Coming soon".
 
 export const SHELL_W = 600
 export const SHELL_H = 290
 export const FADE_MS = 180
+/** Collapsed sizes (HALO.md 3.3). The island grows from one of these into 600 x 290. */
+export type CollapsedState = 'resting' | 'compact' | 'wide'
+export const COLLAPSED: Record<CollapsedState, { w: number; h: number; r: number }> = {
+  resting: { w: 200, h: 34, r: 17 },
+  compact: { w: 300, h: 40, r: 20 },
+  wide: { w: 400, h: 40, r: 20 },
+}
+export const HOVER_OPEN_MS = 300
+export const LEAVE_CLOSE_MS = 1000
 
 export interface ShellHost extends HTMLDivElement {
   /** Show a panel, fading the old one out. Returns nothing: the host has a fixed size. */
@@ -21,6 +33,12 @@ export interface ShellOptions {
   now?: () => Date
   /** Fired when the user picks a tab (click, tap or arrow keys). */
   onChange?: (id: TabId, from: TabId) => void
+  /** Start grown into the window. Default false: the island. */
+  open?: boolean
+  /** Hover opens and leaving or clicking outside closes. Off in the embedded page, where the window is always shown. */
+  auto?: boolean
+  /** Fired when it opens or closes. */
+  onToggle?: (open: boolean) => void
 }
 export interface ShellHandle {
   el: HTMLElement
@@ -31,6 +49,15 @@ export interface ShellHandle {
   refreshMeta(): void
   /** The panel shown for a tab that is not built yet. */
   soon(id: TabId): HTMLElement
+  readonly isOpen: boolean
+  open(): void
+  close(): void
+  /** What the island shows while it is closed (the live pills). */
+  pill: HTMLElement
+  setCollapsed(s: CollapsedState): void
+  readonly collapsed: CollapsedState
+  /** Key line colour of the closed island, from its content. */
+  setKey(hex: string): void
 }
 
 const style = (el: HTMLElement, css: string) => { el.setAttribute('style', css); return el }
@@ -47,7 +74,12 @@ export function Shell(o: ShellOptions): ShellHandle {
   let active = o.active
 
   // ---- Frame and skins. One skin per tab, stacked: the active one is opaque, the rest fade out and stop painting.
-  const el = h('div', { class: 'sh', role: 'region', 'aria-label': 'Halo' })
+  const el = h('div', { class: 'sh', role: 'region', 'aria-label': 'Halo', 'data-open': 'false' })
+  // The clip is the only element with overflow hidden. The ears hang off `el`, outside it.
+  const clip = h('div', { class: 'sh-clip' })
+  const skinsEl = h('div', { class: 'sh-skins', 'aria-hidden': 'true' })
+  const inner = h('div', { class: 'sh-inner' })
+  const pill = h('button', { type: 'button', class: 'sh-pill', 'aria-label': 'Open Halo', 'aria-expanded': 'false', 'aria-controls': 'sh-body' }) as HTMLButtonElement
   const skins = new Map<TabId, HTMLElement>()
   for (const t of Object.values(TAB_THEMES)) {
     const skin = h('div', { class: 'sh-skin', 'aria-hidden': 'true' })
@@ -106,7 +138,10 @@ export function Shell(o: ShellOptions): ShellHandle {
     current = panel
   }
 
-  el.append(...skins.values(), header, host)
+  skinsEl.append(...skins.values())
+  inner.append(header, host)
+  clip.append(skinsEl, pill, inner)
+  el.append(clip)
 
   // ---- Coming soon panels, one per tab, made on demand
   const soonPanels = new Map<TabId, HTMLElement>()
@@ -122,12 +157,13 @@ export function Shell(o: ShellOptions): ShellHandle {
 
   function apply(t: TabTheme) {
     el.dataset.tab = t.id
+    el.style.setProperty('--glow', t.colour)
     el.style.setProperty('--sh-border', t.border)
     el.style.setProperty('--sh-text', t.text)
-    el.style.setProperty('--sh-pt', `${t.pad[0]}px`)
-    el.style.setProperty('--sh-pr', `${t.pad[1]}px`)
-    el.style.setProperty('--sh-pb', `${t.pad[2]}px`)
-    el.style.setProperty('--sh-pl', `${t.pad[3]}px`)
+    inner.style.setProperty('--sh-pt', `${t.pad[0]}px`)
+    inner.style.setProperty('--sh-pr', `${t.pad[1]}px`)
+    inner.style.setProperty('--sh-pb', `${t.pad[2]}px`)
+    inner.style.setProperty('--sh-pl', `${t.pad[3]}px`)
     title.textContent = t.label
     for (const [id, skin] of skins) skin.classList.toggle('is-on', id === t.id)
     for (const [id, b] of buttons) {
@@ -155,8 +191,61 @@ export function Shell(o: ShellOptions): ShellHandle {
     if (emit) o.onChange?.(id, from)
   }
 
+  // ---- Island <-> window. The CSS does the animation off data-open, this is only input and state.
+  const auto = o.auto !== false
+  let isOpen = false
+  let collapsed: CollapsedState = 'resting'
+  let hoverT = 0
+  let leaveT = 0
+  const setOpen = (v: boolean) => {
+    clearTimeout(hoverT); clearTimeout(leaveT)
+    if (v === isOpen) return
+    isOpen = v
+    el.dataset.open = String(v)
+    pill.setAttribute('aria-expanded', String(v))
+    inner.toggleAttribute('inert', !v)
+    pill.tabIndex = v ? -1 : 0
+    if (v) requestAnimationFrame(() => buttons.get(active)?.focus({ preventScroll: true }))
+    else if (inner.contains(document.activeElement)) pill.focus({ preventScroll: true })
+    o.onToggle?.(v)
+  }
+  const open = () => setOpen(true)
+  const close = () => setOpen(false)
+  pill.addEventListener('click', open)
+  if (auto) {
+    // Hover for 300 ms opens. Moving away for 1 s closes, and coming back in time cancels it.
+    el.addEventListener('pointerenter', (e) => {
+      if (e.pointerType === 'touch') return
+      clearTimeout(leaveT)
+      if (!isOpen) { clearTimeout(hoverT); hoverT = window.setTimeout(open, HOVER_OPEN_MS) }
+    })
+    el.addEventListener('pointerleave', (e) => {
+      if (e.pointerType === 'touch') return
+      clearTimeout(hoverT)
+      if (isOpen) { clearTimeout(leaveT); leaveT = window.setTimeout(close, LEAVE_CLOSE_MS) }
+    })
+    document.addEventListener('pointerdown', (e) => { if (isOpen && !el.contains(e.target as Node)) close() })
+    el.addEventListener('keydown', (e) => { if (e.key === 'Escape' && isOpen) { e.preventDefault(); close() } })
+  }
+
+  const setCollapsed = (s: CollapsedState) => {
+    collapsed = s
+    const c = COLLAPSED[s]
+    el.style.setProperty('--cw', `${c.w}px`)
+    el.style.setProperty('--ch', `${c.h}px`)
+    el.style.setProperty('--cr', `${c.r}px`)
+    el.dataset.collapsed = s
+  }
+  setCollapsed('resting')
+
   apply(TAB_THEMES[active])
   refreshMeta()
+  inner.toggleAttribute('inert', true)
+  if (o.open) { isOpen = true; el.dataset.open = 'true'; pill.setAttribute('aria-expanded', 'true'); inner.removeAttribute('inert'); pill.tabIndex = -1 }
 
-  return { el, host, get active() { return active }, setActive, refreshMeta, soon }
+  return {
+    el, host, get active() { return active }, setActive, refreshMeta, soon,
+    get isOpen() { return isOpen }, open, close, pill, setCollapsed, get collapsed() { return collapsed },
+    setKey: (hex) => el.style.setProperty('--k', hex),
+  }
 }

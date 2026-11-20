@@ -14,6 +14,7 @@
     "shots:home": "node scripts/shots-home.mjs",
     "shots:embed": "node scripts/shots-embed.mjs",
     "shots:card15": "node scripts/shots-card15.mjs",
+    "shots:card15b": "node scripts/shots-card15b.mjs",
     "shots:phone": "node scripts/shots-phone.mjs",
     "test:home": "node scripts/test-home.mjs",
     "record": "node scripts/record.mjs",

@@ -1,4 +1,5 @@
-// Card 15: screenshots of the 600 x 290 shell, one per tab, plus checks that it matches the board and does not freeze.
+// Card 15 (updated for card 15b: the island is the window): screenshots of the 600 x 290 shell, one per tab, plus checks that it
+// matches the board and does not freeze. Embedded, the window is always open and the bottom corners are the rounded ones.
 // Usage: node scripts/shots-card15.mjs   (saves to screenshots/card-15/, exits 1 on any problem)
 import { createServer } from 'vite'
 import { chromium } from 'playwright'
@@ -6,9 +7,9 @@ import { mkdirSync } from 'node:fs'
 
 const dir = 'screenshots/card-15'
 mkdirSync(dir, { recursive: true })
-const server = await createServer({ server: { port: 5235, strictPort: true }, logLevel: 'error' })
+const server = await createServer({ server: { port: 5235 }, logLevel: 'error' })
 await server.listen()
-const base = 'http://localhost:5235/halo/'
+const base = `http://localhost:${server.httpServer.address().port}/halo/`
 const TABS = ['home', 'music', 'study', 'pay', 'sixers', 'week', 'more', 'controls']
 const RAIL = ['Home', 'Music', 'Study', 'Pay', 'Sixers', 'Week', 'More tabs', 'Controls']
 const browser = await chromium.launch()
@@ -33,6 +34,7 @@ for (const tab of TABS) {
   const r = await page.evaluate(() => {
     const sh = document.querySelector('.sh')
     const cs = getComputedStyle(sh)
+    const settings = !!document.querySelector('.set-panel')
     const b = sh.getBoundingClientRect()
     const rail = [...document.querySelectorAll('.sh-tab')].map((t) => t.getAttribute('aria-label'))
     const sel = document.querySelector('.sh-tab[aria-selected="true"]')
@@ -45,11 +47,11 @@ for (const tab of TABS) {
     }
     const h1 = document.querySelector('.sh-title').getBoundingClientRect().height
     return {
-      w: b.width, h: b.height, radius: cs.borderTopLeftRadius, rail, selected: sel?.getAttribute('aria-label'), selColour: sel && getComputedStyle(sel).color,
+      w: b.width, h: b.height, radius: cs.borderBottomLeftRadius, settings, rail, selected: sel?.getAttribute('aria-label'), selColour: sel && getComputedStyle(sel).color,
       title: document.querySelector('.sh-title').textContent, meta: document.querySelector('.sh-meta').textContent,
       soon: document.querySelector('.sh-soon-t')?.textContent ?? null, fit: body.querySelector('.h-panel')?.dataset.fit, bad, h1,
       docScroll: [document.documentElement.scrollWidth, document.documentElement.scrollHeight],
-      hasIsland: !!document.querySelector('.h-island, .h-isl-svg, .home-shell, .signed-note'),
+      hasIsland: !!document.querySelector('.h-island, .h-isl-svg, .home-shell, .signed-note, .embed-slot'),
       glow: !!document.querySelector(`.sh-skin.is-on .sh-glow`),
     }
   })
@@ -62,7 +64,8 @@ for (const tab of TABS) {
   if (r.hasIsland) note(`${tab}: embed still shows island chrome`)
   if (!r.glow) note(`${tab}: glow missing`)
   if (r.docScroll[0] > 600 || r.docScroll[1] > 290) note(`${tab}: page scrolls ${r.docScroll}`)
-  const builtTab = ['home', 'study', 'pay', 'sixers'].includes(tab)
+  const builtTab = ['home', 'study', 'pay', 'sixers', 'more'].includes(tab)
+  if (tab === 'more' && !r.settings) note('more: Settings panel missing')
   if (!builtTab && r.soon !== 'Coming soon') note(`${tab}: missing "Coming soon" (${r.soon})`)
   console.log(tab.padEnd(9), `${r.w}x${r.h}`, r.radius, r.title, '|', r.meta || '-', '|', r.soon ?? `fit ${r.fit}`, '|', r.selColour)
   await ctx.close()
@@ -124,10 +127,10 @@ for (const tab of ['home', 'study', 'pay']) {
   await ctx.close()
 }
 {
-  const { ctx, page } = await open('?demo=soon&tab=study', { width: 1000, height: 460 })
+  const { ctx, page } = await open('?demo=soon&tab=study&open=1', { width: 1000, height: 460 })
   await page.screenshot({ path: `${dir}/desktop-not-embedded.png` })
-  const r = await page.evaluate(() => ({ island: !!document.querySelector('.h-island'), shell: !!document.querySelector('.home-shell .sh'), state: document.querySelector('.h-island')?.getAttribute('data-state') }))
-  if (!r.island || !r.shell || r.state === 'expanded') note(`desktop: ${JSON.stringify(r)}`)
+  const r = await page.evaluate(() => ({ old: !!document.querySelector('.h-island, .home-shell'), shell: !!document.querySelector('.sh'), open: document.querySelector('.sh')?.dataset.open }))
+  if (r.old || !r.shell || r.open !== 'true') note(`desktop: ${JSON.stringify(r)}`)
   await ctx.close()
 }
 // A window smaller than the panel scales it down instead of cutting it off

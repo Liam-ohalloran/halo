@@ -41,7 +41,8 @@ function rangeLabel(start: Date): string {
 const slot = (label: string, value: HTMLElement, cls = '') =>
   h('div', { class: `pay-stat ${cls}` }, h('span', { class: 'label' }, label), value)
 
-export function mountPay(root: HTMLElement, api: Backend, subscribe: (cb: () => void) => () => void): () => void {
+/** maxShifts: show this many shifts, then "+N more" (the 600 x 290 window never scrolls). */
+export function mountPay(root: HTMLElement, api: Backend, subscribe: (cb: () => void) => () => void, opts: { maxShifts?: number } = {}): () => void {
   let offset = 0
   let alive = true
   let seq = 0
@@ -150,8 +151,10 @@ export function mountPay(root: HTMLElement, api: Backend, subscribe: (cb: () => 
     const note = h('p', { class: 'pay-note' }, 'Rates from Settings. ',
       h('button', { type: 'button', class: 'pay-link', onclick: () => window.dispatchEvent(new CustomEvent('halo:open-settings', { detail: 'pay' })) }, 'Edit rates'))
 
+    const shownShifts = wk.shifts.slice(0, opts.maxShifts ?? wk.shifts.length)
+    const moreShifts = wk.shifts.length - shownShifts.length
     const list = h('div', { class: 'pay-inset pay-list', role: 'list', 'aria-label': 'Shifts' },
-      ...wk.shifts.map((ws) => {
+      ...shownShifts.map((ws) => {
         const sh = ws.shift as Shift // calcWeek hands back the objects we passed in
         const a = new Date(sh.starts_at)
         const b = new Date(sh.ends_at)
@@ -166,7 +169,8 @@ export function mountPay(root: HTMLElement, api: Backend, subscribe: (cb: () => 
             meta,
             tag ? h('em', {}, tag) : null),
           h('strong', { class: 'num' }, fmtMoney(ws.pay)))
-      }))
+      }),
+      moreShifts > 0 ? h('div', { class: 'pay-more' }, `+${moreShifts} more`) : null)
 
     body.replaceChildren(h('div', { class: 'pay-grid' },
       h('div', { class: 'pay-left' }, totals, h('div', { class: 'pay-inset' }, bars), note),

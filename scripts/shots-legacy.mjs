@@ -3,9 +3,9 @@ import { createServer } from 'vite'
 import { chromium, devices } from 'playwright'
 import { mkdirSync } from 'node:fs'
 
-const server = await createServer({ server: { port: 5199, strictPort: true }, logLevel: 'error' })
+const server = await createServer({ server: { port: 5199 }, logLevel: 'error' })
 await server.listen()
-const base = 'http://localhost:5199/halo/'
+const base = `http://localhost:${server.httpServer.address().port}/halo/`
 mkdirSync('shots', { recursive: true })
 
 const sizes = {

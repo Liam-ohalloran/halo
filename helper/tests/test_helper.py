@@ -113,16 +113,19 @@ def test_preflight_private_network_header(client):
         "Access-Control-Request-Headers": "x-halo-token",
         "Access-Control-Request-Private-Network": "true",
     })
+    assert r.status_code == 200  # Chrome refuses the call on a 400 here
     assert r.headers["access-control-allow-private-network"] == "true"
+    assert list(r.headers.get_list("access-control-allow-private-network")) == ["true"]
 
 
-def test_no_private_network_header_for_other_origin(client):
+def test_private_network_preflight_refused_for_other_origin(client):
     r = client.options("/media", headers={
         "Origin": "https://evil.example",
         "Access-Control-Request-Method": "GET",
         "Access-Control-Request-Private-Network": "true",
     })
-    assert "access-control-allow-private-network" not in r.headers
+    assert r.status_code == 400
+    assert "access-control-allow-origin" not in r.headers
 
 
 def test_binds_localhost_only():

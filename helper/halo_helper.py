@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import hmac
+import inspect
 import io
 import json
 import os
@@ -454,14 +455,22 @@ def create_app(token: str, media: Optional[Media] = None, poll_seconds: float = 
     app = FastAPI(title="Halo helper", version=VERSION, dependencies=[Depends(require_token)])
     # The CORS middleware answers preflights itself (no token needed) and also decorates
     # the 401 responses, so the browser shows the real status instead of a CORS error.
+    cors_options: dict[str, Any] = {}
+    # Newer Starlette handles Private Network Access itself, and answers 400 to a
+    # PNA preflight unless this is on. Older versions need our own middleware below.
+    native_pna = "allow_private_network" in inspect.signature(CORSMiddleware.__init__).parameters
+    if native_pna:
+        cors_options["allow_private_network"] = True
     app.add_middleware(
         CORSMiddleware,
         allow_origins=ALLOWED_ORIGINS,
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["X-Halo-Token", "Content-Type"],
         max_age=600,
+        **cors_options,
     )
-    app.add_middleware(PrivateNetworkMiddleware)
+    if not native_pna:
+        app.add_middleware(PrivateNetworkMiddleware)
 
     @app.get("/status")
     async def status():

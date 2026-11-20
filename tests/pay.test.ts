@@ -219,3 +219,35 @@ test('shifts outside the week are ignored and the list is in time order', () => 
   assert.equal(w.shifts[0].shift.starts_at, '2026-11-17T12:00+08:00')
   assert.equal(w.gross, 160)
 })
+
+// ---- Card 16: the Pay tab's charging bar and curve ----
+import { CHARGE_MAX_HOURS, CHARGE_OT_HOURS, chargeBar, cumulativeGross, overtimePay, sundayRate } from '../src/lib/pay.ts'
+
+test('cumulativeGross adds each day to the last and ends on the week gross', () => {
+  // Wed 18 Nov 4 pm to 9 pm = 5 h, no break (not over 5 h) = $100. Sat 21 Nov 9 am to 3 pm = 6 h, 5.5 paid = $110.
+  const shifts: PayShift[] = [
+    { starts_at: '2026-11-18T16:00:00+08:00', ends_at: '2026-11-18T21:00:00+08:00', is_public_holiday: false },
+    { starts_at: '2026-11-21T09:00:00+08:00', ends_at: '2026-11-21T15:00:00+08:00', is_public_holiday: false },
+  ]
+  const wk = calcWeek(shifts, perthWeekStart(new Date('2026-11-19T12:00:00+08:00')), S)
+  assert.deepEqual(cumulativeGross(wk), [0, 0, 100, 100, 100, 210, 210])
+})
+
+test('chargeBar is solid to 10 hours, then overtime stripes, and never passes 24', () => {
+  assert.deepEqual(chargeBar(0), { base: 0, over: 0 })
+  assert.deepEqual(chargeBar(6), { base: 6 / CHARGE_MAX_HOURS, over: 0 })
+  assert.deepEqual(chargeBar(15.5), { base: CHARGE_OT_HOURS / CHARGE_MAX_HOURS, over: 5.5 / CHARGE_MAX_HOURS })
+  assert.equal(chargeBar(40).base + chargeBar(40).over, 1)
+})
+
+test('overtimePay is the average rate on the hours past 10, and zero at 10 or under', () => {
+  const week = (hours: number, gross: number) => ({ hours, gross }) as never
+  assert.equal(overtimePay(week(10, 200)), 0)
+  assert.equal(overtimePay(week(8, 160)), 0)
+  assert.equal(overtimePay(week(15, 300)), 100) // 5 of 15 hours at $20
+})
+
+test('sundayRate is the base rate times the Sunday multiplier', () => {
+  assert.equal(sundayRate(DEFAULTS), 22.36)
+  assert.equal(sundayRate(S), 25)
+})

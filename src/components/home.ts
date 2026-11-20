@@ -1,6 +1,7 @@
 import '../styles/tokens.css'
 import '../styles/home.css'
 import '../styles/phone.css'
+import '../styles/proto.css'
 import './components.css'
 import './sixers.css'
 import { h } from './dom'
@@ -9,11 +10,12 @@ import { Island, NumberRoll, PanelHost, TabBar, preloadIcons, type IslandHandle,
 import { TABS, type TabDef } from './TabBar'
 import { SixersCard, SixersPill, confetti, type PillHandle } from './Sixers'
 import { SIXERS_BLUE, createFeed, sixersWon, teamColour, type NbaResponse } from '../lib/sixers'
-import { NowPanel, SHIFT_COLOUR } from '../panels/now'
+import { HomeTab, liveSources, type HomeSources } from '../panels/homeTab'
 import { StudyPanel, ICONS_NEEDED as STUDY_ICONS } from '../panels/study'
 import { StudyPill } from '../panels/studyPill'
 import { createStudyTimer } from '../panels/studyTimer'
-import { mountPay } from '../panels/pay'
+import { PayPanel } from '../panels/pay'
+import type { PvRoot } from '../ui/charts'
 import { supabase, supabaseBackend } from '../supabase'
 import { isEmbed } from '../lib/embed'
 import { EmbedShell } from './EmbedShell'
@@ -42,6 +44,8 @@ export interface HomeOptions {
   account?: Account
   /** Sixers feed, swapped for recorded JSON in dev previews. Defaults to the nba edge function. */
   sixers?: () => Promise<NbaResponse>
+  /** Where the Home tab gets weather, battery and music. Defaults to Open-Meteo and the Halo helper. */
+  home?: HomeSources
 }
 
 type TabId = 'now' | 'study' | 'pay' | 'sixers'
@@ -62,6 +66,8 @@ function startTab(o: { tab?: string }): ShellTabId {
   return parseTab(o.tab) ?? parseTab(stored) ?? 'home'
 }
 
+/** Amber, the closed island's colour for a shift. */
+const SHIFT_COLOUR = '#FF9F0A'
 /** Glow colour while a tab is open: colour comes from the content (HALO.md 3.1b). */
 const TAB_TINT: Record<TabId, string> = { now: '#FF9F0A', study: '#BF5AF2', pay: '#30D158', sixers: SIXERS_BLUE }
 const QUIET = '#C7C7CC' // glow colour when no content has one
@@ -121,7 +127,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   const sh = phone ? null : Shell({
     active: activeTab, now: clock, open: embed || !!o.open, auto: !embed,
     onChange: (id) => showShellTab(id, true),
-    onToggle: (isOpen) => { applyTint(); if (!isOpen) queueMicrotask(syncBase) },
+    onToggle: (isOpen) => { applyTint(); syncHomeActive(); if (!isOpen) queueMicrotask(syncBase) },
   })
   const embedRoot = embed ? EmbedShell() : null
   const isl: IslandHandle = sh ? shellIsland(sh) : Island({
@@ -163,12 +169,15 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
 
   const timer = createStudyTimer(api, 'Human Biology')
   const studyPill = StudyPill(timer)
-  const nowPanel = NowPanel()
   const payListeners = new Set<() => void>()
-  let unmountPay: () => void = () => {}
+  let payPanel: ReturnType<typeof PayPanel> | null = null
   const sixersCard = SixersCard({ onRetry: () => void sixers.refresh() })
   sixersCard.loading()
-  const made: Partial<Record<TabId, HTMLElement>> = { now: nowPanel.el, sixers: sixersCard.el }
+  const homeTab = HomeTab({
+    api, sources: o.home ?? liveSources, clock,
+    go: (t) => { const id = parseTab(t); if (!id) return; if (sh) showShellTab(id); else if (t === 'pay' || t === 'study' || t === 'sixers') phoneShow(t, true) },
+  })
+  const made: Partial<Record<TabId, HTMLElement>> = { now: homeTab, sixers: sixersCard.el }
 
   // Panels are built the first time their tab is shown, then kept.
   function getPanel(id: TabId): HTMLElement {
@@ -176,14 +185,23 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     if (el) return el
     if (id === 'study') el = StudyPanel(api, timer, () => requestAnimationFrame(relayout))
     else {
-      const root = h('div', { class: 'home-pay' })
-      unmountPay = mountPay(root, api, (cb) => { payListeners.add(cb); return () => payListeners.delete(cb) }, { maxShifts: sh ? 4 : undefined })
-      el = root
+      payPanel = PayPanel(api, (cb) => { payListeners.add(cb); return () => payListeners.delete(cb) }, clock)
+      el = payPanel
     }
     made[id] = el
     return el
   }
 
+  // The prototype tabs play their entrance (tiles pop in, rings fill) when they are switched to, never on a press.
+  function enterPanel(el: HTMLElement) {
+    ;(el as Partial<PvRoot>).enter?.()
+    syncHomeActive()
+  }
+  // The Home tab polls the helper and the weather only while it is on screen and the page is visible.
+  function syncHomeActive() {
+    const visible = !document.hidden && (phone ? activeId === 'now' : activeTab === 'home' && !!sh?.isOpen)
+    homeTab.setActive(visible)
+  }
   // The island's height springs to the active tab's content height (HALO.md 3.5, tab switch).
   const ro = new ResizeObserver(() => relayout())
   function relayout() {
@@ -220,6 +238,16 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     scroller.scrollTo({ left: s.offsetLeft, behavior: smooth && !reduced() ? 'smooth' : 'auto' })
     tabs.setActive(id)
     applyTint()
+    fitPhone(getPanel(id)); enterPanel(getPanel(id))
+  }
+  // The prototype tabs are drawn 564 x 226. On the phone they are scaled down to the width of the slide.
+  function fitPhone(el: HTMLElement) {
+    if (!el.classList.contains('pv')) return
+    el.style.width = '564px'; el.style.height = '226px'
+    const slide = el.parentElement as HTMLElement | null
+    const cs = slide ? getComputedStyle(slide) : null
+    const room = slide ? slide.clientWidth - (parseFloat(cs!.paddingLeft) || 0) - (parseFloat(cs!.paddingRight) || 0) : 0
+    el.style.zoom = String(Math.min(1, (room || scroller.clientWidth || 358) / 564))
   }
   function onSwipe() {
     if (Date.now() < swipeLock) return
@@ -229,6 +257,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     activeId = id
     try { localStorage.setItem(TAB_KEY, id) } catch { /* private mode */ }
     tabs.setActive(id)
+    fitPhone(getPanel(id)); enterPanel(getPanel(id))
   }
   function showTab(id: TabId, dir: number) {
     if (phone) return phoneShow(id, dir !== 0)
@@ -240,6 +269,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     ro.observe(el)
     relayout()
     applyTint()
+    enterPanel(el)
   }
   if (phone) {
     for (const t of HOME_TABS) slides.get(t.id as TabId)!.append(getPanel(t.id as TabId))
@@ -269,6 +299,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     ro.observe(el)
     relayout()
     applyTint()
+    enterPanel(el)
   }
   if (sh) showShellTab(activeTab, true)
   else showTab(activeId, 0)
@@ -290,7 +321,6 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
 
   // ---- Data
   let data: NowData | null = null
-  let failed = false
   let loadedDay = 0
   let inflight = 0
 
@@ -300,21 +330,17 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     try {
       const d = await source.load(now)
       if (mine !== inflight) return
-      data = d; failed = false; loadedDay = perthDayBounds(now).from.getTime()
+      data = d; loadedDay = perthDayBounds(now).from.getTime()
+      homeTab.refresh()
     } catch {
       if (mine !== inflight) return
-      failed = true
+      // keep what we had: the Home tab loads its own data and the island only needs the next shift
     }
     render()
   }
 
   function render() {
-    const now = clock()
-    if (!data) {
-      if (failed) nowPanel.showError(!navigator.onLine, () => { nowPanel.showLoading(); void refresh() })
-      else nowPanel.showLoading()
-    } else nowPanel.render(data, now, getTravelMinutes())
-    syncIsland(now)
+    syncIsland(clock())
   }
 
   function syncBase() {
@@ -366,6 +392,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     onData: (r, prev) => {
       game = r
       sixersCard.update(r)
+      homeTab.setGame(r)
       relayout()
       const g = r.game
       sixersLive = !!g && g.status !== 'scheduled'
@@ -379,7 +406,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
         confetti({ x: b.left + b.width / 2, y: b.top + 36 })
       }
     },
-    onError: (offline) => { if (!game) sixersCard.error(offline) },
+    onError: (offline) => { if (!game) { sixersCard.error(offline); homeTab.setGame(null) } },
   })
 
   // ---- Clock: once a second, only while the page is visible (HALO.md 3.8)
@@ -391,7 +418,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
       const endsAt = data.shift ? new Date(data.shift.ends_at).getTime() : Infinity
       // The shift finished, or midnight passed in Perth: today's rows and the "next" shift have moved on.
       if (now.getTime() >= endsAt || perthDayBounds(now).from.getTime() !== loadedDay) { void refresh(); return }
-      nowPanel.tick(now, getTravelMinutes())
+      homeTab.tick(now)
       sh?.refreshMeta()
       syncIsland(now)
     }
@@ -402,7 +429,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     refreshTimer = window.setInterval(() => void refresh(), REFRESH_MS)
   }
   function stop() { clearInterval(tickTimer); clearInterval(refreshTimer) }
-  const onVisible = () => { if (document.hidden) stop(); else { start(); void refresh() } }
+  const onVisible = () => { syncHomeActive(); if (document.hidden) stop(); else { start(); void refresh() } }
   const onOnline = () => void refresh()
   // Tapping or clicking anywhere outside the open island closes it (phones have no Escape key).
   const onOutside = (e: PointerEvent) => { if (!sh && isl.state === 'expanded' && !(e.target as Element).closest('.h-island')) isl.close() }
@@ -418,7 +445,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   if (o.open && !phone && !sh) requestAnimationFrame(() => requestAnimationFrame(() => isl.open()))
 
   return () => {
-    stop(); ro.disconnect(); unsub(); unsubTimer(); unmountPay(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
+    stop(); ro.disconnect(); unsub(); unsubTimer(); payPanel?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
     document.removeEventListener('pointerdown', onOutside)
     document.removeEventListener('visibilitychange', onVisible)
     removeEventListener('online', onOnline)

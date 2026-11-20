@@ -148,7 +148,8 @@ async function start() {
     const { mockBackend } = await import('./dev/mock')
     const { sample } = await import('./dev/nba-sample')
     const sx = (params.get('sixers') ?? 'none') as Parameters<typeof sample>[0]
-    mountHome(app, { source: mockSource(mode), api: mockBackend('full'), sixers: () => Promise.resolve(sample(sx)), now: () => new Date(start + Date.now() - t0), open: params.has('open'), tab: params.get('tab') ?? undefined })
+    const { homeMock } = await import('./dev/home-mock')
+    mountHome(app, { source: mockSource(mode), api: mockBackend(params.get('api') ?? 'full'), home: homeMock(params.get('home') ?? 'full'), sixers: () => Promise.resolve(sample(sx)), now: () => new Date(start + Date.now() - t0), open: params.has('open'), tab: params.get('tab') ?? undefined })
     return
   }
   // Home is the card 01 island. The old draft tabs stay reachable at ?legacy=1 until cards 06 to 08 replace them.

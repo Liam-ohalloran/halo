@@ -1,186 +1,168 @@
 import '../styles/tokens.css'
-import '../components/components.css'
+import '../styles/proto.css'
 import './pay.css'
-import type { Backend, Settings, Shift } from '../types'
-import { calcShift, calcWeek, perthWeekStart } from '../lib/pay'
-import { EmptyState, ErrorState, IconButton, NumberRoll, Skeleton, preloadIcons } from '../components'
-import { h } from '../components/dom'
+import type { Backend, Settings } from '../types'
+import { CHARGE_MAX_HOURS, CHARGE_OT_HOURS, calcWeek, chargeBar, cumulativeGross, overtimePay, perthWeekStart, sundayRate, type WeekPay } from '../lib/pay'
+import { rangeLabel } from '../lib/shell-meta'
+import { animateIn, countUp, pvRoot, reducedMotion, tip, type PvRoot } from '../ui/charts'
 
-// Pay panel (HALO.md section 4). All the maths lives in src/lib/pay.ts, this file only draws it.
-// Layout: week switcher on top, then totals and a bar per day, with the shift list beside (wide) or below (phone).
+// Pay tab (card 16, HALO.md section 4). The black island family: a charging bar for the hours with overtime stripes past
+// 10 h, the cumulative pay curve, and four pills. All the maths is in src/lib/pay.ts, this file only draws it.
+// It is built once. Switching THIS and NEXT week, or new data, changes only the numbers and the curve in place.
 
 const DAY = 864e5
-const TZ = 'Australia/Perth'
+const PERTH = 8 * 36e5
 const LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
-const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-/** The bar scale never drops below a full 8 hour day, so a short shift does not look like a big one. */
-const MIN_SCALE_HOURS = 8
-
-const money = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' })
-const fmtMoney = (n: number) => money.format(n)
-const fmtHours = (n: number) => String(Number(n.toFixed(2)))
-const dayMonth = new Intl.DateTimeFormat('en-AU', { timeZone: TZ, day: 'numeric', month: 'short' })
-const dayLong = new Intl.DateTimeFormat('en-AU', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short' })
-const fmtDayLong = (d: Date) => dayLong.format(d).replace(',', '')
-const clock = new Intl.DateTimeFormat('en-AU', { timeZone: TZ, hour: 'numeric', minute: '2-digit', hour12: true })
-const perthDay = new Intl.DateTimeFormat('en-AU', { timeZone: TZ, weekday: 'short' })
-const fmtClock = (d: Date) => clock.format(d).replace(/\s/g, ' ').toLowerCase()
-/** "5:30 pm to 9 pm": the minutes are dropped on the hour. */
-const fmtSpan = (a: Date, b: Date) => `${fmtClock(a).replace(':00', '')} to ${fmtClock(b).replace(':00', '')}`
-
-function weekLabel(offset: number): string {
-  return offset === 0 ? 'This week' : offset === -1 ? 'Last week' : offset === 1 ? 'Next week' : 'Pay week'
+const BOLT = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>'
+const IC = {
+  tax: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M19 5 5 19M7 7h.01M17 17h.01"/><circle cx="7" cy="7" r="2"/><circle cx="17" cy="17" r="2"/></svg>',
+  wallet: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 7a3 3 0 0 1 3-3h12a2 2 0 0 1 2 2v1H6a1 1 0 0 0 0 2h14a1 1 0 0 1 1 1v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"/></svg>',
+  sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  arrow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
 }
-function rangeLabel(start: Date): string {
-  const last = new Date(start.getTime() + 6 * DAY)
-  const a = dayMonth.format(start).split(' ')
-  const b = dayMonth.format(last).split(' ')
-  return a[1] === b[1] ? `${a[0]} to ${b[0]} ${b[1]}` : `${a.join(' ')} to ${b.join(' ')}`
-}
+const aud = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', minimumFractionDigits: 2 })
+const whole = (n: number) => `$${Math.round(n)}`
+const hrs = (n: number) => String(Number(n.toFixed(1)))
+const amountHtml = (n: number) => { const [d, c] = n.toFixed(2).split('.'); return `$${Number(d).toLocaleString('en-AU')}<small>.${c}</small>` }
+const otX = (CHARGE_OT_HOURS / CHARGE_MAX_HOURS) * 100
 
-const slot = (label: string, value: HTMLElement, cls = '') =>
-  h('div', { class: `pay-stat ${cls}` }, h('span', { class: 'label' }, label), value)
+const TEMPLATE = `<div class="payHero pop" style="--i:0">
+    <div class="payTop"><span class="caps" data-k="cap">This week</span><div class="toggle" role="group" aria-label="Pay week"><button type="button" data-w="0" class="on" aria-pressed="true">THIS</button><button type="button" data-w="1" aria-pressed="false">NEXT</button></div></div>
+    <div class="payAmt"><b class="num" data-k="amt" aria-live="polite">$0<small>.00</small></b><span class="chipb" data-k="ot" hidden></span></div>
+    <div class="charge" role="img" data-k="chargeA11y"><div class="trk"></div><div class="fl" data-k="fl"></div><div class="ot" data-k="otbar" style="left:${otX}%"></div><div class="mk" style="left:${otX}%"></div><div class="kn" data-k="kn" style="left:12%">${BOLT}<span data-k="knt">0h</span></div></div>
+    <div class="chargeL" aria-hidden="true"><span>0H</span><span>10H OVERTIME</span><span>24H</span></div>
+    <button type="button" class="payRates" data-k="rates">Rates from Settings</button>
+    <div class="area"><svg viewBox="0 0 290 84" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="payAf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5CFF7A" stop-opacity=".35"/><stop offset="1" stop-color="#5CFF7A" stop-opacity="0"/></linearGradient></defs>${[20, 40, 60].map((y) => `<line x1="0" x2="290" y1="${y}" y2="${y}" stroke="rgba(255,255,255,.06)" stroke-dasharray="3 4"/>`).join('')}<g data-k="curve"></g></svg><div class="dl" data-k="dl"></div></div>
+    <div class="areaEmpty"><b>No shifts this week</b><span data-k="emptyNote"></span></div>
+    <div class="payErr" role="alert"><p data-k="errMsg">Can't reach Halo. Check your connection.</p><button type="button" data-k="retry">Try again</button></div>
+  </div>
+  <div class="pills4">
+    <button type="button" class="sp pop" style="--i:1" data-tip="tax"><span class="ic" style="background:rgba(255,138,30,.18);color:var(--amber)">${IC.tax}</span><div><small>Tax est</small><b class="num" data-k="tax">$0</b></div></button>
+    <button type="button" class="sp pop" style="--i:2" data-tip="net"><span class="ic" style="background:rgba(92,255,122,.18);color:var(--green)">${IC.wallet}</span><div><small>Take home</small><b class="num" data-k="net">$0</b></div></button>
+    <button type="button" class="sp pop" style="--i:3" data-tip="sun"><span class="ic" style="background:rgba(255,194,61,.18);color:var(--gold)">${IC.sun}</span><div><small>Sunday</small><b class="num" data-k="sun">$0.00</b></div></button>
+    <button type="button" class="sp pop" style="--i:4" data-k="swap" aria-label="Switch week"><span class="ic" style="background:rgba(61,90,254,.25);color:#9fb0ff">${IC.arrow}</span><div><small data-k="otherL">Next week</small><b class="num" data-k="other">$0</b></div></button>
+  </div>`
 
-/** maxShifts: show this many shifts, then "+N more" (the 600 x 290 window never scrolls). */
-export function mountPay(root: HTMLElement, api: Backend, subscribe: (cb: () => void) => () => void, opts: { maxShifts?: number } = {}): () => void {
-  let offset = 0
+export interface PayPanelHandle extends PvRoot { destroy(): void; refresh(): void }
+
+export function PayPanel(api: Backend, subscribe: (cb: () => void) => () => void, clock: () => Date = () => new Date()): PayPanelHandle {
+  const root = pvRoot('pay-pv is-loading') as PayPanelHandle
+  root.insertAdjacentHTML('beforeend', TEMPLATE)
+  root.setAttribute('aria-label', 'Pay')
+  const $ = <T extends HTMLElement = HTMLElement>(k: string) => root.querySelector<T>(`[data-k="${k}"]`)!
+  const hero = root.querySelector<HTMLElement>('.payHero')!
+
+  let sel = 0 // 0 this week, 1 next week
+  let weeks: [WeekPay | null, WeekPay | null] = [null, null]
+  let settings: Settings | null = null
   let alive = true
   let seq = 0
-  let built = false
+  let stopCount: () => void = () => {}
+  let shown = false // the entrance has played, so later changes go straight to their final state
 
-  const grossRoll = NumberRoll({ value: '$0.00', label: 'Gross' })
-  const hoursRoll = NumberRoll({ value: '0', label: 'Hours' })
-  const netRoll = NumberRoll({ value: '$0.00', label: 'After tax estimate' })
+  const weekStart = (i: number) => perthWeekStart(clock(), i)
 
-  const prev = IconButton({ icon: 'caret-left', weight: 'regular', label: 'Previous week', onClick: () => go(-1) })
-  const next = IconButton({ icon: 'caret-right', weight: 'regular', label: 'Next week', onClick: () => go(1) })
-  const title = h('b', {}, 'This week')
-  const range = h('span', {}, '')
-  const label = h('button', { type: 'button', class: 'pay-week', 'aria-label': 'Jump to this week', onclick: () => offset !== 0 && go(-offset) }, title, range)
-  const nav = h('div', { class: 'pay-nav' }, prev, label, next)
+  /** Everything that depends on the chosen week, written in place. */
+  function paint(animate: boolean) {
+    const w = weeks[sel]
+    const other = weeks[1 - sel]
+    if (!w || !settings) return
+    const start = weekStart(sel)
+    $('cap').textContent = `● ${sel ? 'Next week' : 'This week'} · ${rangeLabel(start.getTime() + PERTH, 7)}`
+    root.querySelectorAll<HTMLButtonElement>('.toggle button').forEach((b) => { const on = Number(b.dataset.w) === sel; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)) })
+    const empty = w.shifts.length === 0
+    hero.classList.toggle('is-empty', empty)
+    $('emptyNote').textContent = `Pay is ${aud.format(settings.weekday_rate)} an hour on weekdays and Saturdays.`
 
-  const body = h('div', { class: 'pay-body', 'aria-live': 'polite' })
-  const panel = h('section', { class: 'pay-panel', 'aria-label': 'Pay' }, nav, body)
-  root.replaceChildren(panel)
-  preloadIcons(['caret-left', 'caret-right', 'wallet'])
+    // amount
+    stopCount()
+    const amt = $('amt')
+    if (animate && !reducedMotion()) stopCount = countUp(w.gross, (v) => { amt.innerHTML = amountHtml(v) })
+    else amt.innerHTML = amountHtml(w.gross)
+    const ot = overtimePay(w)
+    const chip = $('ot')
+    chip.hidden = ot <= 0
+    if (ot > 0) chip.textContent = `+${whole(ot)} OT`
 
-  function go(d: number) {
-    offset += d
-    load(true)
+    // charging bar: solid up to 10 h, stripes past it. The knob never leaves the bar's left edge.
+    const bar = chargeBar(w.hours)
+    $('fl').style.width = `${bar.base * 100}%`
+    $('otbar').style.width = `${bar.over * 100}%`
+    $('kn').style.left = `${Math.min(92, Math.max(12, (bar.base + bar.over) * 100))}%`
+    $('knt').textContent = `${hrs(w.hours)}h`
+    $('chargeA11y').setAttribute('aria-label', `${hrs(w.hours)} hours of ${CHARGE_MAX_HOURS}, overtime starts at ${CHARGE_OT_HOURS}`)
+
+    // curve: cumulative pay by day
+    const cum = cumulativeGross(w)
+    const top = Math.max(100, cum[6] * 1.1)
+    const pts = cum.map((v, i): [number, number] => [i * (290 / 6), 80 - (v / top) * 74])
+    const d = 'M' + pts.map((p) => p.map((n) => n.toFixed(1)).join(' ')).join(' L')
+    const worked = w.days.map((x) => x.gross > 0)
+    $('curve').innerHTML = `<path d="${d} L290 84 L0 84z" fill="url(#payAf)"/><path class="anim-line" d="${d}" fill="none" stroke="#5CFF7A" stroke-width="2.5" stroke-linejoin="round" style="filter:drop-shadow(0 0 5px #5CFF7A)"/>${pts.map((p, i) => (worked[i] ? `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="#fff" style="filter:drop-shadow(0 0 4px #5CFF7A)"/>` : '')).join('')}`
+    $('dl').innerHTML = LETTERS.map((x, i) => `<span>${worked[i] ? `<b>${x}</b>` : x}</span>`).join('')
+    animateIn($('curve'), !animate)
+
+    // pills
+    $('tax').textContent = whole(w.tax)
+    $('net').textContent = whole(w.net)
+    $('sun').textContent = aud.format(sundayRate(settings))
+    $('otherL').textContent = sel ? 'This week' : 'Next week'
+    $('other').textContent = other ? whole(other.gross) : '$0'
   }
 
-  function setNav() {
-    const start = perthWeekStart(new Date(), offset)
-    title.textContent = weekLabel(offset)
-    range.textContent = rangeLabel(start)
-    label.toggleAttribute('data-here', offset === 0)
-    label.setAttribute('aria-disabled', String(offset === 0))
-    return start
-  }
-
-  function skeletonView(): HTMLElement {
-    return h('div', { class: 'pay-grid', role: 'status', 'aria-label': 'Loading pay' },
-      h('div', { class: 'pay-left' },
-        h('div', { class: 'pay-totals' }, Skeleton({ height: 28, width: '55%' }), Skeleton({ height: 21, width: '70%' }), Skeleton({ height: 21, width: '60%' })),
-        h('div', { class: 'pay-inset' }, Skeleton({ height: 72, radius: 12 }))),
-      h('div', { class: 'pay-inset pay-list' }, Skeleton({ height: 44, radius: 12 }), Skeleton({ height: 44, radius: 12 }), Skeleton({ height: 44, radius: 12 })))
-  }
-
-  async function load(fresh = false) {
+  async function load(first = false) {
     const my = ++seq
-    const start = setNav()
-    const end = new Date(start.getTime() + 7 * DAY)
-    if (fresh || !built) body.replaceChildren(skeletonView())
+    root.classList.remove('is-err')
+    if (first) root.classList.add('is-loading')
     try {
-      const [shifts, settings] = await Promise.all([api.shiftsBetween(start, end), api.settings()])
+      const [s, a, b] = await Promise.all([
+        api.settings(),
+        api.shiftsBetween(weekStart(0), new Date(weekStart(0).getTime() + 7 * DAY)),
+        api.shiftsBetween(weekStart(1), new Date(weekStart(1).getTime() + 7 * DAY)),
+      ])
       if (!alive || my !== seq) return
-      render(start, shifts, settings, fresh || !built)
-      built = true
+      settings = s
+      weeks = [calcWeek(a, weekStart(0), s), calcWeek(b, weekStart(1), s)]
+      root.classList.remove('is-loading')
+      paint(first || !shown)
+      if (first && root.classList.contains('on')) shown = true
     } catch {
       if (!alive || my !== seq) return
-      built = false
-      body.replaceChildren(ErrorState({ kind: navigator.onLine ? 'error' : 'offline', onRetry: () => load(true) }))
+      root.classList.remove('is-loading')
+      root.classList.add('is-err')
+      $('errMsg').textContent = navigator.onLine ? 'Something went wrong. Try again.' : "You're offline. Reconnect and try again."
     }
   }
 
-  function render(start: Date, shifts: Shift[], s: Settings, animateBars: boolean) {
-    const now = new Date()
-    const wk = calcWeek(shifts, start, s)
-    if (wk.shifts.length === 0) {
-      body.replaceChildren(EmptyState({
-        icon: 'wallet',
-        title: offset > 0 ? 'Nothing rostered yet' : 'No shifts this week',
-        body: `Pay is ${fmtMoney(s.weekday_rate)} an hour on weekdays and Saturdays.`,
-      }))
-      grossRoll.set('$0.00')
-      hoursRoll.set('0')
-      netRoll.set('$0.00')
-      return
-    }
+  const choose = (i: number) => { if (i === sel) return; sel = i; paint(true) }
+  root.querySelectorAll<HTMLButtonElement>('.toggle button').forEach((b) => b.addEventListener('click', () => choose(Number(b.dataset.w))))
+  $('swap').addEventListener('click', () => choose(1 - sel))
+  $('retry').addEventListener('click', () => void load(true))
+  $('rates').addEventListener('click', () => window.dispatchEvent(new CustomEvent('halo:open-settings', { detail: 'pay' })))
+  root.querySelectorAll<HTMLElement>('[data-tip]').forEach((p) => p.addEventListener('click', () => {
+    if (!settings) return
+    const k = p.dataset.tip
+    tip(root, k === 'tax' ? '15 cents per dollar over $350 a week' : k === 'net' ? 'Gross pay minus the tax estimate' : `Sundays pay ${Math.round(settings.sunday_multiplier * 100)}% of ${aud.format(settings.weekday_rate)}`)
+  }))
 
-    // Worked days are solid, upcoming ones outlined. A shift counts as worked once it has finished.
-    const done = shifts.filter((x) => new Date(x.ends_at) <= now)
-    const todo = shifts.filter((x) => new Date(x.ends_at) > now)
-    const worked = calcWeek(done, start, s)
-    const upcoming = calcWeek(todo, start, s)
-    const scale = Math.max(MIN_SCALE_HOURS, ...wk.days.map((d) => d.hours))
-    const todayIdx = offset === 0 ? Math.floor((now.getTime() - start.getTime()) / DAY) : -1
-
-    grossRoll.set(fmtMoney(wk.gross))
-    hoursRoll.set(fmtHours(wk.hours))
-    netRoll.set(fmtMoney(wk.net))
-
-    const summary = `${fmtHours(wk.hours)} hours, ${fmtMoney(wk.gross)} gross, about ${fmtMoney(wk.net)} after tax. Tax estimate ${fmtMoney(wk.tax)}.`
-    const bars = h('div', { class: `pay-bars${animateBars ? ' grow' : ''}`, role: 'img', 'aria-label': wk.days.map((d, i) => `${DAY_NAMES[i]} ${fmtHours(d.hours)} hours`).join(', ') },
-      ...wk.days.map((d, i) => {
-        const w = worked.days[i].hours
-        const u = upcoming.days[i].hours
-        return h('div', { class: `pay-day${i === todayIdx ? ' today' : ''}` },
-          h('div', { class: 'pay-track' },
-            w > 0 ? h('span', { class: 'seg solid', style: `height:${((w / scale) * 100).toFixed(2)}%;--i:${i}` }) : null,
-            u > 0 ? h('span', { class: 'seg outline', style: `height:${((u / scale) * 100).toFixed(2)}%;bottom:${((w / scale) * 100).toFixed(2)}%;--i:${i}` }) : null),
-          h('b', {}, LETTERS[i]),
-          h('i', {}, d.hours ? fmtHours(d.hours) : ' '))
-      }))
-
-    const totals = h('div', { class: 'pay-totals', role: 'group', 'aria-label': summary },
-      slot('Gross', h('div', { class: 'pay-gross num' }, grossRoll), 'wide'),
-      slot('Hours', h('div', { class: 'pay-sub num' }, hoursRoll, h('small', {}, 'h'))),
-      slot('After tax (est.)', h('div', { class: 'pay-sub pay-net num' }, netRoll)))
-
-    const note = h('p', { class: 'pay-note' }, 'Rates from Settings. ',
-      h('button', { type: 'button', class: 'pay-link', onclick: () => window.dispatchEvent(new CustomEvent('halo:open-settings', { detail: 'pay' })) }, 'Edit rates'))
-
-    const shownShifts = wk.shifts.slice(0, opts.maxShifts ?? wk.shifts.length)
-    const moreShifts = wk.shifts.length - shownShifts.length
-    const list = h('div', { class: 'pay-inset pay-list', role: 'list', 'aria-label': 'Shifts' },
-      ...shownShifts.map((ws) => {
-        const sh = ws.shift as Shift // calcWeek hands back the objects we passed in
-        const a = new Date(sh.starts_at)
-        const b = new Date(sh.ends_at)
-        const detail = calcShift(sh, s)
-        const tag = sh.is_public_holiday ? `Public holiday ×${s.public_holiday_multiplier}` : perthDay.format(a) === 'Sun' ? `Sunday ×${s.sunday_multiplier}` : ''
-        // The break note is its own span so the compact layouts can drop it and keep the paid hours.
-        const meta = h('span', {}, `${fmtHours(ws.hours)}h paid`, detail.breakHours ? h('span', { class: 'pay-brk' }, ', 30 min break') : null)
-        return h('div', { class: 'pay-shift', role: 'listitem' },
-          h('div', { class: 'pay-shift-main' },
-            h('b', {}, sh.title),
-            h('span', { class: 'pay-when' }, `${fmtDayLong(a)}, ${fmtSpan(a, b)}`),
-            meta,
-            tag ? h('em', {}, tag) : null),
-          h('strong', { class: 'num' }, fmtMoney(ws.pay)))
-      }),
-      moreShifts > 0 ? h('div', { class: 'pay-more' }, `+${moreShifts} more`) : null)
-
-    body.replaceChildren(h('div', { class: 'pay-grid' },
-      h('div', { class: 'pay-left' }, totals, h('div', { class: 'pay-inset' }, bars), note),
-      list))
+  // The entrance replays the count up and the curve each time the tab is switched to.
+  const baseEnter = root.enter
+  root.enter = () => {
+    baseEnter()
+    shown = true
+    if (weeks[sel]) paint(true)
   }
+  const unsub = subscribe(() => void load())
+  void load(true)
+  root.refresh = () => void load()
+  root.destroy = () => { alive = false; stopCount(); unsub() }
+  return root
+}
 
-  load()
-  const unsub = subscribe(() => load())
-  return () => {
-    alive = false
-    unsub()
-  }
+/** The Pay panel on its own page (the legacy tabs and /pay). Returns the unmount function. */
+export function mountPay(host: HTMLElement, api: Backend, subscribe: (cb: () => void) => () => void): () => void {
+  const panel = PayPanel(api, subscribe)
+  panel.style.height = '226px'
+  host.replaceChildren(panel)
+  return () => panel.destroy()
 }

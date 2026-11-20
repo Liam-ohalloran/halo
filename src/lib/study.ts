@@ -217,3 +217,38 @@ export function summariseWeek(sessions: SessionLike[], tests: TestLike[], now: D
 
   return { from, to, totalMinutes: [...minutes.values()].reduce((a, b) => a + b, 0), subjects, behind }
 }
+
+/* ---------- Today, streak and the dots (card 16) ---------- */
+
+export const DAILY_GOAL_MIN = 120
+/** One dot is 15 minutes, ten dots fill a row. */
+export const dotsFor = (minutes: number): number => Math.max(0, Math.min(10, Math.round(minutes / 15)))
+
+const PERTH_MS = 8 * 60 * MIN
+/** Whole Perth days since 1970, so two times on the same Perth day share a number. */
+const perthDayNo = (t: number): number => Math.floor((t + PERTH_MS) / DAY)
+
+/** Minutes studied on the Perth day containing `now`. */
+export function todayMinutes(sessions: SessionLike[], now: Date): number {
+  const today = perthDayNo(now.getTime())
+  return sessions.reduce((n, s) => (perthDayNo(Date.parse(s.started_at)) === today ? n + (s.minutes ?? 0) : n), 0)
+}
+
+export interface Streak {
+  /** Days in a row with at least a minute of study, ending today or yesterday. */
+  days: number
+  /** Monday to Sunday of this week: did you study that day. */
+  week: boolean[]
+}
+
+/** A streak is not broken until a whole day passes without study, so an empty today still counts yesterday's run. */
+export function studyStreak(sessions: SessionLike[], now: Date): Streak {
+  const studied = new Set<number>()
+  for (const s of sessions) if ((s.minutes ?? 0) > 0) studied.add(perthDayNo(Date.parse(s.started_at)))
+  const today = perthDayNo(now.getTime())
+  let day = studied.has(today) ? today : today - 1
+  let days = 0
+  while (studied.has(day)) { days++; day-- }
+  const monday = perthDayNo(perthWeekStart(now).getTime())
+  return { days, week: Array.from({ length: 7 }, (_, i) => studied.has(monday + i)) }
+}

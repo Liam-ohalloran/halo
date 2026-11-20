@@ -1,185 +1,195 @@
-import '../components/components.css'
+import '../styles/tokens.css'
+import '../styles/proto.css'
 import './study.css'
 import type { Backend } from '../types'
-import { Button, Chip, EmptyState, ErrorState, Icon, NumberRoll, RingProgress, Skeleton } from '../components'
-import { h } from '../components/dom'
-import {
-  SUBJECT_LIST, shortSubject, subjectKey, summariseWeek, type SubjectKey, type SubjectWeek, type WeekSummary,
-} from '../lib/study'
+import { DAILY_GOAL_MIN, dotsFor, elapsedMs, studyStreak, summariseWeek, todayMinutes, type SessionLike, type WeekSummary } from '../lib/study'
 import { fmtClock, fmtMinutes } from '../time'
-import { TARGET_MIN, plainError, view, type StudyTimerHandle } from './studyTimer'
+import { ring, setRing, pvRoot, tip, type PvRoot } from '../ui/charts'
+import { LENGTHS, plainError, view, type StudyTimerHandle } from './studyTimer'
 
-// Study panel (card 08): subject chips, the 25 minute ring timer, and this week's minutes per subject.
-// Colour comes only from the subject (HALO.md 3.2). Numbers roll. Every state has a design.
+// Study tab (card 16). Colour tiles: a dotted ring timer with 25 and 50 minute lengths, today, streak, this week,
+// top subject and a row per subject. The timer logic is the existing one in studyTimer.ts and is not touched here.
+// Built once. A tick, a new session or a tap changes only the numbers and dots that moved.
 
-export const ICONS_NEEDED = ['play', 'pause', 'arrow-clockwise', 'warning-circle', 'check', 'book-open', 'wifi-slash']
+/** Kept for pages that preload icons. This tab draws its own icons. */
+export const ICONS_NEEDED: string[] = []
 
-const hue = (key: SubjectKey | null) => (key ? `var(--${key})` : 'var(--text-2)')
-const daysText = (d: number) => (d === 0 ? 'today' : d === 1 ? 'tomorrow' : `in ${d} days`)
-const MAX_BARS = 4
+const DAY = 864e5
+// Subject colours and short names from the prototype.
+const SUBJ: Record<string, { short: string; c: string }> = {
+  'Chemistry': { short: 'Chem', c: '#3D9BFF' }, 'Methods': { short: 'Methods', c: '#5CFF7A' }, 'Specialist': { short: 'Spec', c: '#BF5AF2' },
+  'Human Biology': { short: 'Bio', c: '#FF2FA3' }, 'English': { short: 'English', c: '#FFC23D' }, 'Religion': { short: 'Religion', c: '#AEB6C2' },
+}
+const ORDER = ['Chemistry', 'Methods', 'Specialist', 'Human Biology', 'English', 'Religion']
+const short = (name: string) => SUBJ[name]?.short ?? (name.length > 9 ? `${name.slice(0, 8).trimEnd()}.` : name)
+const PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg>'
+const PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg>'
+const STOP = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2.5"/></svg>'
 
-export interface StudyPanelHandle extends HTMLDivElement {
-  /** Re-read this week from Supabase, for example after a session is logged. */
+const dotRing = Array.from({ length: 60 }, (_, i) => {
+  const a = (i / 60) * Math.PI * 2 - Math.PI / 2
+  return `<circle cx="${(75 + 64 * Math.cos(a)).toFixed(2)}" cy="${(75 + 64 * Math.sin(a)).toFixed(2)}" r="${i % 5 ? 1.8 : 2.8}" fill="rgba(255,255,255,.2)"/>`
+}).join('')
+
+const tile = (cls: string, i: number, cap: string, k: string, extra = '') =>
+  `<div class="t ${cls} pop" style="--i:${i}"><span class="caps">${cap}</span><div class="big num" data-k="${k}">0m</div><div class="sub" data-k="${k}S">&nbsp;</div>${extra}</div>`
+
+const TEMPLATE = `<div class="grid">
+  <div class="t cobalt s2 r2 pop stTimer" style="--i:0" role="group" aria-label="Focus timer">
+    <span class="caps" data-k="cap">Focus · Chem</span>
+    <div class="stRing"><svg class="dots" viewBox="0 0 150 150" aria-hidden="true">${dotRing}</svg>
+      <div class="face"><b class="num" data-k="time" role="timer">25:00</b><span class="caps" data-k="state">Ready</span></div>
+      <div class="stSide"><button type="button" class="play" data-k="play" aria-label="Start">${PLAY}</button>
+        <button type="button" class="stStop" data-k="stop" aria-label="Stop and log" title="Stop and log" hidden>${STOP}</button>
+        <div class="toggle" data-k="len" role="group" aria-label="Focus length">${LENGTHS.map((m) => `<button type="button" data-m="${m}" aria-pressed="false">${m} MIN</button>`).join('')}</div></div></div>
+  </div>
+  ${tile('blue', 1, 'Today', 'today', `<div class="vis" data-k="todayRing">${ring('#3D9BFF', 0, 40, 5)}</div>`)}
+  ${tile('green', 2, 'Streak', 'streak')}
+  ${tile('purple', 3, 'This week', 'week')}
+  ${tile('dark', 4, 'Top subject', 'top')}
+  <div class="t dark s4 pop stSubs" style="--i:5"><span class="caps">By subject · tap to focus</span><div class="subrows" data-k="subs" role="group" aria-label="Subject">${ORDER.map((n) => `<button type="button" class="sr" data-n="${n}" aria-pressed="false" style="--c:${SUBJ[n].c}"><span>${SUBJ[n].short}</span><div class="dts">${Array.from({ length: 10 }, () => '<i></i>').join('')}</div><i class="bh" hidden title="Behind for its next test"></i></button>`).join('')}</div>
+    <div class="stErr" role="alert"><span data-k="errMsg">Can't load your study.</span><button type="button" data-k="retry">Try again</button></div></div>
+</div>`
+
+export interface StudyPanelHandle extends PvRoot {
+  /** Re-read the week from the database, for example after a session is logged. */
   refreshWeek(): void
   destroy(): void
 }
 
-export function StudyPanel(api: Backend, timer: StudyTimerHandle, onResize: () => void = () => {}): StudyPanelHandle {
+export function StudyPanel(api: Backend, timer: StudyTimerHandle, onResize: () => void = () => {}, clock: () => Date = () => new Date()): StudyPanelHandle {
+  const root = pvRoot('study-pv is-loading') as StudyPanelHandle
+  root.insertAdjacentHTML('beforeend', TEMPLATE)
+  root.setAttribute('aria-label', 'Study')
+  const $ = <T extends HTMLElement = HTMLElement>(k: string) => root.querySelector<T>(`[data-k="${k}"]`)!
+  const dots = [...root.querySelectorAll<SVGCircleElement>('svg.dots circle')]
+  const subRows = [...root.querySelectorAll<HTMLButtonElement>('.sr')]
+  const lenBtns = [...root.querySelectorAll<HTMLButtonElement>('[data-k="len"] button')]
   let alive = true
+  let sessions: SessionLike[] = []
+  let summary: WeekSummary | null = null
+  let loaded = false
+  let gen = 0
 
-  // ---- Chips
-  const chips = new Map<string, ReturnType<typeof Chip>>()
-  const chipRow = h('div', { class: 's-chips', role: 'group', 'aria-label': 'Subject' })
-  for (const s of SUBJECT_LIST) {
-    const c = Chip({
-      subject: s.key,
-      label: s.name,
-      pressed: s.name === timer.state.subject,
-      onToggle: () => timer.setSubject(s.name),
-    })
-    chips.set(s.name, c)
-    chipRow.append(c)
-  }
-  // A subject started elsewhere may not be one of the six. Add it so it is visible.
-  const ensureChip = (name: string) => {
-    if (chips.has(name)) return
-    const k = subjectKey(name)
-    const c = Chip({ subject: k ?? 'hb', label: name, pressed: true, onToggle: () => timer.setSubject(name) })
-    if (!k) c.style.setProperty('--c', 'var(--text-2)')
-    chips.set(name, c)
-    chipRow.append(c)
-  }
-
-  // ---- Timer
-  const ring = RingProgress({ size: 112, stroke: 10, value: 0, text: fmtClock(TARGET_MIN * 60_000), label: 'Focus timer' })
-  ring.classList.add('s-ring')
-  const kicker = h('span', { class: 'label' }, 'FOCUS SESSION')
-  const subjectName = h('div', { class: 's-subject' })
-  const statusLine = h('div', { class: 's-status' })
-  const startBtn = Button({ label: 'Start', kind: 'primary', size: 44, icon: 'play', onClick: () => void timer.start() })
-  const pauseBtn = Button({ label: 'Pause', kind: 'secondary', size: 44, icon: 'pause', onClick: () => timer.pause() })
-  const resumeBtn = Button({ label: 'Resume', kind: 'primary', size: 44, icon: 'play', onClick: () => timer.resume() })
-  const resetBtn = Button({ label: 'Reset', kind: 'secondary', size: 44, icon: 'arrow-clockwise', onClick: () => void timer.reset() })
-  const buttons = h('div', { class: 's-btns' }, startBtn, pauseBtn, resumeBtn, resetBtn)
-  const note = h('div', { class: 's-note', role: 'status', 'aria-live': 'polite' })
-  const timerCard = h('section', { class: 's-timer', 'aria-label': 'Focus timer' }, ring, h('div', { class: 's-side' }, kicker, subjectName, statusLine), buttons, note)
-
-  let noteTimer: number | undefined
-  const say = (text: string, bad = false) => {
-    note.textContent = text
-    note.classList.toggle('bad', bad)
-    clearTimeout(noteTimer)
-    if (text) noteTimer = window.setTimeout(() => { note.textContent = '' }, 6000)
-  }
-
-  let lastText = ''
-  function paint(now: number) {
+  // ---- Timer. Only touches the DOM when what you can see changes.
+  const last = { time: '', lit: -1, status: '', subject: '', len: 0, busy: false }
+  function paintTimer(now: number) {
     const s = timer.state
-    ensureChip(s.subject)
     const { value, left } = view(s, now)
     const text = fmtClock(s.status === 'idle' ? s.targetMs : left)
-    // Seconds precision is plenty. Only touch the DOM when the visible text changes.
-    if (text !== lastText) { ring.setValue(value, text); lastText = text }
-    const key = subjectKey(s.subject)
-    timerCard.style.setProperty('--c', hue(key))
-    ring.style.setProperty('--c', hue(key))
-    subjectName.textContent = s.subject
-    statusLine.textContent = timer.busy ? (s.status === 'idle' ? 'Starting' : 'Logging') : s.status === 'idle' ? `${TARGET_MIN} minute focus` : s.status === 'running' ? 'Focusing' : 'Paused'
-    startBtn.hidden = s.status !== 'idle'
-    pauseBtn.hidden = s.status !== 'running'
-    resumeBtn.hidden = s.status !== 'paused'
-    resetBtn.hidden = s.status === 'idle'
-    for (const b of [startBtn, pauseBtn, resumeBtn, resetBtn]) b.disabled = timer.busy || !timer.ready
-    for (const [name, c] of chips) {
-      c.setPressed(name === s.subject)
-      c.disabled = s.status !== 'idle' && name !== s.subject
+    if (text !== last.time) { last.time = text; $('time').textContent = text }
+    const lit = Math.round(value * 60)
+    if (lit !== last.lit) {
+      last.lit = lit
+      dots.forEach((c, i) => c.setAttribute('fill', i < lit ? (i === lit - 1 ? '#fff' : '#9fb0ff') : 'rgba(255,255,255,.2)'))
     }
-    ring.setAttribute('aria-label', `Focus timer, ${s.status === 'idle' ? 'ready' : s.status}`)
+    const busy = timer.busy || !timer.ready
+    if (s.status !== last.status || busy !== last.busy) {
+      last.status = s.status; last.busy = busy
+      const running = s.status === 'running'
+      $('state').textContent = timer.busy ? (s.status === 'idle' ? 'Starting' : 'Logging') : s.status === 'idle' ? 'Ready' : running ? 'Focusing' : 'Paused'
+      const play = $<HTMLButtonElement>('play')
+      play.innerHTML = running ? PAUSE : PLAY
+      play.setAttribute('aria-label', s.status === 'idle' ? 'Start' : running ? 'Pause' : 'Resume')
+      play.disabled = busy
+      $<HTMLButtonElement>('stop').hidden = s.status === 'idle'
+      $<HTMLButtonElement>('stop').disabled = busy
+      lenBtns.forEach((b) => { b.disabled = s.status !== 'idle' || busy })
+    }
+    const mins = Math.round(s.targetMs / 60_000)
+    if (mins !== last.len) { last.len = mins; lenBtns.forEach((b) => { const on = Number(b.dataset.m) === mins; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)) }) }
+    if (s.subject !== last.subject) {
+      last.subject = s.subject
+      $('cap').textContent = `Focus · ${short(s.subject)}`
+      subRows.forEach((r) => { const on = r.dataset.n === s.subject; r.classList.toggle('on', on); r.setAttribute('aria-pressed', String(on)) })
+    }
+    subRows.forEach((r) => r.setAttribute('aria-disabled', String(s.status !== 'idle' && r.dataset.n !== s.subject)))
+    paintData(now)
   }
-  const unsub = timer.subscribe(paint)
-  timer.onError((m) => say(m, true))
-  timer.onLogged((row, kind) => {
-    const mins = row.minutes ?? 0
-    say(kind === 'done' ? `Goal hit. Logged ${fmtMinutes(mins)} of ${row.subject}.` : mins > 0 ? `Logged ${fmtMinutes(mins)} of ${row.subject}.` : `Under a minute of ${row.subject}, so nothing to log.`)
-    loadWeek()
-  })
 
-  // ---- This week
-  const weekHead = h('header', { class: 's-weekhead' }, h('span', { class: 'label' }, 'THIS WEEK'))
-  const weekBody = h('div', { class: 's-weekbody' })
-  const week = h('section', { class: 's-week', 'aria-label': 'This week' }, weekHead, weekBody)
+  // ---- Data tiles. Minutes banked by the running session count straight away, so the numbers move as you study.
+  const shown: Record<string, string> = {}
+  const put = (k: string, text: string) => { if (shown[k] !== text) { shown[k] = text; $(k).textContent = text } }
+  let ringF = -1
+  function paintData(now: number) {
+    if (!loaded) return
+    const s = timer.state
+    const live = s.status === 'idle' ? 0 : Math.floor(elapsedMs(s, now) / 60_000)
+    const today = todayMinutes(sessions, clock()) + live
+    put('today', fmtMinutes(today)); put('todayS', `goal ${fmtMinutes(DAILY_GOAL_MIN)}`)
+    const f = Math.min(1, today / DAILY_GOAL_MIN)
+    if (f !== ringF) { ringF = f; setRing($('todayRing'), f) }
+    const st = studyStreak(sessions, clock())
+    const days = Math.max(st.days, live > 0 && st.days === 0 ? 1 : st.days)
+    put('streak', `${days} ${days === 1 ? 'day' : 'days'}`)
+    const letters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'].filter((_, i) => st.week[i])
+    put('streakS', days ? letters.join(' ') || 'Today' : 'Start one today')
+    const subjects = summary?.subjects ?? []
+    const mine = (name: string) => (subjects.find((x) => x.subject === name)?.minutes ?? 0) + (live && s.subject === name ? live : 0)
+    const total = (summary?.totalMinutes ?? 0) + live
+    put('week', fmtMinutes(total))
+    const n = sessions.filter((x) => Date.parse(x.started_at) >= (summary?.from.getTime() ?? 0) && (x.minutes ?? 0) > 0).length
+    put('weekS', total ? `${n || 1} ${n === 1 ? 'session' : 'sessions'}` : 'No sessions yet')
+    const ranked = ORDER.map((name) => ({ name, m: mine(name) })).sort((a, b) => b.m - a.m)
+    const best = ranked[0]
+    put('top', best.m > 0 ? short(best.name) : 'None yet')
+    put('topS', best.m > 0 ? fmtMinutes(best.m) : 'Nothing logged')
+    for (const r of subRows) {
+      const name = r.dataset.n!
+      const lit = dotsFor(mine(name))
+      const key = `${name}:${lit}`
+      if (shown[key] === undefined || r.dataset.lit !== String(lit)) {
+        r.dataset.lit = String(lit); shown[key] = '1'
+        const c = SUBJ[name].c
+        r.querySelectorAll<HTMLElement>('.dts i').forEach((d, k) => { d.style.background = k < lit ? c : ''; d.style.boxShadow = k < lit ? `0 0 4px ${c}` : '' })
+      }
+      r.querySelector<HTMLElement>('.bh')!.hidden = summary?.behind?.subject !== name
+      r.setAttribute('aria-label', `${short(name)}, ${fmtMinutes(mine(name))} this week${summary?.behind?.subject === name ? ', behind for its next test' : ''}`)
+    }
+  }
 
-  const barsSkeleton = () => h('div', { class: 's-skel' }, ...[70, 45, 30].map((w) => h('div', { class: 's-skelrow' }, Skeleton({ width: 84, height: 13 }), Skeleton({ height: 10, width: `${w}%`, radius: 5 }))))
-
-  let gen = 0
-  async function loadWeek() {
+  async function load() {
     const mine = ++gen
-    weekBody.replaceChildren(barsSkeleton())
-    onResize()
+    root.classList.remove('is-err')
+    if (!loaded) root.classList.add('is-loading')
     try {
-      const now = new Date()
-      const [sessions, tests] = await Promise.all([api.sessionsSince(new Date(now.getTime() - 8 * 864e5)), api.upcomingTests(now)])
+      const now = clock()
+      const [rows, tests] = await Promise.all([api.sessionsSince(new Date(now.getTime() - 60 * DAY)), api.upcomingTests(now)])
       if (!alive || mine !== gen) return
-      renderWeek(summariseWeek(sessions, tests, now))
+      sessions = rows
+      summary = summariseWeek(rows, tests, now)
+      loaded = true
+      root.classList.remove('is-loading')
+      Object.keys(shown).forEach((k) => delete shown[k])
+      ringF = -1
+      paintData(Date.now())
     } catch (e) {
       if (!alive || mine !== gen) return
-      const offline = !navigator.onLine
-      weekBody.replaceChildren(ErrorState({ kind: offline ? 'offline' : 'error', message: offline ? undefined : plainError(e), onRetry: loadWeek }))
+      root.classList.remove('is-loading')
+      root.classList.add('is-err')
+      $('errMsg').textContent = navigator.onLine ? plainError(e) : "You're offline."
     }
     onResize()
   }
 
-  function bar(s: SubjectWeek, scale: number, flagged: boolean): HTMLElement {
-    const fill = h('span', { class: 's-fill' })
-    fill.style.width = `${Math.min(100, (s.minutes / scale) * 100)}%`
-    const track = h('span', { class: 's-track', role: 'img', 'aria-label': `${s.subject}, ${s.minutes} minutes${s.goal ? ` of ${s.goal} wanted` : ''}` }, fill)
-    if (s.goal != null) {
-      const tick = h('span', { class: 's-goal' })
-      tick.style.left = `${Math.min(100, (s.goal / scale) * 100)}%`
-      track.append(tick)
-    }
-    const row = h('div', { class: `s-bar${flagged ? ' flag' : ''}`, style: `--c:${hue(s.key)}` },
-      h('span', { class: 's-bname' }, h('i', { 'aria-hidden': 'true' }), s.key ? shortSubject(s.subject) : s.subject),
-      track,
-      h('span', { class: 's-mins' }, fmtMinutes(s.minutes)))
-    return row
-  }
-
-  function renderWeek(w: WeekSummary) {
-    const total = NumberRoll({ value: fmtMinutes(w.totalMinutes) })
-    weekHead.replaceChildren(h('span', { class: 'label' }, 'THIS WEEK'), h('span', { class: 's-total' }, total))
-    const shown = w.subjects.filter((s) => s.minutes > 0 || s.goal != null)
-    if (!shown.length) {
-      weekBody.replaceChildren(EmptyState({ icon: 'book-open', title: 'No study yet this week', body: 'Pick a subject and start a focus session.' }))
-      return
-    }
-    // Top four by minutes, but the subject furthest behind is always shown.
-    let list = shown.slice(0, MAX_BARS)
-    if (w.behind && !list.includes(w.behind)) list = [...list.slice(0, MAX_BARS - 1), w.behind]
-    const scale = Math.max(60, ...list.map((s) => Math.max(s.minutes, s.goal ?? 0)))
-    const bars = h('div', { class: 's-bars' }, ...list.map((s) => bar(s, scale, s === w.behind)))
-
-    const hasTests = w.subjects.some((s) => s.goal != null)
-    let callout: HTMLElement | null = null
-    if (w.behind) {
-      const b = w.behind
-      callout = h('div', { class: 's-callout', style: `--c:${hue(b.key)}` }, Icon('warning-circle', 'fill', 18),
-        h('span', {}, h('b', {}, `${b.subject} is furthest behind. `), `${fmtMinutes(b.deficit)} to go before the test ${daysText(b.daysToTest ?? 0)}.`))
-    } else if (hasTests) {
-      callout = h('div', { class: 's-callout ok' }, Icon('check', 'fill', 18), h('span', {}, 'On track for every test coming up.'))
-    }
-    weekBody.replaceChildren(bars, ...(callout ? [callout] : []))
-  }
-
-  // ---- Assemble
-  const root = h('div', { class: 's-panel' }, chipRow, h('div', { class: 's-grid' }, timerCard, week)) as StudyPanelHandle
-  // The island toggles open and closed on any click or Enter inside it. Keep presses on this panel's controls to themselves.
-  // Escape still bubbles up so it closes the island.
-  root.addEventListener('click', (e) => e.stopPropagation())
-  root.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation() })
-  root.refreshWeek = () => void loadWeek()
-  root.destroy = () => { alive = false; unsub(); clearTimeout(noteTimer) }
-  paint(Date.now())
-  void loadWeek()
+  // ---- Wiring
+  $('play').addEventListener('click', () => { const st = timer.state.status; if (st === 'idle') void timer.start(); else if (st === 'running') timer.pause(); else timer.resume() })
+  $('stop').addEventListener('click', () => void timer.reset())
+  lenBtns.forEach((b) => b.addEventListener('click', () => timer.setLength(Number(b.dataset.m))))
+  subRows.forEach((r) => r.addEventListener('click', () => { if (timer.state.status === 'idle') timer.setSubject(r.dataset.n!) }))
+  $('retry').addEventListener('click', () => void load())
+  const unsub = timer.subscribe(paintTimer)
+  timer.onError((m) => tip(root, m))
+  timer.onLogged((row, kind) => {
+    const mins = row.minutes ?? 0
+    tip(root, kind === 'done' ? `Goal hit. Logged ${fmtMinutes(mins)} of ${row.subject}.` : mins > 0 ? `Logged ${fmtMinutes(mins)} of ${row.subject}.` : `Under a minute of ${row.subject}, so nothing to log.`)
+    void load()
+  })
+  const baseEnter = root.enter
+  root.enter = () => { baseEnter(); ringF = -1; last.lit = -1; paintTimer(Date.now()) }
+  paintTimer(Date.now())
+  void load()
+  root.refreshWeek = () => void load()
+  root.destroy = () => { alive = false; unsub() }
   return root
 }

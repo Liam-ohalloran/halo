@@ -1,0 +1,93 @@
+/* Home tab (card 16): the dense widget grid from the prototype's HOME section, 5 columns by 3 rows, six px gaps.
+   Each widget is its own small island with one soft glow in its colour. The window never scrolls. */
+.home-pv .dG { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-rows: repeat(3, 1fr); grid-auto-flow: row dense; gap: 6px; height: 100%; }
+.home-pv .dp {
+  position: relative; border-radius: 18px; padding: 8px 10px; overflow: hidden; cursor: default; background: #121214; min-width: 0;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.07), inset 0 1px 0 rgba(255,255,255,.06); transition: transform .35s var(--spring), box-shadow .3s;
+}
+.home-pv .dp::before { content: ""; position: absolute; left: -20px; bottom: -30px; width: 110px; height: 60px; border-radius: 50%; background: var(--c); opacity: .16; filter: blur(18px); pointer-events: none; }
+.home-pv .dp > * { position: relative; }
+.home-pv .dp.go { cursor: pointer; }
+.home-pv .dp.go:hover { transform: translateY(-1px); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, transparent), 0 8px 20px -10px var(--c); }
+.home-pv .dp.go:active { transform: scale(.97); }
+.home-pv .dp.c2 { grid-column: span 2; }
+.home-pv .dpH { display: flex; align-items: center; gap: 5px; }
+.home-pv .dpI { width: 15px; height: 15px; border-radius: 5px; display: grid; place-items: center; background: color-mix(in srgb, var(--c) 22%, transparent); color: var(--c); flex: none; }
+.home-pv .dpI svg { width: 9.5px; height: 9.5px; }
+.home-pv .dpL { font-family: var(--mono); font-size: 7.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: #9a9aa2; white-space: nowrap; }
+.home-pv .dpT { margin-left: auto; font-style: normal; font-family: var(--mono); font-size: 6.5px; font-weight: 600; color: var(--c); opacity: .9; }
+.home-pv .dpV { font-size: 19px; font-weight: 800; letter-spacing: -.02em; line-height: 1; margin-top: 5px; white-space: nowrap; color: #fff; }
+.home-pv .dpV small { font-size: 9.5px; font-weight: 600; opacity: .55; letter-spacing: 0; }
+.home-pv .dpV.dpE { font-size: 15px; color: rgba(245,247,255,.75); }
+.home-pv .dpS { font-size: 8.5px; color: #9a9aa2; margin-top: 3px; white-space: nowrap; }
+.home-pv .dpBar { position: relative; height: 4px; border-radius: 3px; background: rgba(255,255,255,.1); margin-top: 5px; }
+.home-pv .dpBar i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 3px; background: var(--c); box-shadow: 0 0 8px var(--c); transition: width calc(900ms * var(--slow)) var(--spring) calc(250ms * var(--slow)); }
+.home-pv .dpBar b { position: absolute; top: -2px; width: 2px; height: 8px; border-radius: 1px; background: #fff; }
+.home-pv .dpSp { position: absolute !important; right: 10px; bottom: 10px; width: 40px; height: 14px; overflow: visible; }
+.home-pv .dpDrops { position: absolute !important; right: 10px; top: 26px; display: flex; align-items: flex-end; gap: 2px; height: 16px; }
+.home-pv .dpDrops i { width: 3px; border-radius: 2px; background: var(--c); opacity: .85; min-height: 2px; }
+.home-pv .dpRing { display: flex; align-items: center; gap: 7px; margin-top: 3px; }
+.home-pv .dpRing svg { overflow: visible; flex: none; }
+.home-pv .dpRing .dpV { margin: 0; }
+.home-pv .dpRing .dpS { margin: 0; }
+
+.home-pv .dpMu { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto auto; align-items: center; column-gap: 9px; }
+.home-pv .dpArt { width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,.08) center / cover; flex: none; box-shadow: 0 6px 14px -6px var(--c); }
+.home-pv .dpMuT { min-width: 0; }
+.home-pv .dpTt { display: block; font-size: 12px; font-weight: 800; margin-top: 2px; white-space: nowrap; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 10px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 10px), transparent); }
+.home-pv .dpTt.fits { -webkit-mask-image: none; mask-image: none; }
+.home-pv .dpTt > span { display: inline-block; }
+/* A long title scrolls slowly with a pause at the start (HALO.md 3.1c), a short one just sits. */
+.home-pv .dpTt.scroll > span { animation: dpMq var(--mq, 10s) linear infinite; }
+@keyframes dpMq { 0%, 20% { transform: translateX(0); } 80%, 100% { transform: translateX(var(--mqd, 0)); } }
+.home-pv .dpMuT .dpS { margin: 0; overflow: hidden; }
+.home-pv .dpEq { display: flex; align-items: flex-end; gap: 2px; height: 22px; flex: none; }
+.home-pv .dpEq i { width: 3px; height: calc(var(--h) * 100%); border-radius: 2px; background: #1ED760; opacity: .85; transform-origin: bottom; }
+.home-pv .dpEq.on i { animation: dpEq .9s ease-in-out infinite alternate; }
+@keyframes dpEq { from { transform: scaleY(.3); } to { transform: scaleY(1); } }
+.home-pv .dpPl { width: 28px; height: 28px; border-radius: 50%; border: 0; background: #fff; color: #000; display: grid; place-items: center; cursor: pointer; flex: none; transition: transform .3s var(--spring); }
+.home-pv .dpPl:active { transform: scale(.88); }
+.home-pv .dpPl:disabled { opacity: .35; cursor: default; }
+.home-pv .dpPl svg { width: 12px; height: 12px; }
+
+.home-pv .dpNb { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; column-gap: 6px; }
+.home-pv .dpTm { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.home-pv .dpTm.r { justify-content: flex-end; }
+.home-pv .dpTm b { font-size: 22px; font-weight: 800; letter-spacing: -.03em; }
+.home-pv .dpTm b.lose { opacity: .55; }
+.home-pv .dpLogo { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 6.5px; font-weight: 800; color: #fff; flex: none; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.3); }
+.home-pv .dpMid { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.home-pv .dpMid em { font-style: normal; font-family: var(--mono); font-size: 7px; font-weight: 600; color: #30D158; letter-spacing: .1em; white-space: nowrap; }
+.home-pv .dpMid em.live { color: var(--red); }
+.home-pv .dpMid span { font-size: 7.5px; color: #9a9aa2; white-space: nowrap; }
+.home-pv .dpNbE { grid-column: 1 / -1; display: flex; flex-direction: column; justify-content: center; height: 100%; }
+
+.home-pv .dpWk { display: flex; gap: 2px; margin-top: 5px; }
+.home-pv .dpWk i { flex: 1; height: 11px; border-radius: 3px; font-style: normal; font-size: 6px; font-weight: 800; display: grid; place-items: center; color: #8a8a92; background: rgba(255,255,255,.06); }
+.home-pv .dpWk i.on { background: var(--c); color: #0b0d2a; box-shadow: 0 0 6px -1px var(--c); }
+.home-pv .dpUp { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin-top: 5px; }
+.home-pv .dpUp div { border-left: 2px solid var(--k); padding-left: 5px; min-width: 0; }
+.home-pv .dpUp small { display: block; font-family: var(--mono); font-size: 6.5px; color: var(--k); font-weight: 600; white-space: nowrap; }
+.home-pv .dpUp b { display: block; font-size: 10px; font-weight: 800; white-space: nowrap; }
+.home-pv .dpUp span { font-size: 8px; color: #9a9aa2; white-space: nowrap; }
+.home-pv .dpCl { display: flex; align-items: center; gap: 8px; }
+.home-pv .dpCl b { font-size: 12px; }
+
+.home-pv .lumMini { position: relative; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; flex: none; background: radial-gradient(circle, #1a0f3a, #05030c); box-shadow: 0 0 26px -4px rgba(170,120,255,.8); }
+.home-pv .lumMini .b { position: absolute; width: 90%; height: 90%; border-radius: 50%; filter: blur(7px); mix-blend-mode: screen; }
+.home-pv .lumMini .b1 { left: -14%; top: -6%; background: radial-gradient(circle, #3dd6ff, #3d5afe 45%, transparent 70%); animation: dpO1 7s ease-in-out infinite; }
+.home-pv .lumMini .b2 { right: -18%; top: 10%; background: radial-gradient(circle, #ff2fa3, #b04cff 45%, transparent 70%); animation: dpO2 9s ease-in-out infinite; }
+.home-pv .lumMini .b3 { left: 8%; bottom: -24%; background: radial-gradient(circle, #ffb066, #ff6a3d 40%, transparent 70%); animation: dpO3 8s ease-in-out infinite; }
+.home-pv .lumMini .spec { position: absolute; left: 20%; top: 12%; width: 34%; height: 20%; border-radius: 50%; background: radial-gradient(closest-side, rgba(255,255,255,.85), transparent); transform: rotate(-25deg); }
+.home-pv .lumMini .rim { position: absolute; inset: 0; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(255,255,255,.35); }
+@keyframes dpO1 { 50% { transform: translate(22%, 18%) scale(1.15); } }
+@keyframes dpO2 { 50% { transform: translate(-26%, 22%) scale(.9); } }
+@keyframes dpO3 { 50% { transform: translate(18%, -26%) scale(1.2); } }
+
+/* Loading: a shimmer where the number goes. */
+.home-pv .dp .skel { display: block; height: 19px; width: 60%; margin-top: 5px; }
+.home-pv .dp .skel.s { height: 9px; width: 45%; margin-top: 5px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .home-pv .dpEq.on i, .home-pv .lumMini .b, .home-pv .dpTt.scroll > span { animation: none; }
+}

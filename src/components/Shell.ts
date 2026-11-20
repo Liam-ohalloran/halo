@@ -157,7 +157,7 @@ export function Shell(o: ShellOptions): ShellHandle {
 
   function apply(t: TabTheme) {
     el.dataset.tab = t.id
-    el.style.setProperty('--glow', t.colour)
+    el.style.setProperty('--glow', t.shadow ?? t.colour)
     el.style.setProperty('--sh-border', t.border)
     el.style.setProperty('--sh-text', t.text)
     inner.style.setProperty('--sh-pt', `${t.pad[0]}px`)

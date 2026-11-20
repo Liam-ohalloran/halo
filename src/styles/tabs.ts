@@ -1,5 +1,6 @@
 // TabTheme: one entry per tab, so every later card just picks its key (card 15).
-// Every value is copied from the 600 x 290 boards in design/boards/ (Home2, Music, Study3, Pay3, Sixers2, Week, More, Controls).
+// Home, Study and Pay follow the approved prototype (card 16): a black island with only a glow in the tab's colour.
+// Every other value is copied from the 600 x 290 boards in design/boards/ (Home2, Music, Study3, Pay3, Sixers2, Week, More, Controls).
 // colour = the tab colour (active rail icon, accents). rail = the icon colour while the tab is not open.
 // bg, border and glow are the frame: a tinted gradient, a 1 px tinted border and a soft corner glow. Never remove the glow.
 
@@ -12,6 +13,8 @@ export interface TabTheme {
   /** Rail aria-label, when it differs from the title. */
   aria: string
   colour: string
+  /** Colour of the glow under the open window, when it differs from the tab colour. */
+  shadow?: string
   rail: string
   /** Frame background (a CSS background value) and 1 px border colour. */
   bg: string
@@ -34,9 +37,9 @@ const neutral = (a: string, b: string, c: string) => `linear-gradient(165deg, ${
 
 export const TAB_THEMES: Record<TabId, TabTheme> = {
   home: {
-    id: 'home', label: 'Home', aria: 'Home', colour: '#D39B65', rail: '#F2F2F4',
-    bg: neutral('#33251A', '#211912', '#16110D'), border: 'rgba(211,155,101,0.20)', pad: [10, 16, 12, 16], text: '#F5F5F7',
-    glow: corner('211,155,101', 0.16, 'left:-90px;top:-110px'), layers: [],
+    id: 'home', label: 'Home', aria: 'Home', colour: '#FFC23D', shadow: '#FF8A1E', rail: '#F2F2F4',
+    bg: '#000', border: 'rgba(255,255,255,0.08)', pad: [10, 16, 12, 16], text: '#F5F7FF',
+    glow: 'display:none', layers: [],
   },
   music: {
     id: 'music', label: 'Music', aria: 'Music', colour: '#C9B6F0', rail: '#C9B6F0',
@@ -45,14 +48,14 @@ export const TAB_THEMES: Record<TabId, TabTheme> = {
     layers: ['position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg, rgba(8,8,14,0.35), rgba(8,8,14,0.62))'],
   },
   study: {
-    id: 'study', label: 'Study', aria: 'Study', colour: '#B59AE3', rail: '#B59AE3',
-    bg: neutral('#2B2240', '#1E1830', '#15111F'), border: 'rgba(181,154,227,0.20)', pad: [10, 16, 12, 16], text: '#F5F5F7',
-    glow: corner('181,154,227', 0.16, 'left:-90px;top:-110px'), layers: [],
+    id: 'study', label: 'Study', aria: 'Study', colour: '#9fb0ff', shadow: '#3D5AFE', rail: '#9fb0ff',
+    bg: '#000', border: 'rgba(255,255,255,0.08)', pad: [10, 16, 12, 16], text: '#F5F7FF',
+    glow: 'display:none', layers: [],
   },
   pay: {
-    id: 'pay', label: 'Pay', aria: 'Pay', colour: '#91BDA0', rail: '#91BDA0',
-    bg: neutral('#1F3329', '#17251F', '#101914'), border: 'rgba(145,189,160,0.20)', pad: [10, 16, 12, 16], text: '#F5F5F7',
-    glow: corner('145,189,160', 0.16, 'left:-90px;top:-110px'), layers: [],
+    id: 'pay', label: 'Pay', aria: 'Pay', colour: '#5CFF7A', shadow: '#5CFF7A', rail: '#5CFF7A',
+    bg: '#000', border: 'rgba(255,255,255,0.08)', pad: [10, 16, 12, 16], text: '#F5F7FF',
+    glow: 'display:none', layers: [],
   },
   sixers: {
     id: 'sixers', label: 'Sixers', aria: 'Sixers', colour: '#88B5E0', rail: '#88B5E0',

@@ -9,7 +9,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "seed": "node scripts/seed.mjs",
-    "icons":"node scripts/icons.mjs",
+    "icons": "node scripts/icons.mjs",
     "shots": "node scripts/shots.mjs",
     "shots:home": "node scripts/shots-home.mjs",
     "shots:embed": "node scripts/shots-embed.mjs",
@@ -20,13 +20,17 @@
     "record": "node scripts/record.mjs",
     "shots:study": "node scripts/shots-study.mjs",
     "shots:legacy": "node scripts/shots-legacy.mjs",
-    "test": "node --test \"tests/*.test.ts\""
+    "test": "node --test \"tests/*.test.ts\"",
+    "check:overflow": "node scripts/check-overflow.mjs",
+    "shots:card16": "node scripts/shots-card16.mjs",
+    "test:card16": "node scripts/test-card16.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0"
   },
   "devDependencies": {
-    "@fontsource/onest": "^5.3.1",
+    "@fontsource/geist-mono": "^5.3.0",
+    "@fontsource/inter-tight": "^5.3.0",
     "@phosphor-icons/core": "^2.1.1",
     "playwright": "^1.65.1",
     "typescript": "^5.9.3",

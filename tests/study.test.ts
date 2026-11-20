@@ -125,3 +125,43 @@ test('past tests and far off tests are ignored', () => {
   assert.equal(w.behind, null)
   assert.equal(w.subjects.find((s) => s.subject === 'Chemistry')!.test, null)
 })
+
+// ---- Card 16: today, streak and dots ----
+import { dotsFor, studyStreak, todayMinutes } from '../src/lib/study.ts'
+
+// Perth is UTC+8. "Now" is Sat 21 Nov 2026, 10 am Perth.
+const SAT = new Date('2026-11-21T10:00:00+08:00')
+const at = (iso: string, minutes: number | null = 30) => ({ subject: 'Methods', started_at: iso, minutes })
+
+test('todayMinutes counts only the Perth day, even near midnight UTC', () => {
+  const s = [at('2026-11-21T07:30:00+08:00', 25), at('2026-11-20T23:50:00+08:00', 40), at('2026-11-21T09:00:00+08:00', null)]
+  assert.equal(todayMinutes(s, SAT), 25)
+  // 7 am Perth is 11 pm the day before in UTC: still today in Perth.
+  assert.equal(todayMinutes([at('2026-11-20T23:30:00Z', 10)], SAT), 10)
+})
+
+test('studyStreak counts days in a row ending today', () => {
+  const s = [at('2026-11-21T08:00:00+08:00'), at('2026-11-20T20:00:00+08:00'), at('2026-11-19T07:00:00+08:00'), at('2026-11-17T07:00:00+08:00')]
+  const r = studyStreak(s, SAT)
+  assert.equal(r.days, 3)
+  // Week of Mon 16 Nov: Tue 17, Thu 19, Fri 20, Sat 21 studied.
+  assert.deepEqual(r.week, [false, true, false, true, true, true, false])
+})
+
+test('studyStreak is not broken until a whole day passes with no study', () => {
+  const s = [at('2026-11-20T20:00:00+08:00'), at('2026-11-19T07:00:00+08:00')]
+  assert.equal(studyStreak(s, SAT).days, 2) // nothing yet today, yesterday still counts
+  assert.equal(studyStreak([at('2026-11-18T07:00:00+08:00')], SAT).days, 0) // missed yesterday
+  assert.equal(studyStreak([], SAT).days, 0)
+})
+
+test('a session with no minutes does not count towards a streak', () => {
+  assert.equal(studyStreak([at('2026-11-21T08:00:00+08:00', 0), at('2026-11-20T08:00:00+08:00', null)], SAT).days, 0)
+})
+
+test('dotsFor is one dot per 15 minutes, up to ten', () => {
+  assert.equal(dotsFor(0), 0)
+  assert.equal(dotsFor(48), 3)
+  assert.equal(dotsFor(150), 10)
+  assert.equal(dotsFor(400), 10)
+})

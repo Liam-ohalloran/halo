@@ -250,6 +250,7 @@ Empty, loading (skeleton shimmer, not spinners), error (one plain sentence + ret
 - **30 minutes unpaid break on any shift over 5 hours.**
 - Tax estimate: 15 cents per dollar earned over $350 in the week.
 - Show: hours, gross, after-tax estimate, and each shift with its hours and pay.
+- Overtime: +$2 an hour on hours past 10 in a pay week (from the payslip). The Pay "+$N OT" chip shows only that extra (hours over 10 × $2), not the pay for those hours.
 - Liam should double-check rates against his payslip. Show a small "Rates from Settings" note with a link to edit.
 
 ## 5. Safety rules

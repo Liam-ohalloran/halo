@@ -10,7 +10,7 @@
 //   clipped    its text box sticks out of the nearest ancestor with overflow hidden, clip, auto or scroll
 //   overlap    its text box intersects another text box that is not its parent or child
 // Skipped: panels meant to sit on top while they are closed (player card, add sheet: anything hidden, inert or faded to 0),
-// and a title that scrolls on purpose (marked data-marquee, HALO.md 3.1c).
+// and a title that scrolls (data-marquee) or ends in an ellipsis (data-ellipsis) on purpose.
 import { createServer } from 'vite'
 import { chromium } from 'playwright'
 import { pathToFileURL } from 'node:url'
@@ -34,7 +34,8 @@ export function auditInPage() {
     }
     return true
   }
-  const marquee = (el) => !!el.closest('[data-marquee]')
+  // A title that ends in an ellipsis on purpose (a song title in a small widget) is skipped: data-ellipsis.
+  const marquee = (el) => !!el.closest('[data-marquee], [data-ellipsis]')
   const ownTextRect = (el) => {
     const r = document.createRange()
     let any = false

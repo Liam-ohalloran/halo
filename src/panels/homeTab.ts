@@ -195,25 +195,14 @@ export function HomeTab(o: HomeTabOptions): HomeTabHandle {
     const base = `<div class="dpArt" style="${art ? `background-image:url(&quot;${art}&quot;)` : ''}"></div>`
     if (media === undefined) return paint('music', 'load', `${base}<div class="dpMuT"><div class="dpL">Spotify</div>${skel('s')}</div>`)
     if (!media || !media.available || !media.title) {
-      return paint('music', `m:none:${media === null}`, `${base}<div class="dpMuT"><div class="dpL">Music</div><b class="dpTt fits"><span>Nothing playing</span></b><div class="dpS">${media === null ? 'Start Halo helper' : 'Open Spotify'}</div></div><div class="dpEq" aria-hidden="true"></div><button type="button" class="dpPl" disabled aria-label="Play">${PLAY}</button>`)
+      return paint('music', `m:none:${media === null}`, `${base}<div class="dpMuT"><div class="dpL">Music</div><b class="dpTt">Nothing playing</b><div class="dpS">${media === null ? 'Start Halo helper' : 'Open Spotify'}</div></div><div class="dpEq" aria-hidden="true"></div><button type="button" class="dpPl" disabled aria-label="Play">${PLAY}</button>`)
     }
     const m = media
     const key = `m:${m.title}:${m.artist}:${m.playing}:${art ? 1 : 0}`
-    paint('music', key, `${base}<div class="dpMuT"><div class="dpL" style="color:#1ED760">${esc(m.source || 'Music')}</div><b class="dpTt" data-marquee><span>${esc(m.title)}</span></b><div class="dpS" data-marquee>${esc(m.artist)}</div></div><div class="dpEq ${m.playing ? 'on' : ''}" aria-hidden="true">${[.5, .9, .6, 1, .4, .8, .55].map((h, i) => `<i style="--h:${h};animation-delay:${i * .11}s"></i>`).join('')}</div><button type="button" class="dpPl" aria-label="${m.playing ? 'Pause' : 'Play'}">${m.playing ? PAUSE : PLAY}</button>`, (el) => {
+    paint('music', key, `${base}<div class="dpMuT"><div class="dpL" style="color:#1ED760">${esc(m.source || 'Music')}</div><b class="dpTt" data-ellipsis title="${esc(m.title)}">${esc(m.title)}</b><div class="dpS dpAr" data-ellipsis>${esc(m.artist)}</div></div><div class="dpEq ${m.playing ? 'on' : ''}" aria-hidden="true">${[.5, .9, .6, 1, .4, .8, .55].map((h, i) => `<i style="--h:${h};animation-delay:${i * .11}s"></i>`).join('')}</div><button type="button" class="dpPl" aria-label="${m.playing ? 'Pause' : 'Play'}">${m.playing ? PAUSE : PLAY}</button>`, (el) => {
       el.querySelector('.dpPl')?.addEventListener('click', (e) => { e.stopPropagation(); void src.control('toggle').then(pollMedia) })
-      requestAnimationFrame(() => marquee(el.querySelector('.dpTt')))
     })
   }
-  /** Scroll a title that does not fit, slowly, with a pause at the start. A short one gets no mask and no motion. */
-  function marquee(box: HTMLElement | null) {
-    const span = box?.firstElementChild as HTMLElement | null
-    if (!box || !span) return
-    const over = span.scrollWidth - box.clientWidth
-    box.classList.toggle('fits', over <= 0)
-    box.classList.toggle('scroll', over > 0)
-    if (over > 0) { box.style.setProperty('--mqd', `${-over - 8}px`); box.style.setProperty('--mq', `${Math.max(6, over / 18 + 4)}s`) }
-  }
-
   function drawSixers() {
     if (game === undefined) return paint('sixers', 'load', `<div class="dpNbE">${skel()}${skel('s')}</div>`)
     const g = game?.game

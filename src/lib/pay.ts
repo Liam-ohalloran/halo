@@ -203,6 +203,11 @@ export function calcWeek(shifts: PayShift[], weekStart: Date, s: Settings): Week
 /** Hours at which the charging bar turns to overtime stripes, and the full width of the bar. */
 export const CHARGE_OT_HOURS = 10
 export const CHARGE_MAX_HOURS = 24
+/** Overtime pays this much extra an hour on hours past 10 in a pay week (from the payslip). */
+export const OT_EXTRA_RATE = 2
+
+/** The bar is 24 hours wide, or hours + 2 when the week is bigger, so the knob never runs off the end. */
+export const chargeScale = (hours: number): number => Math.max(CHARGE_MAX_HOURS, hours + 2)
 
 /** Gross pay banked by the end of each day of the week, Monday first. The last value is the week's gross. */
 export function cumulativeGross(week: WeekPay): number[] {
@@ -210,16 +215,16 @@ export function cumulativeGross(week: WeekPay): number[] {
   return week.days.map((d) => { run += d.gross; return round2(run) })
 }
 
-/** The charging bar as fractions of its full width: solid up to 10 hours, stripes past it. */
-export function chargeBar(hours: number): { base: number; over: number } {
-  const h = Math.max(0, Math.min(CHARGE_MAX_HOURS, hours))
-  return { base: Math.min(h, CHARGE_OT_HOURS) / CHARGE_MAX_HOURS, over: Math.max(0, h - CHARGE_OT_HOURS) / CHARGE_MAX_HOURS }
+/** The charging bar as fractions of its full width: solid up to 10 hours, stripes past it. `scale` is the bar's width in hours. */
+export function chargeBar(hours: number): { base: number; over: number; scale: number } {
+  const h = Math.max(0, hours)
+  const scale = chargeScale(h)
+  return { base: Math.min(h, CHARGE_OT_HOURS) / scale, over: Math.max(0, h - CHARGE_OT_HOURS) / scale, scale }
 }
 
-/** Pay earned on the hours past 10 in a week, at the week's average rate. Zero at 10 hours or under. */
+/** The extra overtime pays: $2 an hour on hours past 10 in the week. Not the pay for those hours. Zero at 10 hours or under. */
 export function overtimePay(week: WeekPay): number {
-  if (week.hours <= CHARGE_OT_HOURS) return 0
-  return round2(((week.hours - CHARGE_OT_HOURS) / week.hours) * week.gross)
+  return round2(Math.max(0, week.hours - CHARGE_OT_HOURS) * OT_EXTRA_RATE)
 }
 
 /** What an hour on a Sunday pays. */

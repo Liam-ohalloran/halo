@@ -34,13 +34,9 @@
 .home-pv .dpMu { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto auto; align-items: center; column-gap: 9px; }
 .home-pv .dpArt { width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,.08) center / cover; flex: none; box-shadow: 0 6px 14px -6px var(--c); }
 .home-pv .dpMuT { min-width: 0; }
-.home-pv .dpTt { display: block; font-size: 12px; font-weight: 800; margin-top: 2px; white-space: nowrap; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 10px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 10px), transparent); }
-.home-pv .dpTt.fits { -webkit-mask-image: none; mask-image: none; }
-.home-pv .dpTt > span { display: inline-block; }
-/* A long title scrolls slowly with a pause at the start (HALO.md 3.1c), a short one just sits. */
-.home-pv .dpTt.scroll > span { animation: dpMq var(--mq, 10s) linear infinite; }
-@keyframes dpMq { 0%, 20% { transform: translateX(0); } 80%, 100% { transform: translateX(var(--mqd, 0)); } }
-.home-pv .dpMuT .dpS { margin: 0; overflow: hidden; }
+/* One line. A title too long for the widget ends in an ellipsis, so the start is never cut. */
+.home-pv .dpTt { display: block; font-size: 12px; font-weight: 800; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-pv .dpMuT .dpS { margin: 0; overflow: hidden; text-overflow: ellipsis; }
 .home-pv .dpEq { display: flex; align-items: flex-end; gap: 2px; height: 22px; flex: none; }
 .home-pv .dpEq i { width: 3px; height: calc(var(--h) * 100%); border-radius: 2px; background: #1ED760; opacity: .85; transform-origin: bottom; }
 .home-pv .dpEq.on i { animation: dpEq .9s ease-in-out infinite alternate; }
@@ -89,5 +85,5 @@
 .home-pv .dp .skel.s { height: 9px; width: 45%; margin-top: 5px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .home-pv .dpEq.on i, .home-pv .lumMini .b, .home-pv .dpTt.scroll > span { animation: none; }
+  .home-pv .dpEq.on i, .home-pv .lumMini .b { animation: none; }
 }

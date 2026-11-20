@@ -11,7 +11,9 @@ for (const [name, w, h, extra, mobile] of [['iphone', 390, 844, '', true], ['emb
     const page = await ctx.newPage()
     page.on('pageerror', (e) => errs.push(`${name} ${tab}: ${e.message}`))
     await page.goto(`http://localhost:5255/halo/?demo=soon&open=1&tab=${tab === 'now' ? 'home' : tab}&home=full${extra}`)
-    await page.waitForTimeout(2200)
+    // Wait for the tab itself, not a fixed time: a cold dev server can take longer than 2 s and give a black frame.
+    await page.waitForSelector('.pv.on .pop', { state: 'visible', timeout: 30000 })
+    await page.waitForTimeout(2000)
     await page.screenshot({ path: `screenshots/card-16/${name}-${tab}.png`, clip: name === 'embed' ? { x: 0, y: 0, width: 680, height: 320 } : undefined })
   }
 }

@@ -2,7 +2,7 @@ import '../styles/tokens.css'
 import '../styles/proto.css'
 import './pay.css'
 import type { Backend, Settings } from '../types'
-import { CHARGE_MAX_HOURS, CHARGE_OT_HOURS, calcWeek, chargeBar, cumulativeGross, overtimePay, perthWeekStart, sundayRate, type WeekPay } from '../lib/pay'
+import { CHARGE_MAX_HOURS, CHARGE_OT_HOURS, OT_EXTRA_RATE, calcWeek, chargeBar, cumulativeGross, overtimePay, perthWeekStart, sundayRate, type WeekPay } from '../lib/pay'
 import { rangeLabel } from '../lib/shell-meta'
 import { animateIn, countUp, pvRoot, reducedMotion, tip, type PvRoot } from '../ui/charts'
 
@@ -24,13 +24,13 @@ const aud = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD',
 const whole = (n: number) => `$${Math.round(n)}`
 const hrs = (n: number) => String(Number(n.toFixed(1)))
 const amountHtml = (n: number) => { const [d, c] = n.toFixed(2).split('.'); return `$${Number(d).toLocaleString('en-AU')}<small>.${c}</small>` }
-const otX = (CHARGE_OT_HOURS / CHARGE_MAX_HOURS) * 100
+const otX = (CHARGE_OT_HOURS / CHARGE_MAX_HOURS) * 100 // the starting spot, moved by paint() when the scale grows
 
 const TEMPLATE = `<div class="payHero pop" style="--i:0">
     <div class="payTop"><span class="caps" data-k="cap">This week</span><div class="toggle" role="group" aria-label="Pay week"><button type="button" data-w="0" class="on" aria-pressed="true">THIS</button><button type="button" data-w="1" aria-pressed="false">NEXT</button></div></div>
     <div class="payAmt"><b class="num" data-k="amt" aria-live="polite">$0<small>.00</small></b><span class="chipb" data-k="ot" hidden></span></div>
-    <div class="charge" role="img" data-k="chargeA11y"><div class="trk"></div><div class="fl" data-k="fl"></div><div class="ot" data-k="otbar" style="left:${otX}%"></div><div class="mk" style="left:${otX}%"></div><div class="kn" data-k="kn" style="left:12%">${BOLT}<span data-k="knt">0h</span></div></div>
-    <div class="chargeL" aria-hidden="true"><span>0H</span><span>10H OVERTIME</span><span>24H</span></div>
+    <div class="charge" role="img" data-k="chargeA11y"><div class="trk"></div><div class="fl" data-k="fl"></div><div class="ot" data-k="otbar" style="left:${otX}%"></div><div class="mk" data-k="mk" style="left:${otX}%"></div><div class="kn" data-k="kn" style="left:12%">${BOLT}<span data-k="knt">0h</span></div></div>
+    <div class="chargeL" aria-hidden="true"><span>0H</span><span data-k="otL">10H OVERTIME</span><span data-k="maxL">24H</span></div>
     <button type="button" class="payRates" data-k="rates">Rates from Settings</button>
     <div class="area"><svg viewBox="0 0 290 84" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="payAf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5CFF7A" stop-opacity=".35"/><stop offset="1" stop-color="#5CFF7A" stop-opacity="0"/></linearGradient></defs>${[20, 40, 60].map((y) => `<line x1="0" x2="290" y1="${y}" y2="${y}" stroke="rgba(255,255,255,.06)" stroke-dasharray="3 4"/>`).join('')}<g data-k="curve"></g></svg><div class="dl" data-k="dl"></div></div>
     <div class="areaEmpty"><b>No shifts this week</b><span data-k="emptyNote"></span></div>
@@ -82,15 +82,21 @@ export function PayPanel(api: Backend, subscribe: (cb: () => void) => () => void
     const ot = overtimePay(w)
     const chip = $('ot')
     chip.hidden = ot <= 0
-    if (ot > 0) chip.textContent = `+${whole(ot)} OT`
+    if (ot > 0) chip.textContent = `+${aud.format(ot).replace('.00', '')} OT`
+    chip.title = `Overtime pays an extra ${whole(OT_EXTRA_RATE)} an hour past 10 hours`
 
     // charging bar: solid up to 10 h, stripes past it. The knob never leaves the bar's left edge.
     const bar = chargeBar(w.hours)
+    const mark = `${(CHARGE_OT_HOURS / bar.scale) * 100}%`
     $('fl').style.width = `${bar.base * 100}%`
     $('otbar').style.width = `${bar.over * 100}%`
-    $('kn').style.left = `${Math.min(92, Math.max(12, (bar.base + bar.over) * 100))}%`
+    $('otbar').style.left = mark
+    $('mk').style.left = mark
+    $('otL').style.visibility = bar.scale > 30 ? 'hidden' : ''
+    $('maxL').textContent = `${Number(bar.scale.toFixed(1))}H`
+    $('kn').style.left = `${Math.max(12, (bar.base + bar.over) * 100)}%`
     $('knt').textContent = `${hrs(w.hours)}h`
-    $('chargeA11y').setAttribute('aria-label', `${hrs(w.hours)} hours of ${CHARGE_MAX_HOURS}, overtime starts at ${CHARGE_OT_HOURS}`)
+    $('chargeA11y').setAttribute('aria-label', `${hrs(w.hours)} hours of ${Number(bar.scale.toFixed(1))}, overtime starts at ${CHARGE_OT_HOURS}`)
 
     // curve: cumulative pay by day
     const cum = cumulativeGross(w)

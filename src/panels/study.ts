@@ -43,8 +43,8 @@ const TEMPLATE = `<div class="grid">
         <button type="button" class="stStop" data-k="stop" aria-label="Stop and log" title="Stop and log" hidden>${STOP}</button>
         <div class="toggle" data-k="len" role="group" aria-label="Focus length">${LENGTHS.map((m) => `<button type="button" data-m="${m}" aria-pressed="false">${m} MIN</button>`).join('')}</div></div></div>
   </div>
-  ${tile('blue', 1, 'Today', 'today', `<div class="vis" data-k="todayRing">${ring('#3D9BFF', 0, 40, 5)}</div>`)}
-  ${tile('green', 2, 'Streak', 'streak')}
+  ${tile('blue', 1, 'Today', 'today', `<div class="vis" data-k="todayRing">${ring('#3D9BFF', 0, 28, 4)}</div>`)}
+  <div class="t green pop" style="--i:2"><span class="caps">Streak</span><div class="big num" data-k="streak">0 days</div><div class="stWk" data-k="streakWk" role="img" aria-label="Days studied this week">${['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d) => `<i>${d}</i>`).join('')}</div></div>
   ${tile('purple', 3, 'This week', 'week')}
   ${tile('dark', 4, 'Top subject', 'top')}
   <div class="t dark s4 pop stSubs" style="--i:5"><span class="caps">By subject · tap to focus</span><div class="subrows" data-k="subs" role="group" aria-label="Subject">${ORDER.map((n) => `<button type="button" class="sr" data-n="${n}" aria-pressed="false" style="--c:${SUBJ[n].c}"><span>${SUBJ[n].short}</span><div class="dts">${Array.from({ length: 10 }, () => '<i></i>').join('')}</div><i class="bh" hidden title="Behind for its next test"></i></button>`).join('')}</div>
@@ -122,8 +122,15 @@ export function StudyPanel(api: Backend, timer: StudyTimerHandle, onResize: () =
     const st = studyStreak(sessions, clock())
     const days = Math.max(st.days, live > 0 && st.days === 0 ? 1 : st.days)
     put('streak', `${days} ${days === 1 ? 'day' : 'days'}`)
-    const letters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'].filter((_, i) => st.week[i])
-    put('streakS', days ? letters.join(' ') || 'Today' : 'Start one today')
+    // M T W T F S S, studied days lit. Today lights as soon as a session is running.
+    const week = st.week.slice()
+    if (live > 0) week[(new Date(clock().getTime() + 8 * 36e5).getUTCDay() + 6) % 7] = true
+    const wk = week.map(Number).join('')
+    if (shown.streakWk !== wk) {
+      shown.streakWk = wk
+      $('streakWk').querySelectorAll('i').forEach((d, i) => d.classList.toggle('on', week[i]))
+      $('streakWk').setAttribute('aria-label', `Studied ${['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].filter((_, i) => week[i]).join(', ') || 'no days'} this week`)
+    }
     const subjects = summary?.subjects ?? []
     const mine = (name: string) => (subjects.find((x) => x.subject === name)?.minutes ?? 0) + (live && s.subject === name ? live : 0)
     const total = (summary?.totalMinutes ?? 0) + live

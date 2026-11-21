@@ -1,5 +1,9 @@
 import type { AlertRow, Backend, Settings, Shift, StudySession, Test } from './types'
 import { DEFAULT_SETTINGS } from './types'
+import { DEFAULT_COUNTDOWNS } from './lib/widgets'
+import { safeFileName } from './lib/shelf'
+import type { ShelfItem } from './lib/shelf'
+import type { TaskRun } from './lib/claude'
 import { supabase } from './lib/supabase'
 
 // The client lives in lib/supabase.ts. Re-exported for the older draft views.
@@ -129,6 +133,70 @@ export const supabaseBackend: Backend = {
   },
   async deleteMark(id) {
     const res = await supabase.from('marks').delete().eq('id', id)
+    if (res.error) throw new Error(res.error.message)
+  },
+
+  async taskRuns() {
+    return must(await supabase.from('task_runs').select('id,title,status,detail,created_at,finished_at').order('created_at', { ascending: false }).limit(20)) as TaskRun[]
+  },
+  onTaskRunsChange(cb) {
+    const ch = supabase.channel(`runs-${Math.random().toString(36).slice(2)}`).on('postgres_changes', { event: '*', schema: 'public', table: 'task_runs' }, () => cb()).subscribe()
+    return () => { void supabase.removeChannel(ch) }
+  },
+  async askClaude(prompt) {
+    const res = await supabase.functions.invoke('ask-claude', { body: { prompt } })
+    if (res.error) throw new Error(res.error.message)
+    const answer = (res.data as { answer?: unknown } | null)?.answer
+    if (typeof answer !== 'string' || !answer) throw new Error('empty answer')
+    return answer
+  },
+
+  async shelfItems() {
+    const rows = must(await supabase.from('shelf_items').select('id,kind,name,content,storage_path,size_bytes,mime,created_at').order('created_at', { ascending: false }).limit(50)) as Record<string, unknown>[]
+    return rows.map((r) => ({ id: String(r.id), kind: r.kind as ShelfItem['kind'], name: String(r.name), content: String(r.content ?? ''), storage_path: (r.storage_path as string | null) ?? null, size_bytes: r.size_bytes == null ? null : Number(r.size_bytes), mime: (r.mime as string | null) ?? null, created_at: String(r.created_at) }))
+  },
+  async addShelfFile(file) {
+    const { data: u } = await supabase.auth.getUser()
+    const uid = u.user?.id
+    if (!uid) throw new Error('Not signed in')
+    const id = crypto.randomUUID()
+    const name = safeFileName(file.name)
+    const path = `${uid}/${id}/${name}`
+    const up = await supabase.storage.from('shelf').upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: false })
+    if (up.error) throw new Error(up.error.message)
+    const ins = await supabase.from('shelf_items').insert({ id, kind: 'file', name, storage_path: path, size_bytes: file.size, mime: file.type || null })
+    if (ins.error) { await supabase.storage.from('shelf').remove([path]); throw new Error(ins.error.message) }
+  },
+  async addShelfText(it) {
+    const res = await supabase.from('shelf_items').insert({ kind: it.kind, name: it.name, content: it.content })
+    if (res.error) throw new Error(res.error.message)
+  },
+  async removeShelfItem(it) {
+    const res = await supabase.from('shelf_items').delete().eq('id', it.id)
+    if (res.error) throw new Error(res.error.message)
+    if (it.storage_path) await supabase.storage.from('shelf').remove([it.storage_path])
+  },
+  async shelfUrl(it, seconds) {
+    if (!it.storage_path) throw new Error('Not a file')
+    const res = await supabase.storage.from('shelf').createSignedUrl(it.storage_path, seconds)
+    if (res.error || !res.data) throw new Error(res.error?.message ?? 'No link')
+    return res.data.signedUrl
+  },
+  onShelfChange(cb) {
+    const ch = supabase.channel(`shelf-${Math.random().toString(36).slice(2)}`).on('postgres_changes', { event: '*', schema: 'public', table: 'shelf_items' }, () => cb()).subscribe()
+    return () => { void supabase.removeChannel(ch) }
+  },
+
+  async countdowns() {
+    const rows = must(await supabase.from('countdowns').select('id,name,target_date,yearly,colour,sort').order('sort').order('created_at')) as Record<string, unknown>[]
+    return rows.map((r) => ({ id: String(r.id), name: String(r.name), target_date: String(r.target_date), yearly: Boolean(r.yearly), colour: String(r.colour), sort: Number(r.sort) }))
+  },
+  async saveCountdown(c) {
+    const res = await supabase.from('countdowns').update({ name: c.name, target_date: c.target_date }).eq('id', c.id)
+    if (res.error) throw new Error(res.error.message)
+  },
+  async seedCountdowns() {
+    const res = await supabase.from('countdowns').insert(DEFAULT_COUNTDOWNS.map((d) => ({ name: d.name, target_date: d.target_date, yearly: d.yearly, colour: d.colour, sort: d.sort })))
     if (res.error) throw new Error(res.error.message)
   },
 

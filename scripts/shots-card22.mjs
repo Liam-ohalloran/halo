@@ -1,0 +1,158 @@
+// Card 22: Claude, Shelf and Widgets screenshots at 600 x 290: filled, many, empty, loading, error and the interactions
+// (quick pills, task list, ask box, add and remove on the Shelf, a row arriving from "the phone", a countdown edit, a game tick).
+// Saved to screenshots/card-22/. Usage: node scripts/shots-card22.mjs
+import { createServer } from 'vite'
+import { chromium } from 'playwright'
+import { mkdirSync } from 'node:fs'
+import assert from 'node:assert/strict'
+
+const dir = 'screenshots/card-22'
+mkdirSync(dir, { recursive: true })
+const server = await createServer({ server: { port: 5255, strictPort: true }, logLevel: 'error' })
+await server.listen()
+const browser = await chromium.launch()
+const errors = []
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+async function open(tab, api, { home = 'full' } = {}) {
+  const ctx = await browser.newContext({ viewport: { width: 760, height: 400 }, deviceScaleFactor: 2, colorScheme: 'dark', permissions: ['clipboard-read', 'clipboard-write'] })
+  const page = await ctx.newPage()
+  page.on('pageerror', (e) => errors.push(`${api}: ${e.message}`))
+  page.on('console', (m) => m.type() === 'error' && !/Failed to load resource/.test(m.text()) && errors.push(`${api}: ${m.text()}`))
+  await page.goto(`http://localhost:5255/halo/?demo=soon&tab=${tab}&open=1&api=${api}&home=${home}`)
+  await page.waitForSelector(`.sh[data-open="true"] .${tab}-pv`)
+  return page
+}
+const win = (page, name) => page.locator('.sh-clip').screenshot({ path: `${dir}/${name}.png` })
+
+// ---------- Claude
+let page = await open('claude', 'claude')
+await sleep(1500)
+await win(page, '1-claude-ready')
+await page.locator('.claude-pv [data-q="pay"]').click()
+await page.waitForFunction(() => /after tax/.test(document.querySelector('.claude-pv [data-k="ans"]').textContent), null, { timeout: 4000 })
+await win(page, '2-claude-pay-answer')
+await page.locator('.claude-pv [data-v="tasks"]').click()
+await page.waitForSelector('.claude-pv .run')
+await sleep(300)
+assert.equal(await page.locator('.claude-pv .run').count(), 4)
+await win(page, '3-claude-tasks')
+// A task run inserted while the tab is open shows within 2 seconds, and only the list is touched.
+await page.evaluate(() => { document.querySelector('.claude-pv .glassAns').dataset.marker = 'same' })
+const t0 = Date.now()
+await page.evaluate(() => globalThis.__mockClaude.insertRun({ id: 'live', title: 'Sunday recap', status: 'running' }))
+await page.waitForSelector('.claude-pv .run:has-text("Sunday recap")', { timeout: 2000 })
+assert.ok(Date.now() - t0 < 2000)
+assert.equal(await page.evaluate(() => document.querySelector('.claude-pv .glassAns').dataset.marker), 'same')
+await sleep(300)
+await win(page, '4-claude-new-run')
+await page.locator('.claude-pv [data-v="ask"]').click()
+await page.fill('.claude-pv [data-k="in"]', 'What should I study tonight?')
+await page.keyboard.press('Enter')
+await page.waitForFunction(() => /sample answer/.test(document.querySelector('.claude-pv [data-k="ans"]').textContent), null, { timeout: 5000 })
+await sleep(300)
+await win(page, '5-claude-ask')
+await page.context().close()
+
+page = await open('claude', 'claudeoffline')
+await page.fill('.claude-pv [data-k="in"]', 'Hello')
+await page.keyboard.press('Enter')
+await page.waitForFunction(() => /isn't connected/.test(document.querySelector('.claude-pv [data-k="ans"]').textContent), null, { timeout: 5000 })
+await sleep(300)
+await win(page, '6-claude-not-connected')
+await page.context().close()
+page = await open('claude', 'claudemany'); await page.locator('.claude-pv [data-v="tasks"]').click(); await sleep(900); await win(page, '7-claude-tasks-long'); await page.context().close()
+page = await open('claude', 'claudeempty'); await page.locator('.claude-pv [data-v="tasks"]').click(); await sleep(900); await win(page, '8-claude-no-tasks'); await page.context().close()
+page = await open('claude', 'loading'); await page.locator('.claude-pv [data-v="tasks"]').click(); await sleep(500); await win(page, '9-claude-loading'); await page.context().close()
+page = await open('claude', 'error'); await page.locator('.claude-pv [data-v="tasks"]').click(); await sleep(900); await win(page, '10-claude-error'); await page.context().close()
+
+// ---------- Shelf
+page = await open('shelf', 'shelf')
+await page.waitForSelector('.shelf-pv:not(.is-loading) .lg[data-id]')
+await sleep(1500)
+await win(page, '11-shelf-filled')
+assert.equal(await page.locator('.shelf-pv .lg[data-id]').count(), 3)
+// Copy puts the file name on the clipboard. Phone puts a link there.
+await page.locator('.shelf-pv [data-a="copy"]').click()
+await sleep(200)
+assert.equal(await page.evaluate(() => navigator.clipboard.readText()), 'Chem summer work.pdf')
+await page.locator('.shelf-pv [data-a="phone"]').click()
+await sleep(300)
+assert.match(await page.evaluate(() => navigator.clipboard.readText()), /^https:\/\/example\.test\/signed\//)
+await win(page, '12-shelf-phone-link')
+// Pick a file: it lands first and is selected. Tiles that did not change are the same elements.
+await page.evaluate(() => { document.querySelector('.shelf-pv .glassBg').dataset.marker = 'same' })
+await page.setInputFiles('.shelf-pv [data-k="file"]', { name: 'Methods notes.pdf', mimeType: 'application/pdf', buffer: Buffer.from('hello world') })
+await page.waitForSelector('.shelf-pv .lg[data-id] .nm:has-text("Methods notes")', { timeout: 3000 })
+assert.equal(await page.locator('.shelf-pv .selBox [data-k="selName"]').innerText(), 'Methods notes.pdf')
+assert.equal(await page.evaluate(() => document.querySelector('.shelf-pv .glassBg').dataset.marker), 'same')
+await sleep(300)
+await win(page, '13-shelf-after-upload')
+// A link or note from the sheet.
+await page.locator('.shelf-pv [data-act="note"]').click()
+await page.waitForSelector('.shelf-pv .sheet.open')
+await sleep(500)
+await win(page, '14-shelf-add-sheet')
+await page.fill('.shelf-pv [name="text"]', 'https://www.curtin.edu.au/apply')
+await page.locator('.shelf-pv .sBtn.go').click()
+await page.waitForSelector('.shelf-pv .sheet', { state: 'detached' })
+await page.waitForSelector('.shelf-pv .lg[data-id] .fx:has-text("LINK")')
+// Something arrives from the phone: it shows within 2 seconds.
+const t1 = Date.now()
+await page.evaluate(() => globalThis.__mockClaude.insertShelf({ id: 'ph1', kind: 'text', name: 'From my phone', content: 'Pick up milk', storage_path: null, size_bytes: null, mime: null, created_at: new Date().toISOString() }))
+await page.waitForFunction(() => document.querySelector('.shelf-pv .selBox [data-k="count"]').textContent.startsWith('8/8') === false, null, { timeout: 2000 })
+assert.ok(Date.now() - t1 < 2000)
+// Remove needs two taps.
+const before = await page.locator('.shelf-pv .selBox [data-k="selName"]').innerText()
+await page.locator('.shelf-pv [data-a="rm"]').click()
+assert.equal(await page.locator('.shelf-pv [data-a="rm"] span').innerText(), 'Sure?')
+assert.equal(await page.locator('.shelf-pv .selBox [data-k="selName"]').innerText(), before, 'one tap removes nothing')
+await win(page, '15-shelf-remove-sure')
+await page.locator('.shelf-pv [data-a="rm"]').click()
+await sleep(500)
+assert.notEqual(await page.locator('.shelf-pv .selBox [data-k="selName"]').innerText(), before)
+await page.context().close()
+
+page = await open('shelf', 'shelfmany'); await page.waitForSelector('.shelf-pv .lg[data-id]'); await sleep(1500); await win(page, '16-shelf-full-long')
+await page.locator('.shelf-pv [data-k="drop"]').click({ force: true })
+await sleep(300)
+assert.match(await page.locator('.shelf-pv .pv-tip').innerText(), /full/)
+await win(page, '17-shelf-full-tip')
+await page.context().close()
+page = await open('shelf', 'shelfempty'); await page.waitForSelector('.shelf-pv:not(.is-loading)'); await sleep(1500); await win(page, '18-shelf-empty'); await page.context().close()
+page = await open('shelf', 'loading'); await sleep(600); await win(page, '19-shelf-loading'); await page.context().close()
+page = await open('shelf', 'error'); await page.waitForSelector('.shelf-pv.is-err'); await sleep(400); await win(page, '20-shelf-error'); await page.context().close()
+
+// ---------- Widgets
+page = await open('widgets', 'widgets')
+await sleep(1800)
+await win(page, '21-widgets-filled')
+assert.match(await page.locator('.widgets-pv [data-k="cd0"]').innerText(), /Doomsday\s*27/)
+await page.evaluate(() => { document.querySelector('.widgets-pv [data-k="cd2"]').dataset.marker = 'same' })
+await page.locator('.widgets-pv [data-game="1"]').click()
+await sleep(300)
+assert.match(await page.locator('.widgets-pv .gn').innerText(), /1\/4/)
+assert.equal(await page.evaluate(() => document.querySelector('.widgets-pv [data-k="cd2"]').dataset.marker), 'same', 'a tick must not rebuild other tiles')
+await win(page, '22-widgets-game-tick')
+await page.locator('.widgets-pv [data-cd]').first().click()
+await page.waitForSelector('.widgets-pv .sheet.open')
+await sleep(500)
+await win(page, '23-widgets-countdown-sheet')
+await page.fill('.widgets-pv [name="date"]', '2026-12-31')
+await page.locator('.widgets-pv .sBtn.go').click()
+await page.waitForSelector('.widgets-pv .sheet', { state: 'detached' })
+await sleep(500)
+assert.match(await page.locator('.widgets-pv [data-k="cd0"]').innerText(), /40/)
+await page.context().close()
+page = await open('widgets', 'widgetsmany'); await sleep(1800); await win(page, '24-widgets-long-names'); await page.context().close()
+page = await open('widgets', 'widgetsempty', { home: 'empty' })
+await sleep(1800)
+assert.match(await page.locator('.widgets-pv [data-k="cd2"]').innerText(), /Christmas/, 'the empty table is filled with the defaults')
+await win(page, '25-widgets-empty-sources'); await page.context().close()
+page = await open('widgets', 'loading', { home: 'empty' }); await sleep(700); await win(page, '26-widgets-loading'); await page.context().close()
+page = await open('widgets', 'error', { home: 'empty' }); await page.waitForSelector('.widgets-pv.is-err'); await sleep(400); await win(page, '27-widgets-error'); await page.context().close()
+
+await browser.close()
+await server.close()
+if (errors.length) { console.log(errors.join('\n')); process.exit(1) }
+console.log('Saved to', dir)

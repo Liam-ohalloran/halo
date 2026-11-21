@@ -4,7 +4,7 @@
 // colour = the tab colour (active rail icon, accents). rail = the icon colour while the tab is not open.
 // bg, border and glow are the frame: a tinted gradient, a 1 px tinted border and a soft corner glow. Never remove the glow.
 
-export type TabId = 'home' | 'music' | 'study' | 'pay' | 'sixers' | 'week' | 'alerts' | 'money' | 'marks' | 'more' | 'controls'
+export type TabId = 'home' | 'music' | 'study' | 'pay' | 'sixers' | 'week' | 'alerts' | 'money' | 'marks' | 'claude' | 'shelf' | 'widgets' | 'more' | 'controls'
 
 export interface TabTheme {
   id: TabId
@@ -82,6 +82,21 @@ export const TAB_THEMES: Record<TabId, TabTheme> = {
     bg: '#000', border: 'rgba(255,255,255,0.08)', pad: [10, 16, 12, 16], text: '#F5F7FF',
     glow: 'display:none', layers: [],
   },
+  claude: {
+    id: 'claude', label: 'Claude', aria: 'Claude', colour: '#FF9FD8', shadow: '#B04CFF', rail: '#FF9FD8',
+    bg: '#000', border: 'rgba(255,255,255,0.08)', pad: [10, 16, 12, 16], text: '#F5F7FF',
+    glow: 'display:none', layers: [],
+  },
+  shelf: {
+    id: 'shelf', label: 'Shelf', aria: 'Shelf', colour: '#3D9BFF', shadow: '#3D9BFF', rail: '#3D9BFF',
+    bg: '#000', border: 'rgba(255,255,255,0.08)', pad: [10, 16, 12, 16], text: '#F5F7FF',
+    glow: 'display:none', layers: [],
+  },
+  widgets: {
+    id: 'widgets', label: 'Widgets', aria: 'Widgets', colour: '#F5F7FF', shadow: '#ED174C', rail: '#F5F7FF',
+    bg: '#000', border: 'rgba(255,255,255,0.08)', pad: [10, 16, 12, 16], text: '#F5F7FF',
+    glow: 'display:none', layers: [],
+  },
   more: {
     id: 'more', label: 'More', aria: 'More tabs', colour: '#D8C28C', rail: '#B9B9C2',
     bg: neutral('#1C1B21', '#141418', '#0F0F12'), border: NEUTRAL_BORDER, pad: [10, 16, 12, 16], text: '#F5F5F7',
@@ -95,7 +110,7 @@ export const TAB_THEMES: Record<TabId, TabTheme> = {
 }
 
 /** Rail order. `null` is the divider (More and Controls sit after it). */
-export const RAIL: (TabId | null)[] = ['home', 'music', 'study', 'pay', 'sixers', 'week', 'money', 'alerts', 'marks', null, 'more', 'controls']
+export const RAIL: (TabId | null)[] = ['home', 'music', 'study', 'pay', 'sixers', 'week', 'money', 'alerts', 'marks', 'claude', 'shelf', 'widgets', null, 'more', 'controls']
 export const TAB_IDS: TabId[] = RAIL.filter((t): t is TabId => t !== null)
 
 /** Tabs with a real panel today. Everything else shows "Coming soon" in its own colour. */
@@ -116,6 +131,9 @@ export const RAIL_ICONS: Record<TabId, string> = {
   alerts: '<path d="M18 16V11a6 6 0 1 0-12 0v5l-2 2h16zM10 21h4"></path>',
   money: '<path d="M3 7a3 3 0 0 1 3-3h12a2 2 0 0 1 2 2v1H6a1 1 0 0 0 0 2h14a1 1 0 0 1 1 1v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"></path>',
   marks: '<path d="M12 4l9 5-9 5-9-5z"></path><path d="M7 11.5V16c0 1 2.2 3 5 3s5-2 5-3v-4.5"></path>',
+  claude: '<path d="M12 3c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z"></path><path d="M19 15v4M17 17h4"></path>',
+  shelf: '<path d="M3 13l3-8h12l3 8v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"></path><path d="M3 13h5l1 3h6l1-3h5"></path>',
+  widgets: '<rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><circle cx="7" cy="17" r="3.5"></circle><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect>',
   more: '<circle cx="5" cy="12" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="19" cy="12" r="1.6"></circle>',
   controls: '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle>',
 }

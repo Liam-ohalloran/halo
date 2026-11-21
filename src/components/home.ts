@@ -19,6 +19,9 @@ import { WeekPanel } from '../panels/week'
 import { AlertsPanel } from '../panels/alerts'
 import { MoneyPanel } from '../panels/money'
 import { MarksPanel } from '../panels/marks'
+import { ClaudePanel } from '../panels/claude'
+import { ShelfPanel } from '../panels/shelf'
+import { WidgetsPanel } from '../panels/widgets'
 import { buildAlertsView, createAlertsStore } from '../lib/alerts'
 import type { PvRoot } from '../ui/charts'
 import { supabase, supabaseBackend } from '../supabase'
@@ -305,9 +308,15 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   let alertsPanel: ReturnType<typeof AlertsPanel> | null = null
   let moneyPanel: ReturnType<typeof MoneyPanel> | null = null
   let marksPanel: ReturnType<typeof MarksPanel> | null = null
+  let claudePanel: ReturnType<typeof ClaudePanel> | null = null
+  let shelfPanel: ReturnType<typeof ShelfPanel> | null = null
+  let widgetsPanel: ReturnType<typeof WidgetsPanel> | null = null
   panelFor = (id) => {
     if (id === 'money') return (moneyPanel ??= MoneyPanel(api, clock))
     if (id === 'marks') return (marksPanel ??= MarksPanel(api, clock))
+    if (id === 'claude') return (claudePanel ??= ClaudePanel(api, clock))
+    if (id === 'shelf') return (shelfPanel ??= ShelfPanel(api))
+    if (id === 'widgets') return (widgetsPanel ??= WidgetsPanel(api, o.home ?? liveSources, clock))
     if (id === 'alerts' && alertsStore) return (alertsPanel ??= AlertsPanel(alertsStore, clock))
     if (id === 'week') return (weekPanel ??= WeekPanel(api, (cb) => { weekListeners.add(cb); return () => weekListeners.delete(cb) }, clock))
     const p = toPanel(id)
@@ -541,7 +550,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   if (o.open && !phone && !sh) requestAnimationFrame(() => requestAnimationFrame(() => isl.open()))
 
   return () => {
-    stop(); ro.disconnect(); unsub(); unsubTimer(); stopEvents?.(); live?.destroy(); if (artUrl) URL.revokeObjectURL(artUrl); payPanel?.destroy(); alertsPanel?.destroy(); moneyPanel?.destroy(); marksPanel?.destroy(); unsubAlerts?.(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
+    stop(); ro.disconnect(); unsub(); unsubTimer(); stopEvents?.(); live?.destroy(); if (artUrl) URL.revokeObjectURL(artUrl); payPanel?.destroy(); alertsPanel?.destroy(); moneyPanel?.destroy(); marksPanel?.destroy(); claudePanel?.destroy(); shelfPanel?.destroy(); widgetsPanel?.destroy(); unsubAlerts?.(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
     document.removeEventListener('pointerdown', onOutside)
     document.removeEventListener('visibilitychange', onVisible)
     removeEventListener('online', onOnline)

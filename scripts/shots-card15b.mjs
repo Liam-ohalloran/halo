@@ -39,7 +39,7 @@ for (const tab of ALL) {
   const { ctx, page } = await open(`?demo=soon&tab=${tab}`, VIEW)
   const c = await box(page)
   await page.screenshot({ path: `${dir}/${tab}-1-collapsed.png`, clip: CLIP_SMALL })
-  if (c.w !== 300 || c.h !== 40 || c.top !== 0) note(`${tab}: collapsed is ${c.w} x ${c.h} at top ${c.top}, want the 300 x 40 shift pill at 0`)
+  if (c.w !== 380 || c.h !== 64 || c.top !== 0) note(`${tab}: collapsed is ${c.w} x ${c.h} at top ${c.top}, want the 380 x 64 shift island at 0 (card 17)`)
   await page.click('.sh-pill')
   await page.waitForTimeout(40)
   await freezeAt(page, 70)

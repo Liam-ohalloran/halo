@@ -136,3 +136,38 @@ def test_friendly_source():
     assert h.friendly_source("Spotify.exe") == "Spotify"
     assert h.friendly_source("SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify") == "Spotify"
     assert h.friendly_source("Chrome") == "Chrome"
+
+
+# --- change probes for /events (card 17) -----------------------------------
+
+import asyncio  # noqa: E402
+
+
+def test_collect_extra_reports_only_changes():
+    state = {"v": {"level": 40}}
+    probes = [("brightness", 1, lambda: state["v"], False)]
+    last: dict = {}
+    assert asyncio.run(h.collect_extra(last, 0, probes)) == {"brightness": {"level": 40}}
+    assert asyncio.run(h.collect_extra(last, 1, probes)) == {}
+    state["v"] = {"level": 50}
+    assert asyncio.run(h.collect_extra(last, 2, probes)) == {"brightness": {"level": 50}}
+
+
+def test_collect_extra_respects_schedule_and_async_and_failures():
+    async def wifi():
+        return {"enabled": True, "connected": True, "ssid": "Home"}
+
+    def broken():
+        raise h.Unavailable("nope")
+
+    probes = [("wifi", 5, wifi, True), ("mic", 1, broken, False)]
+    last: dict = {}
+    assert asyncio.run(h.collect_extra(last, 1, probes)) == {}  # wifi not due, mic unavailable
+    assert asyncio.run(h.collect_extra(last, 5, probes)) == {"wifi": {"enabled": True, "connected": True, "ssid": "Home"}}
+
+
+def test_every_island_event_has_a_probe_and_output_kinds():
+    assert {n for n, *_ in h.EXTRA_PROBES} == {"brightness", "mic", "caps", "output", "wifi", "bluetooth", "power"}
+    assert h.output_kind("WH-CH720N") == "headphones"
+    assert h.output_kind("LG HDR monitor") == "monitor"
+    assert h.output_kind("Speakers (Realtek)") == "speakers"

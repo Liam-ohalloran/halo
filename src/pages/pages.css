@@ -78,3 +78,16 @@ button, input { font: inherit; color: inherit; }
   .p-page { padding-top: var(--s6); }
   .p-title { font-size: var(--fs-17); }
 }
+
+/* /island: card 17 dev page */
+.il-page { max-width: 880px; margin: 0 auto; padding: 84px var(--s4) 96px; }
+.il-page h1 { margin: 0; font-size: var(--fs-28); font-weight: 700; }
+.il-page header p { margin: var(--s2) 0 var(--s6); color: var(--text-2); font-weight: 500; }
+.il-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: var(--s4); }
+.il-lab { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-2); width: 56px; }
+.il-dev { font: inherit; font-size: 13px; font-weight: 600; color: #F5F7FF; background: rgba(255, 255, 255, 0.07); border: 0; border-radius: 999px; padding: 8px 14px; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12); transition: background 0.2s, transform 0.2s; }
+.il-dev:hover { background: rgba(255, 255, 255, 0.16); }
+.il-dev:active { transform: scale(0.94); }
+.il-dev:focus-visible { outline: 2px solid #FFC23D; outline-offset: 2px; }
+.il-dev.on { background: #F5F7FF; color: #000; }
+.il-read { margin-top: var(--s6); color: var(--text-2); font-size: var(--fs-13); font-weight: 500; }

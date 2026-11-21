@@ -30,6 +30,7 @@ import { parseTab, type TabId as ShellTabId } from '../styles/tabs'
 import type { Backend } from '../types'
 import { supabaseNowSource, getTravelMinutes, type NowData, type NowSource } from '../lib/now'
 import { fmtClockPm, perthDayBounds, shiftView, type ShiftView } from '../lib/now-model'
+import { Banners, type BannersHandle } from './Banners'
 import { IslandLive, type IslandLiveHandle, type LiveData } from './IslandLive'
 import { fmtToFull, gameStatus, leaveChip, pillTime } from '../lib/island-live'
 import { hudFromEvent, newHudMemory } from '../lib/hud'
@@ -302,6 +303,8 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   // Alerts (card 20). One shared list feeds the tab and the island's gold dot. Desktop and embed only.
   const alertsStore = sh ? createAlertsStore(api) : null
   const unsubAlerts = alertsStore?.subscribe(() => live!.setUnread(buildAlertsView(alertsStore.rows()).unread))
+  // Card 18: new alerts pop out of the island as banners, then settle into a stack under it.
+  const banners: BannersHandle | null = sh && alertsStore && live ? Banners(sh, live, { source: alertsStore, clock, go: () => showShellTab('alerts') }) : null
   let alertsPanel: ReturnType<typeof AlertsPanel> | null = null
   let moneyPanel: ReturnType<typeof MoneyPanel> | null = null
   let marksPanel: ReturnType<typeof MarksPanel> | null = null
@@ -541,7 +544,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   if (o.open && !phone && !sh) requestAnimationFrame(() => requestAnimationFrame(() => isl.open()))
 
   return () => {
-    stop(); ro.disconnect(); unsub(); unsubTimer(); stopEvents?.(); live?.destroy(); if (artUrl) URL.revokeObjectURL(artUrl); payPanel?.destroy(); alertsPanel?.destroy(); moneyPanel?.destroy(); marksPanel?.destroy(); unsubAlerts?.(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
+    stop(); ro.disconnect(); unsub(); unsubTimer(); stopEvents?.(); live?.destroy(); if (artUrl) URL.revokeObjectURL(artUrl); payPanel?.destroy(); alertsPanel?.destroy(); moneyPanel?.destroy(); marksPanel?.destroy(); unsubAlerts?.(); banners?.destroy(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
     document.removeEventListener('pointerdown', onOutside)
     document.removeEventListener('visibilitychange', onVisible)
     removeEventListener('online', onOnline)

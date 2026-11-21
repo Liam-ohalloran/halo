@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { EAR, MOVE_MARGIN, STACK_GAP, growOnly, layoutFor, px, shellTarget, stackBox } from '../src/lib/desktop-size.ts'
+import { EAR, ISLAND_GAP, MOVE_MARGIN, STACK_GAP, growOnly, layoutFor, px, shellTarget, stackBox } from '../src/lib/desktop-size.ts'
 
 const closed = { w: 200, h: 34, r: 17 }
 
@@ -11,10 +11,11 @@ test('closed island: the window is the island plus the ears, and only the island
   assert.deepEqual(regions[0], { x: EAR, y: 0, w: 200, h: 34, rt: 0, rb: 17 })
 })
 
-test('island style has no ears and rounds the top too', () => {
+test('island style floats 8 px down, has no ears and rounds the top too', () => {
   const { win, regions } = layoutFor({ island: closed, stack: null }, 'island')
-  assert.deepEqual(win, { w: 200, h: 34 })
-  assert.equal(regions[0].rt, 17)
+  assert.deepEqual(win, { w: 200, h: 34 + ISLAND_GAP })
+  assert.equal(ISLAND_GAP, 8)
+  assert.deepEqual(regions[0], { x: 0, y: 8, w: 200, h: 34, rt: 17, rb: 17 })
 })
 
 test('open: 600 x 290 from the CSS state, bigger only by the ears', () => {

@@ -8,6 +8,7 @@ import { mountStudy } from './views/study'
 import { mountAuth } from './views/auth'
 import { isEmbed } from './lib/embed'
 import { isDesktop, sizeForScreen } from './lib/desktop'
+import { watchAuthLinks } from './lib/desktop-auth'
 
 type Tab = 'now' | 'pay' | 'study'
 const TABS: { id: Tab; label: string }[] = [
@@ -161,6 +162,8 @@ async function start() {
     const linkError = new URLSearchParams(location.hash.slice(1)).get('error_description')
     const { mountHome } = await import('./components/home')
     const { mountSignIn, mountSignedInNote } = await import('./components/signin')
+    // Card 25: a halo:// link from the magic link email signs the app in. A problem with it shows on the sign-in screen.
+    if (isDesktop()) watchAuthLinks(supabase, (m) => { const n = document.querySelector('.signin-msg'); if (n) { n.className = 'signin-msg err'; n.textContent = m } })
     const render = (signedIn: boolean, email = '') => {
       if (signedIn) {
         document.documentElement.classList.remove('signin')

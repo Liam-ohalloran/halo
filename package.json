@@ -26,7 +26,7 @@
     "test:card16": "node scripts/test-card16.mjs",
     "shots:card18": "node scripts/shots-card18.mjs",
     "build:desktop": "tsc --noEmit && vite build --mode desktop",
-    "desktop:dev": "tauri dev",
+    "desktop:dev": "tauri dev --config desktop/src-tauri/tauri.dev.conf.json",
     "desktop:build": "tauri build",
     "tauri": "tauri",
     "test:desktop": "cargo test --manifest-path desktop/src-tauri/Cargo.toml",

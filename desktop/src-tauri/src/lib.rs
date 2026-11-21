@@ -17,6 +17,7 @@ use tauri::menu::{CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder, SubmenuBui
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewWindow};
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt as _};
+use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut, ShortcutState};
 
 const POLL: Duration = Duration::from_millis(30);
@@ -56,6 +57,8 @@ struct Runtime {
 struct AppState {
     cfg: Mutex<Config>,
     rt: Mutex<Runtime>,
+    /// A halo:// sign-in link that arrived before the page was ready to listen (Halo was started by the link).
+    auth_url: Mutex<Option<String>>,
 }
 
 fn config_path(app: &AppHandle) -> Option<std::path::PathBuf> {
@@ -100,7 +103,7 @@ fn apply_placement(app: &AppHandle, force: bool) {
         let rt = state.rt.lock().unwrap();
         (rt.win_w, rt.win_h)
     };
-    let (x, y, pw, ph) = place(mon.position().x, mon.position().y, mon.size().width, mon.scale_factor(), w, h, cfg.style == "island");
+    let (x, y, pw, ph) = place(mon.position().x, mon.position().y, mon.size().width, mon.scale_factor(), w, h);
     let mut rt = state.rt.lock().unwrap();
     if !force && rt.placed == Some((x, y, pw, ph)) {
         return;
@@ -227,6 +230,24 @@ fn set_autostart(app: AppHandle, on: bool) {
 #[tauri::command]
 fn pause_for_hour(app: AppHandle) {
     toggle_pause(&app);
+}
+
+/// The page asks for a halo:// link that arrived while it was loading. Returns it once.
+#[tauri::command]
+fn take_auth_url(app: AppHandle) -> Option<String> {
+    app.try_state::<AppState>().and_then(|s| s.auth_url.lock().unwrap().take())
+}
+
+/// A halo:// link opened Halo (the magic link email, through the browser). Keep it for a page that is not ready
+/// yet, tell a page that is, and bring the island up so Liam sees it sign in.
+fn on_deep_link(app: &AppHandle, url: String) {
+    if !url.starts_with("halo://") {
+        return;
+    }
+    if let Some(state) = app.try_state::<AppState>() {
+        *state.auth_url.lock().unwrap() = Some(url.clone());
+    }
+    let _ = app.emit("halo-auth", url);
 }
 
 #[tauri::command]
@@ -390,6 +411,7 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             let _ = app.emit("halo-open", ());
         }))
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec![])))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
@@ -402,7 +424,7 @@ pub fn run() {
                 .build(),
         )
         .invoke_handler(tauri::generate_handler![
-            set_island, set_regions, set_focusable, get_state, set_style, set_monitor, set_autostart, pause_for_hour, quit
+            set_island, set_regions, set_focusable, get_state, set_style, set_monitor, set_autostart, pause_for_hour, take_auth_url, quit
         ])
         .setup(move |app| {
             let handle = app.handle().clone();
@@ -421,7 +443,23 @@ pub fn run() {
                     hidden: true,
                     placed: None,
                 }),
+                auth_url: Mutex::new(None),
             });
+
+            // halo:// links (the magic link email). The installer registers the scheme. A dev run registers it here.
+            #[cfg(debug_assertions)]
+            let _ = app.deep_link().register_all();
+            let link_app = handle.clone();
+            app.deep_link().on_open_url(move |event| {
+                for u in event.urls() {
+                    on_deep_link(&link_app, u.to_string());
+                }
+            });
+            if let Ok(Some(urls)) = app.deep_link().get_current() {
+                for u in urls {
+                    on_deep_link(&handle, u.to_string());
+                }
+            }
 
             // Launch at startup is on by default. Only the first run turns it on, so Liam's switch sticks.
             if !cfg.autostart_set {

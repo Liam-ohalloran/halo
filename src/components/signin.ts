@@ -2,6 +2,8 @@ import '../styles/tokens.css'
 import '../styles/signin.css'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { isDesktop } from '../lib/desktop'
+import { parseAuthLink } from '../lib/auth-link'
+import { signInWithLink } from '../lib/desktop-auth'
 
 const EMAIL_KEY = 'halo.email'
 
@@ -57,6 +59,12 @@ export function mountSignIn(app: HTMLElement, client: SupabaseClient, notice?: s
     msg.setAttribute('role', 'status')
     const form = el('form', 'signin-form')
     form.append(input, btn, msg)
+    if (isDesktop()) {
+      const have = el('button', 'signin-link', 'Paste the link instead')
+      have.type = 'button'
+      have.addEventListener('click', () => { email = input.value.trim() || email; showSent() })
+      form.append(have)
+    }
     form.addEventListener('submit', async (e) => {
       e.preventDefault()
       email = input.value.trim()
@@ -64,7 +72,8 @@ export function mountSignIn(app: HTMLElement, client: SupabaseClient, notice?: s
       btn.disabled = true
       const { error } = await client.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: location.origin + import.meta.env.BASE_URL },
+        // In the app the email link opens Halo itself (halo:// is registered by the app). Elsewhere it opens the site.
+        options: { emailRedirectTo: isDesktop() ? 'halo://auth' : location.origin + import.meta.env.BASE_URL },
       })
       btn.disabled = false
       if (error) {
@@ -81,7 +90,7 @@ export function mountSignIn(app: HTMLElement, client: SupabaseClient, notice?: s
 
   function showSent() {
     const input = el('input', 'signin-field')
-    input.placeholder = 'Paste the link from the email'
+    input.placeholder = isDesktop() ? 'Paste the link instead' : 'Paste the link from the email'
     input.setAttribute('aria-label', 'Magic link')
     const go = el('button', 'signin-btn secondary', 'Continue')
     go.type = 'submit'
@@ -95,16 +104,15 @@ export function mountSignIn(app: HTMLElement, client: SupabaseClient, notice?: s
     form.addEventListener('submit', async (e) => {
       e.preventDefault()
       const v = input.value.trim()
-      if (/^https?:\/\/\S+/.test(v)) {
-        // The desktop app has no address bar to land on, so it signs in with the link's one time token instead of opening it.
+      if (/^(https?|halo):\/\/\S+/.test(v)) {
+        // The app has no address bar to land on, so it signs in with what the link carries instead of opening it.
         if (isDesktop()) {
-          let hash: string | null = null
-          try { hash = new URL(v).searchParams.get('token') } catch { /* not a link */ }
-          if (!hash) { msg.className = 'signin-msg err'; msg.textContent = "That isn't the link from the email."; return }
+          const link = parseAuthLink(v)
+          if (!link) { msg.className = 'signin-msg err'; msg.textContent = "That isn't the link from the email."; return }
           go.disabled = true
-          const { error } = await client.auth.verifyOtp({ token_hash: hash, type: 'magiclink' })
+          const err = await signInWithLink(client, link)
           go.disabled = false
-          if (error) { msg.className = 'signin-msg err'; msg.textContent = plainError(error.message) }
+          if (err) { msg.className = 'signin-msg err'; msg.textContent = err }
           return
         }
         location.href = v
@@ -113,7 +121,7 @@ export function mountSignIn(app: HTMLElement, client: SupabaseClient, notice?: s
       msg.className = 'signin-msg err'
       msg.textContent = "That isn't the link from the email."
     })
-    card.replaceChildren(...head('Check your inbox', `We sent a link to ${email}. Tap it, or paste it here if it opened somewhere else.`), form)
+    card.replaceChildren(...head('Check your inbox', isDesktop() ? `We sent a link to ${email || "your email"}. Click it and Halo opens and signs in. If it opens in a browser instead, paste it below.` : `We sent a link to ${email || "your email"}. Tap it, or paste it here if it opened somewhere else.`), form)
     input.focus()
   }
 

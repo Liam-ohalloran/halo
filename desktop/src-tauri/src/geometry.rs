@@ -3,9 +3,6 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Island style floats this far below the top edge of the monitor (logical px).
-pub const ISLAND_GAP: f64 = 6.0;
-
 /// A part of the window that takes the mouse. Logical px from the window's top left.
 /// `rt` and `rb` are the top and bottom corner radii.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -58,7 +55,8 @@ pub fn inside_any(px: f64, py: f64, regions: &[Region]) -> bool {
     regions.iter().any(|r| inside_region(px, py, r))
 }
 
-/// Where the window goes on a monitor: top centre, in physical px. Island style floats a few px down.
+/// Where the window goes on a monitor: top centre, in physical px. It always starts at the very top. Island style
+/// floats because the page draws the island 8 px down inside the window, and that gap is click through.
 /// Returns (x, y, width, height). The size uses the monitor's own scale so a stale window scale cannot skew it.
 pub fn place(
     mon_x: i32,
@@ -67,12 +65,11 @@ pub fn place(
     scale: f64,
     win_w: f64,
     win_h: f64,
-    island_style: bool,
 ) -> (i32, i32, u32, u32) {
     let pw = (win_w * scale).round().max(1.0);
     let ph = (win_h * scale).round().max(1.0);
     let x = mon_x + ((mon_w as f64 - pw) / 2.0).floor() as i32;
-    let y = mon_y + if island_style { (ISLAND_GAP * scale).round() as i32 } else { 0 };
+    let y = mon_y;
     (x, y, pw as u32, ph as u32)
 }
 
@@ -128,13 +125,13 @@ mod tests {
     #[test]
     fn places_top_centre_at_any_scale() {
         // 1920 x 1080 at 100%: a 224 wide window centres at x = 848.
-        assert_eq!(place(0, 0, 1920, 1.0, 224.0, 34.0, false), (848, 0, 224, 34));
+        assert_eq!(place(0, 0, 1920, 1.0, 224.0, 34.0), (848, 0, 224, 34));
         // 150%: the size grows in physical px and stays centred.
-        assert_eq!(place(0, 0, 2880, 1.5, 224.0, 34.0, false), (1272, 0, 336, 51));
+        assert_eq!(place(0, 0, 2880, 1.5, 224.0, 34.0), (1272, 0, 336, 51));
         // A second monitor to the right of the first.
-        assert_eq!(place(1920, 0, 2560, 1.0, 200.0, 34.0, false), (1920 + 1180, 0, 200, 34));
-        // Island style floats 6 logical px down.
-        assert_eq!(place(0, 0, 1920, 2.0, 200.0, 34.0, true).1, 12);
+        assert_eq!(place(1920, 0, 2560, 1.0, 200.0, 34.0), (1920 + 1180, 0, 200, 34));
+        // Always the very top, whatever the style: the island's floating gap is drawn inside the window.
+        assert_eq!(place(0, 40, 1920, 2.0, 200.0, 34.0).1, 40);
     }
 
     #[test]

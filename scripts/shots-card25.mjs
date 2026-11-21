@@ -33,7 +33,9 @@ for (const style of ['notch', 'island']) {
   await open('', style)
   await page.mouse.move(690, 330)
   await shot(`${style}-closed`)
-  const r = await page.evaluate(() => { const e = document.querySelector('.sh'); const cs = getComputedStyle(e); return { top: cs.borderTopLeftRadius, ears: getComputedStyle(e, '::before').display } })
+  const r = await page.evaluate(() => { const e = document.querySelector('.sh'); const cs = getComputedStyle(e); return { top: cs.borderTopLeftRadius, ears: getComputedStyle(e, '::before').display, y: Math.round(e.getBoundingClientRect().top) } })
+  if (style === 'island' && r.y !== 8) note(`island style floats ${r.y} px below the top, want 8`)
+  if (style === 'notch' && r.y !== 0) note(`notch style sits ${r.y} px below the top, want 0`)
   if (style === 'island' && (r.top === '0px' || r.ears !== 'none')) note(`island style: top radius ${r.top}, ears ${r.ears}`)
   if (style === 'notch' && (r.top !== '0px' || r.ears === 'none')) note(`notch style: top radius ${r.top}, ears ${r.ears}`)
 }

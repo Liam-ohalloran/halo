@@ -7,8 +7,9 @@ export type DesktopStyle = 'island' | 'notch'
 
 /** Room for the ears that hang off each top corner in Notch style (shell.css: 10 px wide, 11 px out). */
 export const EAR = 12
-/** Island style floats this far below the top edge of the monitor. */
-export const ISLAND_GAP = 6
+/** Island style floats this far below the top edge of the monitor. The gap is part of the window (the page draws the
+ *  island that far down), so the window always starts at the very top and the gap is click through. */
+export const ISLAND_GAP = 8
 /** Extra room while the island is moving, so the spring's overshoot is not cut off. */
 export const MOVE_MARGIN = 24
 /** How long the island must stay still before the window shrinks back to it. The longest CSS move is 520 ms. */
@@ -41,15 +42,16 @@ export interface Placed { win: Box; regions: Region[] }
 /** Window size and the parts that take the mouse. `margin` is the allowance while the island moves. */
 export function layoutFor(l: Layout, style: DesktopStyle, margin = 0): Placed {
   const ear = style === 'notch' ? EAR : 0
+  const gap = style === 'island' ? ISLAND_GAP : 0
   const drop = STACK_GAP + (l.charge ? CHARGE_DROP : 0)
   const stackH = l.stack ? drop + l.stack.h : 0
   const win: Box = {
     w: Math.ceil(Math.max(l.island.w + 2 * ear, l.stack?.w ?? 0) + 2 * margin),
-    h: Math.ceil(l.island.h + stackH + margin),
+    h: Math.ceil(gap + l.island.h + stackH + margin),
   }
   const cx = (w: number) => (win.w - w) / 2
-  const regions: Region[] = [{ x: cx(l.island.w), y: 0, w: l.island.w, h: l.island.h, rt: style === 'island' ? l.island.r : 0, rb: l.island.r }]
-  if (l.stack) regions.push({ x: cx(l.stack.w), y: l.island.h + drop, w: l.stack.w, h: l.stack.h, rt: 23, rb: 23 })
+  const regions: Region[] = [{ x: cx(l.island.w), y: gap, w: l.island.w, h: l.island.h, rt: style === 'island' ? l.island.r : 0, rb: l.island.r }]
+  if (l.stack) regions.push({ x: cx(l.stack.w), y: gap + l.island.h + drop, w: l.stack.w, h: l.stack.h, rt: 23, rb: 23 })
   return { win, regions }
 }
 

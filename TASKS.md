@@ -460,6 +460,77 @@ Add a `/components` page showing each one, and the `/motion` page from HALO.md 3
 
 ---
 
+
+## Halo as its own Windows app (cards 25 to 28)
+Halo stops living inside NotchPixel and becomes its own app, with **nothing NotchPixel does missing**. The tabs, island and pills stay the same web code; only the window around them changes. Built with **Tauri v2** (small, fast, uses Windows' own WebView2). The phone stays the PWA.
+
+**Parity checklist (every box must work before NotchPixel is uninstalled):** hover or click to open, island and notch styles, always on top, never steals focus, click through everywhere outside the island, hides over fullscreen games and video, picks a monitor, works at any display scale, media for any app (not just Spotify), scroll on the island for volume, volume and brightness popups, Windows notifications, phone notifications, clipboard history, file shelf, timer, weather, battery, launch at startup, a hotkey, settings for look, blur, animation speed and widgets. Liam adds anything from NotchPixel's own settings pages that this list misses.
+
+---
+
+## Card 25 · Desktop app shell
+**Model:** Sonnet · **Size:** large · **Needs:** 17 · **REVIEW WITH OPUS**
+
+**Build:**
+1. `desktop/` Tauri v2 project. One frameless, transparent, always-on-top window at the top centre of the chosen monitor, sized to the island's current state (idle 200 × 34 up to 600 × 290) and resized from the web code through a small `halo.desktop.setSize()` bridge, so the window never covers more than the island.
+2. Click through everywhere outside the island shape, never takes focus until clicked, no taskbar button.
+3. Two styles: **Island** (floating capsule, a few px below the top) and **Notch** (attached to the top edge with the ears).
+4. Loads the built web app from inside the app (works offline), same Supabase sign-in. `?desktop=1` tells the web code it's in the app.
+5. Hides while a fullscreen app (game, video) is on that monitor, comes back after.
+6. Monitor picker, DPI aware, follows display changes and sleep or wake.
+7. Tray icon: Open, Settings, Pause for 1 hour, Quit.
+8. Launch at startup (on by default, switch in Settings) and a global hotkey, Ctrl+Alt+Space, to open or close.
+
+**Done when**
+- [ ] Runs from `npm run desktop:dev` and builds an installer
+- [ ] Recording of hover open, close, a HUD pill and a banner over another app
+- [ ] Clicking anything beside the island reaches the app underneath
+
+---
+
+## Card 26 · Fold the helper in, plus media, notifications and clipboard
+**Model:** Sonnet · **Size:** large · **Needs:** 25
+
+**Build:**
+1. The helper ships inside the app as a sidecar (bundled exe), started and stopped by the app. No separate install, no PowerShell. Same pairing token, kept in the app's secure storage.
+2. **Media for any app** through Windows media controls (Spotify, YouTube in Chrome, anything): title, artist, art, play, pause, skip, seek. Spotify stays the default for Music.
+3. **Scroll on the island** changes volume and fires the volume pill.
+4. **Windows notifications** (with Liam's permission through Windows' notification access) arrive as Halo banners and in the stack. Messages stay hidden until opened (HALO safety rules).
+5. **Phone notifications** through Phone Link's notifications, same banners.
+6. **Clipboard history** (last 25 text items and images, never passwords or anything from a password manager), shown in the Shelf tab with copy again.
+7. Airplane mode and night light change pills (the leftovers from card 17), keyboard light if the Lenovo driver exposes it.
+
+**Done when**
+- [ ] Uninstalling the old helper changes nothing that works
+- [ ] YouTube in Chrome shows in Music, a Windows notification shows as a banner
+
+---
+
+## Card 27 · Settings window
+**Model:** Sonnet · **Size:** medium · **Needs:** 25 · **Source:** prototype styles
+
+**Build:** a Settings tab (and tray item) covering: style (island or notch), size, blur, glow strength, animation speed, which live states and HUD pills are on, which tabs show and their order (ties into card 23), monitor, hotkey, launch at startup, notification sources, clipboard on or off, sign out. Saved in `settings` so the phone matches where it makes sense.
+
+**Done when**
+- [ ] Every switch works live without a restart, screenshots of each section
+
+---
+
+## Card 28 · Installer, updates and the switch from NotchPixel
+**Model:** Sonnet · **Size:** small · **Needs:** 25, 26, 27
+
+**Build:**
+1. A GitHub Actions job builds `Halo-Setup.exe` on every version tag and attaches it to a GitHub Release.
+2. The app checks for updates on launch and installs them with one click (Tauri updater, signed with an update key stored as a GitHub secret).
+3. No paid code signing, so Windows SmartScreen will warn once on first install: README says to click More info, Run anyway.
+4. `docs/switch-from-notchpixel.md`: go through the parity checklist above, tick each item, then remove Halo from NotchPixel's sites.
+
+**Done when**
+- [ ] Fresh install on Liam's laptop from the Release works, an update installs itself
+- [ ] Every parity box ticked
+
+---
+
 ## Backlog (Opus writes these cards later, don't start them)
 - Claude edge function + Ask Claude, snip to Claude, explain selection, clipboard actions, draft in your voice
 - Morning hello, morning briefing, Sunday recap, monthly wrap

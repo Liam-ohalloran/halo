@@ -105,6 +105,13 @@ function marksFixture(mode: string): Mark[] {
   return rows
 }
 
+/** The Night tab fixtures (card 23), hung off the demo clock (Sat 21 Nov 2026). `night` has a Sunday 6 am shift (alarm 5, lights out 9 pm),
+ *  `nightmany` has only a long named test at 8:30 am, `nightempty` has nothing on tomorrow. */
+function nightFixture(mode: string): { shifts: Shift[]; tests: Test[] } {
+  if (mode === 'nightempty') return { shifts: [], tests: [] }
+  if (mode === 'nightmany') return { shifts: [], tests: [testRow('n1', 'Human Biology', 'Genetics and evolution revision test with a very long name', 1, 8, 30)] }
+  return weekFixture(false)
+}
 /** Claude, Shelf and Widgets fixtures (card 22), hung off the demo clock (Sat 21 Nov 2026, 3:48 pm Perth). `claude` has a few task runs,
  *  `claudemany` has long names, `claudeempty` has none. `shelf` has five things, `shelfmany` is full with long names, `shelfempty` has none.
  *  `widgets` has the three countdowns, `widgetsmany` gives them long names, `widgetsempty` starts with an empty table (the app fills it in). */
@@ -138,7 +145,7 @@ function countdownFixture(mode: string): Countdown[] {
 export function mockBackend(mode: string): Backend {
   const now = new Date()
   const mon = weekStart(now)
-  const wk = mode === 'week' || mode === 'weekbusy' ? weekFixture(mode === 'weekbusy') : null
+  const wk = mode === 'week' || mode === 'weekbusy' ? weekFixture(mode === 'weekbusy') : mode.startsWith('night') ? nightFixture(mode) : null
   const shifts: Shift[] = wk ? wk.shifts :
     mode === 'empty'
       ? []
@@ -256,6 +263,11 @@ export function mockBackend(mode: string): Backend {
     countdowns: () => gate(cds.map((c) => ({ ...c }))),
     async saveCountdown(c) { const x = cds.find((y) => y.id === c.id); if (x) Object.assign(x, c); await sleep(80) },
     async seedCountdowns() { await sleep(80); if (!cds.length) cds.push(...DEFAULT_COUNTDOWNS.map((d, i) => ({ ...d, id: `c${i}` }))) },
+    async uiPrefs() {
+      await sleep(60)
+      try { return JSON.parse(localStorage.getItem('halo.mock.tabprefs') ?? 'null') } catch { return null }
+    },
+    async saveUiPrefs(p) { await sleep(60); try { localStorage.setItem('halo.mock.tabprefs', JSON.stringify(p)) } catch { /* ignore */ } },
     unreadAlerts: () => gate(alerts.filter((a) => !a.read_at).map((a) => ({ ...a }))),
     async markAlertsRead(ids) {
       for (const a of alerts) if (ids.includes(a.id)) a.read_at = new Date().toISOString()

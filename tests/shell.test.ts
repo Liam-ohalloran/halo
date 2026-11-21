@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { RAIL, TAB_IDS, TAB_THEMES, RAIL_ICONS, parseTab } from '../src/styles/tabs.ts'
 import { dayLabel, rangeLabel, tabMeta, weekStart } from '../src/lib/shell-meta.ts'
 
-test('rail order is Home, Music, Study, Pay, Sixers, Week, divider, More, Controls (with Money and Marks)', () => {
-  assert.deepEqual(RAIL, ['home', 'music', 'study', 'pay', 'sixers', 'week', 'money', 'alerts', 'marks', 'claude', 'shelf', 'widgets', null, 'more', 'controls'])
+test('the default tab order is the prototype order (card 23)', () => {
+  assert.deepEqual(RAIL, ['home', 'pay', 'week', 'study', 'music', 'sixers', 'money', 'controls', 'alerts', 'claude', 'night', 'marks', 'shelf', 'widgets', 'more'])
 })
 
 test('every tab has a full theme and an icon', () => {

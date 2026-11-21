@@ -69,27 +69,56 @@
 }
 .sh[data-open='true'] .sh-inner { opacity: 1; visibility: visible; transition: opacity var(--in) ease var(--grow), visibility 0s; }
 
-/* Header: title and grey line on the left, the rail on the right. */
-.sh-head { position: relative; height: 32px; flex: none; display: flex; align-items: center; justify-content: space-between; }
-.sh-lead { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.sh-title { margin: 0; font-size: var(--fs-15); font-weight: 600; white-space: nowrap; }
-.sh-meta { font-size: var(--fs-13); font-weight: 500; color: rgba(245, 245, 247, 0.5); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.sh-meta[hidden] { display: none; }
-
-.sh-rail { display: flex; align-items: center; gap: 0; }
+/* Header (card 23): the prototype's top bar. One glass pill of tab icons, the open tab grows into a white pill with its
+   label (the sliding .sh-sel sits under it), the time and a pencil on the right. */
+.sh-head { position: relative; height: 32px; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sh-seg { min-width: 0; }
+.sh-rail { position: relative; display: flex; gap: 1px; padding: 3px; border-radius: 999px; background: rgba(255, 255, 255, 0.07); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); }
+.sh-sel { position: absolute; top: 3px; bottom: 3px; left: 3px; width: 22px; border-radius: 999px; background: #F5F7FF; pointer-events: none; transition: left 420ms cubic-bezier(.34, 1.5, .5, 1), width 420ms cubic-bezier(.34, 1.5, .5, 1); }
 .sh-tab {
-  appearance: none; border: 0; margin: 0; padding: 0; cursor: pointer; font: inherit;
-  width: 32px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
-  background: transparent; color: var(--rail);
-  transition: color 150ms ease, background-color 150ms ease, transform 120ms ease;
+  appearance: none; border: 0; margin: 0; cursor: pointer; font: inherit; position: relative; z-index: 1;
+  height: 22px; min-width: 22px; padding: 0 5px; border-radius: 999px; display: flex; align-items: center; justify-content: center; gap: 5px;
+  background: transparent; color: rgba(245, 247, 255, 0.55); font-size: 11px; font-weight: 700; white-space: nowrap;
+  transition: color 250ms ease, transform 120ms ease;
 }
-.sh-tab:hover { background: rgba(255, 255, 255, 0.08); color: #F2F2F4; }
-.sh-tab:active { transform: scale(0.96); }
-.sh-tab:focus-visible { outline: 2px solid #D8C28C; outline-offset: 2px; }
-/* The open tab: the icon takes the tab's colour on a soft pill. */
-.sh-tab[aria-selected='true'] { background: rgba(255, 255, 255, 0.10); color: var(--tab); }
-.sh-tab:disabled { opacity: 0.4; cursor: default; }
-.sh-div { width: 1px; height: 14px; margin: 0 4px; background: rgba(255, 255, 255, 0.14); flex: none; }
+.sh-tab svg { width: 13px; height: 13px; flex: none; }
+.sh-tab .lb { display: none; }
+.sh-tab:hover { color: #fff; }
+.sh-tab:active { transform: scale(0.94); }
+.sh-tab:focus-visible { outline: 2px solid #D8C28C; outline-offset: 1px; }
+.sh-tab.on, .sh-tab.on:hover { color: #000; padding: 0 9px; }
+.sh-tab.on .lb { display: inline; }
+.sh-rt { display: flex; align-items: center; gap: 6px; flex: none; }
+.sh-time { font-size: var(--fs-13); font-weight: 600; color: rgba(245, 245, 247, 0.7); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sh-pen { appearance: none; border: 0; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; background: transparent; color: rgba(245, 247, 255, 0.5); transition: background 150ms ease, color 150ms ease, transform 120ms ease; }
+.sh-pen:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+.sh-pen:active { transform: scale(0.92); }
+.sh-pen[aria-pressed='true'] { background: #F5F7FF; color: #000; }
+.sh-pen:focus-visible { outline: 2px solid #D8C28C; outline-offset: 1px; }
+
+/* Edit mode: a sheet over the body with every tab as a chip. */
+.sh-edit { position: absolute; left: var(--sh-pl); right: var(--sh-pr); top: calc(var(--sh-pt) + 40px); bottom: var(--sh-pb); z-index: 3; display: flex; flex-direction: column; gap: 6px; }
+.sh-edit[hidden] { display: none; }
+.sh-edit .ehd { display: flex; align-items: center; gap: 8px; height: 26px; }
+.sh-edit .ehd > div { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; }
+.sh-edit .ehd b { font-size: 15px; font-weight: 800; white-space: nowrap; }
+.sh-edit .ehd span { font-size: 10px; color: rgba(245, 245, 247, 0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sh-edit .ebtn { height: 24px; padding: 0 12px; border: 0; border-radius: 999px; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; color: #F5F7FF; background: rgba(255, 255, 255, 0.12); transition: transform 300ms cubic-bezier(.34, 1.5, .5, 1), background 150ms ease; }
+.sh-edit .ebtn:hover { background: rgba(255, 255, 255, 0.2); }
+.sh-edit .ebtn:active { transform: scale(0.94); }
+.sh-edit .ebtn.go { background: #F5F7FF; color: #000; }
+.sh-edit .egrid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.sh-edit .ec { min-width: 0; border-radius: 14px; padding: 6px 8px; display: flex; flex-direction: column; justify-content: space-between; background: #1c1c1e; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); transition: opacity 200ms ease; }
+.sh-edit .ec.off { opacity: 0.5; }
+.sh-edit .et { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.sh-edit .et svg { flex: none; }
+.sh-edit .et b { font-size: 11px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sh-edit .ea { display: flex; gap: 3px; }
+.sh-edit .ea button { flex: 1; height: 20px; border: 0; border-radius: 7px; display: grid; place-items: center; cursor: pointer; color: #F5F7FF; background: rgba(255, 255, 255, 0.1); transition: background 150ms ease, transform 200ms cubic-bezier(.34, 1.5, .5, 1); }
+.sh-edit .ea button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.2); }
+.sh-edit .ea button:active:not(:disabled) { transform: scale(0.9); }
+.sh-edit .ea button:disabled { opacity: 0.3; cursor: default; }
+.sh-edit :focus-visible { outline: 2px solid #D8C28C; outline-offset: 1px; }
 
 /* Body: panels sit on top of each other and crossfade. */
 .sh-body { position: relative; flex: 1 1 0; min-height: 0; margin-top: 8px; overflow: hidden; container-type: inline-size; }
@@ -102,7 +131,7 @@
 /* Reduced motion: no size animation, just a quick fade between the island and the window. */
 @media (prefers-reduced-motion: reduce) {
   .sh, .sh[data-open='true'] { transition: border-color 1ms, box-shadow 1ms; }
-  .sh-skin, .sh-tab { transition-duration: 1ms; }
+  .sh-skin, .sh-tab, .sh-sel, .sh-pen, .sh-edit .ebtn, .sh-edit .ea button { transition-duration: 1ms; }
   .sh-skins, .sh[data-open='true'] .sh-skins { transition: opacity 150ms ease; }
   .sh-inner, .sh[data-open='true'] .sh-inner { transition: opacity 150ms ease 0s, visibility 0s; }
   .sh[data-open='true'] .sh-pill, .sh-pill { transition: opacity 150ms ease; }
@@ -180,3 +209,6 @@
 .sh[data-open='true'] .sh-live { opacity: 0; visibility: hidden; transition: opacity 90ms ease, visibility 0s linear 90ms; }
 /* The old gold dot is drawn by the live layer now (island-live.css). */
 .sh-dot { display: none; }
+
+/* Night mode (card 23): the window and the closed island dim. The Night tab's own switch turns it on. */
+html[data-night='1'] .sh-clip, html[data-night='1'] .phone-card { filter: brightness(0.62) saturate(0.85); }

@@ -1,6 +1,7 @@
 import type { AlertRow, Backend, Settings, Shift, StudySession, Test } from './types'
 import { DEFAULT_SETTINGS } from './types'
 import { DEFAULT_COUNTDOWNS } from './lib/widgets'
+import { mergeTheme, themeTabs } from './lib/tabprefs'
 import { safeFileName } from './lib/shelf'
 import type { ShelfItem } from './lib/shelf'
 import type { TaskRun } from './lib/claude'
@@ -197,6 +198,20 @@ export const supabaseBackend: Backend = {
   },
   async seedCountdowns() {
     const res = await supabase.from('countdowns').insert(DEFAULT_COUNTDOWNS.map((d) => ({ name: d.name, target_date: d.target_date, yearly: d.yearly, colour: d.colour, sort: d.sort })))
+    if (res.error) throw new Error(res.error.message)
+  },
+
+  async uiPrefs() {
+    const row = must(await supabase.from('settings').select('theme').maybeSingle()) as { theme?: unknown } | null
+    return themeTabs(row?.theme)
+  },
+  async saveUiPrefs(p) {
+    const { data: u } = await supabase.auth.getUser()
+    const uid = u.user?.id
+    if (!uid) throw new Error('Not signed in')
+    // Read the theme first so any other key in it is kept, then write the tab prefs back into it.
+    const cur = must(await supabase.from('settings').select('theme').maybeSingle()) as { theme?: unknown } | null
+    const res = await supabase.from('settings').upsert({ owner_id: uid, theme: mergeTheme(cur?.theme, p), updated_at: new Date().toISOString() })
     if (res.error) throw new Error(res.error.message)
   },
 

@@ -46,6 +46,7 @@ import type { Mark } from './lib/marks'
 import type { TaskRun } from './lib/claude'
 import type { ShelfItem } from './lib/shelf'
 import type { Countdown } from './lib/widgets'
+import type { TabPrefs } from './lib/tabprefs'
 
 /** Everything the UI needs from the database. Real impl talks to Supabase; dev impl is in-memory. */
 export interface Backend {
@@ -102,6 +103,9 @@ export interface Backend {
   saveCountdown(c: { id: string; name: string; target_date: string }): Promise<void>
   /** Puts Doomsday, birthday and Christmas in when the table is empty. */
   seedCountdowns(): Promise<void>
+  /** Tab order and hidden tabs (card 23), kept in the settings row so the phone matches. Raw JSON, or null when never saved. */
+  uiPrefs(): Promise<unknown>
+  saveUiPrefs(p: TabPrefs): Promise<void>
   /** Realtime: called whenever a shift row changes. Returns unsubscribe. */
   onShiftsChange(cb: () => void, onStatus?: (live: boolean) => void): () => void
 }

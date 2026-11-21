@@ -23,6 +23,10 @@ import { MarksPanel } from '../panels/marks'
 import { ClaudePanel } from '../panels/claude'
 import { ShelfPanel } from '../panels/shelf'
 import { WidgetsPanel } from '../panels/widgets'
+import { NightPanel } from '../panels/night'
+import { createNightMode, isMuted } from '../lib/night'
+import { normalisePrefs, visibleIds } from '../lib/tabprefs'
+import { DEFAULT_ORDER } from '../styles/tabs'
 import { buildAlertsView, createAlertsStore } from '../lib/alerts'
 import type { PvRoot } from '../ui/charts'
 import { supabase, supabaseBackend } from '../supabase'
@@ -143,8 +147,14 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   let showShellTab: (id: ShellTabId, emitted?: boolean) => void = () => {}
   // Card 15b: on desktop the shell IS the island. Collapsed it is the pill, open it is the 600 x 290 window. Embedded
   // in NotchPixel the window is always shown, so nothing hovers or closes it.
+  // Tab order and hidden tabs (card 23). A copy is kept on this device so a reload never flashes the default order, then the
+  // settings row (which the phone shares) takes over.
+  const PREFS_KEY = 'halo.tabprefs'
+  const cachedPrefs = (() => { try { return JSON.parse(localStorage.getItem(PREFS_KEY) ?? 'null') as unknown } catch { return null } })()
+  const nightMode = createNightMode()
   const sh = phone ? null : Shell({
-    active: activeTab, now: clock, open: embed || !!o.open, auto: !embed,
+    active: activeTab, now: clock, open: embed || !!o.open, auto: !embed, prefs: cachedPrefs,
+    onPrefs: (p) => { try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)) } catch { /* private mode */ } void api.saveUiPrefs(p).catch(() => {}) },
     onChange: (id) => showShellTab(id, true),
     onToggle: (isOpen) => { applyTint(); syncHomeActive(); if (!isOpen) queueMicrotask(syncBase) },
   })
@@ -256,6 +266,22 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   }
   // Phone: swiping moves the tab bar, tapping a tab slides to its panel.
   let swipeLock = 0
+  // The phone has four of the tabs. It follows the saved order and hidden list, so it matches the laptop.
+  let phoneIds: TabId[] = HOME_TABS.map((t) => t.id as TabId)
+  function applyPhonePrefs(raw: unknown) {
+    if (!phone) return
+    const p = normalisePrefs(raw, DEFAULT_ORDER)
+    const known = HOME_TABS.map((t) => t.id as TabId)
+    let ids = (visibleIds(p).map((id) => (id === 'home' ? 'now' : id)).filter((id) => known.includes(id as TabId)) as TabId[])
+    if (!ids.length) ids = ['now']
+    phoneIds = ids
+    tabs.setOrder(ids)
+    tabs.setHidden(known.filter((id) => !ids.includes(id)))
+    for (const id of ids) scroller.append(slides.get(id)!)
+    for (const [id, s] of slides) s.hidden = !ids.includes(id)
+    if (!ids.includes(activeId)) phoneShow(ids[0], false)
+    else requestAnimationFrame(() => phoneShow(activeId, false))
+  }
   function phoneShow(id: TabId, smooth: boolean) {
     activeId = id
     try { localStorage.setItem(TAB_KEY, id) } catch { /* private mode */ }
@@ -278,7 +304,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   function onSwipe() {
     if (Date.now() < swipeLock) return
     const i = Math.round(scroller.scrollLeft / Math.max(scroller.clientWidth, 1))
-    const id = HOME_TABS[Math.min(Math.max(i, 0), HOME_TABS.length - 1)].id as TabId
+    const id = phoneIds[Math.min(Math.max(i, 0), phoneIds.length - 1)]
     if (id === activeId) return
     activeId = id
     try { localStorage.setItem(TAB_KEY, id) } catch { /* private mode */ }
@@ -308,22 +334,32 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   let weekPanel: ReturnType<typeof WeekPanel> | null = null
   // Alerts (card 20). One shared list feeds the tab and the island's gold dot. Desktop and embed only.
   const alertsStore = sh ? createAlertsStore(api) : null
-  const unsubAlerts = alertsStore?.subscribe(() => live!.setUnread(buildAlertsView(alertsStore.rows()).unread))
-  // Card 18: new alerts pop out of the island as banners, then settle into a stack under it.
+  // Night mode mutes the unread dot and the alert banners, like the other banners. Leave reminders are never muted.
+  const pushUnread = () => { if (alertsStore) live!.setUnread(isMuted('unread', nightMode.get()) ? 0 : buildAlertsView(alertsStore.rows()).unread) }
+  const unsubAlerts = alertsStore?.subscribe(pushUnread)
+  const unsubNight = nightMode.subscribe(() => pushUnread())
+  // Card 18: new alerts pop out of the island as banners, then settle into a stack under it. At night only leave reminders do.
+  const bannerSource = alertsStore ? {
+    ...alertsStore,
+    rows: () => (nightMode.get() ? alertsStore.rows().filter((r) => r.type === 'leave_reminder') : alertsStore.rows()),
+    subscribe: (cb: () => void) => { const a = alertsStore.subscribe(cb); const b = nightMode.subscribe(cb); return () => { a(); b() } },
+  } : null
   // Card 25: inside the Halo desktop app the window follows the island's size and lets clicks through everywhere else.
   const detachDesktop = sh && isDesktop() ? attachDesktop(sh) : null
-  const banners: BannersHandle | null = sh && alertsStore && live ? Banners(sh, live, { source: alertsStore, clock, go: () => showShellTab('alerts') }) : null
+  const banners: BannersHandle | null = sh && bannerSource && live ? Banners(sh, live, { source: bannerSource, clock, go: () => showShellTab('alerts') }) : null
   let alertsPanel: ReturnType<typeof AlertsPanel> | null = null
   // Dev only (never in a production build): lets scripts/desktop-demo.mjs fire a HUD pill and a banner in the real app.
   if (import.meta.env.DEV && sh && live) (window as unknown as { __haloDev?: unknown }).__haloDev = { sh, live, banners }
   let moneyPanel: ReturnType<typeof MoneyPanel> | null = null
   let marksPanel: ReturnType<typeof MarksPanel> | null = null
   let claudePanel: ReturnType<typeof ClaudePanel> | null = null
+  let nightPanel: ReturnType<typeof NightPanel> | null = null
   let shelfPanel: ReturnType<typeof ShelfPanel> | null = null
   let widgetsPanel: ReturnType<typeof WidgetsPanel> | null = null
   panelFor = (id) => {
     if (id === 'money') return (moneyPanel ??= MoneyPanel(api, clock))
     if (id === 'marks') return (marksPanel ??= MarksPanel(api, clock))
+    if (id === 'night') return (nightPanel ??= NightPanel(api, nightMode, clock))
     if (id === 'claude') return (claudePanel ??= ClaudePanel(api, clock))
     if (id === 'shelf') return (shelfPanel ??= ShelfPanel(api))
     if (id === 'widgets') return (widgetsPanel ??= WidgetsPanel(api, o.home ?? liveSources, clock))
@@ -519,6 +555,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
       const hud = hudFromEvent(mem, name, d)
       if (!hud) return
       // A plug in is the Charging state for 3 seconds, with its floating bar. Everything else is a HUD pill.
+      if (isMuted(hud.kind === 'charge' ? 'charge' : 'hud', nightMode.get())) return
       if (hud.kind === 'charge' && hud.on) live!.charging({ pct: hud.pct, toFull: fmtToFull((d as { minutes_left?: number | null }).minutes_left) })
       else live!.hud(hud)
     }, (up) => { if (!up) live!.update({ music: null, charge: null }) })
@@ -544,7 +581,14 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     refreshTimer = window.setInterval(() => void refresh(), REFRESH_MS)
   }
   function stop() { clearInterval(tickTimer); clearInterval(refreshTimer) }
-  const onVisible = () => { syncHomeActive(); if (document.hidden) stop(); else { start(); void refresh(); void alertsStore?.load() } }
+  // The saved tab order and hidden tabs come from the settings row, so the laptop and the phone match (card 23).
+  const loadPrefs = () => api.uiPrefs().then((raw) => {
+    if (raw == null) return
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify(raw)) } catch { /* private mode */ }
+    sh?.setPrefs(raw)
+    applyPhonePrefs(raw)
+  }).catch(() => {})
+  const onVisible = () => { syncHomeActive(); if (document.hidden) stop(); else { start(); void refresh(); void alertsStore?.load(); void loadPrefs() } }
   const onOnline = () => void refresh()
   // Tapping or clicking anywhere outside the open island closes it (phones have no Escape key).
   const onOutside = (e: PointerEvent) => { if (!sh && isl.state === 'expanded' && !(e.target as Element).closest('.h-island')) isl.close() }
@@ -558,9 +602,11 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   start()
   void timer.init().then(() => syncIsland(clock())).catch(() => {})
   if (o.open && !phone && !sh) requestAnimationFrame(() => requestAnimationFrame(() => isl.open()))
+  applyPhonePrefs(cachedPrefs)
+  void loadPrefs()
 
   return () => {
-    stop(); ro.disconnect(); unsub(); unsubTimer(); stopEvents?.(); live?.destroy(); if (artUrl) URL.revokeObjectURL(artUrl); payPanel?.destroy(); alertsPanel?.destroy(); moneyPanel?.destroy(); marksPanel?.destroy(); claudePanel?.destroy(); shelfPanel?.destroy(); widgetsPanel?.destroy(); unsubAlerts?.(); banners?.destroy(); detachDesktop?.(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
+    stop(); ro.disconnect(); unsub(); unsubTimer(); stopEvents?.(); live?.destroy(); if (artUrl) URL.revokeObjectURL(artUrl); payPanel?.destroy(); alertsPanel?.destroy(); moneyPanel?.destroy(); marksPanel?.destroy(); claudePanel?.destroy(); nightPanel?.destroy(); unsubNight(); shelfPanel?.destroy(); widgetsPanel?.destroy(); unsubAlerts?.(); banners?.destroy(); detachDesktop?.(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
     document.removeEventListener('pointerdown', onOutside)
     document.removeEventListener('visibilitychange', onVisible)
     removeEventListener('online', onOnline)

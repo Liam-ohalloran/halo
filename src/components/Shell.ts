@@ -1,14 +1,17 @@
 import '../styles/shell.css'
 import { h } from './dom'
-import { tabMeta } from '../lib/shell-meta'
-import { RAIL, RAIL_ICONS, TAB_THEMES, type TabId, type TabTheme } from '../styles/tabs'
+import { clockPm } from '../lib/night'
+import { moveTab, normalisePrefs, toggleHidden, visibleIds, PINNED, type TabPrefs } from '../lib/tabprefs'
+import { DEFAULT_ORDER, RAIL_ICONS, TAB_THEMES, type TabId, type TabTheme } from '../styles/tabs'
 
 // Shell (cards 15 and 15b): the island IS the window. One element pinned top centre, flat top edge on the top of the
 // screen, ears at both top corners, black base. Collapsed it is the island (200 x 34). A click, or a hover for 300 ms,
 // grows it into the 600 x 290 tab window, with the tab's tint and corner glow layered over the black. Click outside,
 // Escape, or moving away for 1 s shrinks it back. The content fades in only after the size settles and fades out
 // first when closing (shell.css has the timings).
-// Header: title and a small grey line on the left, the icon rail on the right. Under it the tab's panel.
+// Header (card 23): the prototype's top bar. One glass pill of tab icons, the open tab grows into a white pill with its label,
+// the time on the right. Arrow keys step through the tabs. A long press on the bar, or the pencil, edits the order and hides tabs.
+// Under it the tab's panel.
 // Switching tabs crossfades the frame and the panel in 180 ms. Tabs that are not built yet say "Coming soon".
 
 export const SHELL_W = 600
@@ -39,6 +42,10 @@ export interface ShellOptions {
   auto?: boolean
   /** Fired when it opens or closes. */
   onToggle?: (open: boolean) => void
+  /** Saved tab order and hidden tabs (from the settings row). */
+  prefs?: unknown
+  /** Fired when Liam hides, shows or moves a tab, so it can be saved. */
+  onPrefs?: (p: TabPrefs) => void
 }
 export interface ShellHandle {
   el: HTMLElement
@@ -60,6 +67,12 @@ export interface ShellHandle {
   setKey(hex: string): void
   /** Unread alerts. Above zero, the resting island shows a small gold dot (card 20, card 17 restyles it). */
   setUnread(n: number): void
+  /** Apply a saved order and hidden list, for example when the settings row arrives. */
+  setPrefs(p: unknown): void
+  readonly prefs: TabPrefs
+  /** Edit mode: pick tabs to hide and move them. */
+  edit(on: boolean): void
+  readonly editing: boolean
   /** The closed island's live layer (card 17). It sits over the pill and only its buttons take clicks. */
   live: HTMLElement
   /**
@@ -99,31 +112,43 @@ export function Shell(o: ShellOptions): ShellHandle {
     skins.set(t.id, skin)
   }
 
-  // ---- Header
-  const title = h('h1', { class: 'sh-title' })
-  const meta = h('span', { class: 'sh-meta' })
-  const rail = h('nav', { class: 'sh-rail', role: 'tablist', 'aria-label': 'Halo sections', 'aria-orientation': 'horizontal' })
+  // ---- Header: the top bar
+  const PEN = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>'
+  const sel = h('i', { class: 'sh-sel', 'aria-hidden': 'true' })
+  const rail = h('nav', { class: 'sh-rail', role: 'tablist', 'aria-label': 'Halo sections', 'aria-orientation': 'horizontal' }, sel)
+  const time = h('span', { class: 'sh-time' })
+  const pen = h('button', { type: 'button', class: 'sh-pen', 'aria-label': 'Edit tabs', title: 'Edit tabs', onclick: () => edit(!editing) })
+  pen.innerHTML = PEN
   const buttons = new Map<TabId, HTMLButtonElement>()
-  for (const id of RAIL) {
-    if (id === null) { rail.append(h('span', { class: 'sh-div', 'aria-hidden': 'true' })); continue }
+  for (const id of DEFAULT_ORDER) {
     const t = TAB_THEMES[id]
-    const b = h('button', { type: 'button', class: 'sh-tab', role: 'tab', id: `sh-tab-${id}`, 'aria-label': t.aria, title: t.label, 'aria-controls': 'sh-body', onclick: () => setActive(id, true) })
-    b.style.setProperty('--rail', t.rail)
-    b.style.setProperty('--tab', t.colour)
-    b.append(railIcon(id, false))
+    const b = h('button', { type: 'button', class: 'sh-tab', role: 'tab', id: `sh-tab-${id}`, 'aria-label': t.aria, title: t.label, 'aria-controls': 'sh-body', onclick: () => setActive(id, true) }, h('span', { class: 'lb' }, t.label))
+    b.prepend(railIcon(id, false))
     buttons.set(id, b)
-    rail.append(b)
+  }
+  let prefs: TabPrefs = normalisePrefs(o.prefs, DEFAULT_ORDER)
+  const shown = (): TabId[] => visibleIds(prefs) as TabId[]
+  function placeSel() {
+    const b = buttons.get(active)
+    if (!b || !b.isConnected || !b.offsetWidth) return
+    sel.style.left = `${b.offsetLeft}px`
+    sel.style.width = `${b.offsetWidth}px`
+  }
+  /** Put the visible tabs in the bar in order. The tab buttons are kept, only moved or taken out. */
+  function layoutBar() {
+    for (const id of DEFAULT_ORDER) if (!shown().includes(id)) buttons.get(id)!.remove()
+    for (const id of shown()) rail.append(buttons.get(id)!)
+    requestAnimationFrame(placeSel)
   }
   rail.addEventListener('keydown', (e) => {
-    const ids = [...buttons.keys()]
-    const i = ids.indexOf(active)
-    const to = e.key === 'ArrowRight' ? ids[(i + 1) % ids.length] : e.key === 'ArrowLeft' ? ids[(i + ids.length - 1) % ids.length] : e.key === 'Home' ? ids[0] : e.key === 'End' ? ids[ids.length - 1] : null
+    const ids = shown()
+    const to = e.key === 'Home' ? ids[0] : e.key === 'End' ? ids[ids.length - 1] : null
     if (!to) return
     e.preventDefault()
     setActive(to, true)
     buttons.get(to)!.focus()
   })
-  const header = h('header', { class: 'sh-head' }, h('div', { class: 'sh-lead' }, title, meta), rail)
+  const header = h('header', { class: 'sh-head' }, h('div', { class: 'sh-seg' }, rail), h('div', { class: 'sh-rt' }, time, pen))
 
   // ---- Body: panels crossfade. A panel is kept after it fades out and shown again later, so no animation may
   // outlive its switch: a fade that held opacity 0 once pinned a panel invisible (the old opacity 0 bug).
@@ -149,7 +174,9 @@ export function Shell(o: ShellOptions): ShellHandle {
   }
 
   skinsEl.append(...skins.values())
-  inner.append(header, host)
+  const editEl = h('div', { class: 'sh-edit', role: 'dialog', 'aria-label': 'Edit tabs' })
+  editEl.hidden = true
+  inner.append(header, host, editEl)
   const dot = h('span', { class: 'sh-dot', 'aria-hidden': 'true' })
   clip.append(skinsEl, pill, live, dot, inner)
   el.append(clip)
@@ -175,22 +202,22 @@ export function Shell(o: ShellOptions): ShellHandle {
     inner.style.setProperty('--sh-pr', `${t.pad[1]}px`)
     inner.style.setProperty('--sh-pb', `${t.pad[2]}px`)
     inner.style.setProperty('--sh-pl', `${t.pad[3]}px`)
-    title.textContent = t.label
     for (const [id, skin] of skins) skin.classList.toggle('is-on', id === t.id)
     for (const [id, b] of buttons) {
       const on = id === t.id
+      b.classList.toggle('on', on)
       b.setAttribute('aria-selected', String(on))
       b.tabIndex = on ? 0 : -1
       if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current')
-      b.replaceChildren(railIcon(id, on))
+      b.querySelector('svg')!.replaceWith(railIcon(id, on))
     }
+    requestAnimationFrame(placeSel)
     host.setAttribute('aria-labelledby', `sh-tab-${t.id}`)
   }
 
   function refreshMeta() {
-    const next = tabMeta(active, clock())
-    if (meta.textContent !== next) meta.textContent = next
-    meta.hidden = !next
+    const next = clockPm(clock())
+    if (time.textContent !== next) time.textContent = next
   }
 
   function setActive(id: TabId, emit = false) {
@@ -201,6 +228,70 @@ export function Shell(o: ShellOptions): ShellHandle {
     refreshMeta()
     if (emit) o.onChange?.(id, from)
   }
+
+  // ---- Edit mode (card 23): hide, show and move tabs. Saved through onPrefs, so the phone picks it up too.
+  let editing = false
+  const eye = (off: boolean) => off
+    ? '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><path d="M4 4l16 16"/></svg>'
+    : '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><circle cx="12" cy="12" r="2.6"/></svg>'
+  const chev = (d: 'l' | 'r') => `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d === 'l' ? 'M15 5l-7 7 7 7' : 'M9 5l7 7-7 7'}"/></svg>`
+  function paintEdit(focus?: string) {
+    editEl.innerHTML = `<div class="ehd"><div><b>Edit tabs</b><span>Hide a tab or move it. Saved on all your devices.</span></div><button type="button" class="ebtn" data-e="reset">Reset</button><button type="button" class="ebtn go" data-e="done">Done</button></div>
+      <div class="egrid">${prefs.order.map((id, i) => {
+        const t = TAB_THEMES[id as TabId]
+        const off = prefs.hidden.includes(id)
+        const pinned = PINNED.includes(id)
+        return `<div class="ec${off ? ' off' : ''}" data-id="${id}"><div class="et"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${RAIL_ICONS[id as TabId]}</svg><b>${t.label}</b></div>
+          <div class="ea"><button type="button" data-a="l" aria-label="Move ${t.label} earlier"${i === 0 ? ' disabled' : ''}>${chev('l')}</button><button type="button" data-a="eye" aria-pressed="${!off}" aria-label="${off ? 'Show' : 'Hide'} ${t.label}"${pinned ? ' disabled title="Always shown"' : ''}>${eye(off)}</button><button type="button" data-a="r" aria-label="Move ${t.label} later"${i === prefs.order.length - 1 ? ' disabled' : ''}>${chev('r')}</button></div></div>`
+      }).join('')}</div>`
+    if (focus) editEl.querySelector<HTMLElement>(focus)?.focus({ preventScroll: true })
+  }
+  function commit(next: TabPrefs, focus?: string) {
+    prefs = next
+    layoutBar()
+    if (!shown().includes(active)) setActive('home', true)
+    o.onPrefs?.(prefs)
+    paintEdit(focus)
+  }
+  function edit(on: boolean) {
+    if (on === editing) return
+    editing = on
+    editEl.hidden = !on
+    host.toggleAttribute('inert', on)
+    host.style.visibility = on ? 'hidden' : ''
+    pen.setAttribute('aria-pressed', String(on))
+    if (on) { paintEdit('[data-e="done"]') } else { editEl.replaceChildren(); buttons.get(active)?.focus({ preventScroll: true }) }
+  }
+  editEl.addEventListener('click', (e) => {
+    const t = e.target as HTMLElement
+    if (t.closest('[data-e="done"]')) return edit(false)
+    if (t.closest('[data-e="reset"]')) return commit(normalisePrefs(null, DEFAULT_ORDER), '[data-e="reset"]')
+    const b = t.closest<HTMLButtonElement>('[data-a]')
+    const id = b?.closest<HTMLElement>('[data-id]')?.dataset.id
+    if (!b || !id) return
+    const a = b.dataset.a
+    commit(a === 'eye' ? toggleHidden(prefs, id) : moveTab(prefs, id, a === 'l' ? -1 : 1), `[data-id="${id}"] [data-a="${a}"]`)
+  })
+  editEl.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); edit(false) } })
+  // A long press on the bar does the same as the pencil.
+  let pressT = 0
+  let pressAt = [0, 0]
+  rail.addEventListener('pointerdown', (e) => { pressAt = [e.clientX, e.clientY]; clearTimeout(pressT); pressT = window.setTimeout(() => { if (isOpen) edit(true) }, 550) })
+  const cancelPress = () => clearTimeout(pressT)
+  rail.addEventListener('pointerup', cancelPress); rail.addEventListener('pointerleave', cancelPress); rail.addEventListener('pointercancel', cancelPress)
+  rail.addEventListener('pointermove', (e) => { if (Math.hypot(e.clientX - pressAt[0], e.clientY - pressAt[1]) > 6) cancelPress() })
+  // Arrow keys step through the open tabs, unless the keys are being used to type or pick a date.
+  document.addEventListener('keydown', (e) => {
+    if ((e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') || e.defaultPrevented || !el.isConnected || !isOpen || editing || e.metaKey || e.ctrlKey || e.altKey) return
+    const t = e.target as HTMLElement
+    if (t.closest('input, textarea, select, [contenteditable="true"], .sheet')) return
+    const ids = shown()
+    const i = ids.indexOf(active)
+    const to = ids[(i + (e.key === 'ArrowRight' ? 1 : ids.length - 1)) % ids.length]
+    e.preventDefault()
+    setActive(to, true)
+    buttons.get(to)?.focus({ preventScroll: true })
+  })
 
   // ---- Island <-> window. The CSS does the animation off data-open, this is only input and state.
   const auto = o.auto !== false
@@ -217,7 +308,8 @@ export function Shell(o: ShellOptions): ShellHandle {
     pill.setAttribute('aria-expanded', String(v))
     inner.toggleAttribute('inert', !v)
     pill.tabIndex = v ? -1 : 0
-    if (v) requestAnimationFrame(() => buttons.get(active)?.focus({ preventScroll: true }))
+    if (!v) edit(false)
+    if (v) requestAnimationFrame(() => { placeSel(); buttons.get(active)?.focus({ preventScroll: true }) })
     else if (inner.contains(document.activeElement)) pill.focus({ preventScroll: true })
     o.onToggle?.(v)
   }
@@ -261,6 +353,7 @@ export function Shell(o: ShellOptions): ShellHandle {
     el.dataset.size = how
   }
 
+  layoutBar()
   apply(TAB_THEMES[active])
   refreshMeta()
   inner.toggleAttribute('inert', true)
@@ -270,6 +363,8 @@ export function Shell(o: ShellOptions): ShellHandle {
     el, host, get active() { return active }, setActive, refreshMeta, soon,
     get isOpen() { return isOpen }, open, close, pill, setCollapsed, get collapsed() { return collapsed },
     live, setSize,
+    setPrefs: (raw) => { prefs = normalisePrefs(raw, DEFAULT_ORDER); layoutBar(); if (!shown().includes(active)) setActive('home', true); if (editing) paintEdit() },
+    get prefs() { return prefs }, edit, get editing() { return editing },
     setKey: (hex) => el.style.setProperty('--k', hex),
     setUnread: (n) => {
       el.dataset.unread = n > 0 ? '1' : '0'

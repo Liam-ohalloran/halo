@@ -1,0 +1,67 @@
+/* Claude tab (card 22), glass family. Copied from the prototype's CLAUDE block: the orb on the left, a glass answer card
+   with the ask box on the right, and four quick pills. 178 + 8 + 30 = 216, so it fits the 226 px content area. */
+.claude-pv .clG { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 8px; height: 100%; }
+.claude-pv .clR { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.claude-pv .orbStage { position: relative; border-radius: 26px; background: radial-gradient(circle at 50% 42%, #140b22, #050508 70%); overflow: hidden; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); cursor: pointer; }
+.claude-pv .lum { position: absolute; left: 50%; top: 42%; width: 118px; height: 118px; transform: translate(-50%, -50%); border-radius: 50%; overflow: hidden; background: radial-gradient(circle at 50% 50%, #1a0f3a, #05030c); box-shadow: 0 0 60px -6px rgba(170,120,255,.75), 0 0 120px -20px rgba(255,90,180,.6); transition: transform .6s var(--spring), box-shadow .6s; }
+.claude-pv .lum .b { position: absolute; width: 90%; height: 90%; border-radius: 50%; filter: blur(14px); mix-blend-mode: screen; opacity: .95; }
+.claude-pv .lum .b1 { left: -14%; top: -6%; background: radial-gradient(circle, #3dd6ff 0, #3d5afe 45%, transparent 70%); animation: clO1 7s ease-in-out infinite; }
+.claude-pv .lum .b2 { right: -18%; top: 10%; background: radial-gradient(circle, #ff2fa3 0, #b04cff 45%, transparent 70%); animation: clO2 9s ease-in-out infinite; }
+.claude-pv .lum .b3 { left: 8%; bottom: -24%; background: radial-gradient(circle, #ffb066 0, #ff6a3d 40%, transparent 70%); animation: clO3 8s ease-in-out infinite; }
+@keyframes clO1 { 50% { transform: translate(22%, 18%) scale(1.15); } }
+@keyframes clO2 { 50% { transform: translate(-26%, 22%) scale(.9); } }
+@keyframes clO3 { 50% { transform: translate(18%, -26%) scale(1.2); } }
+.claude-pv .lum .shade { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle at 50% 120%, rgba(0,0,0,.55), transparent 55%); }
+.claude-pv .lum .spec { position: absolute; left: 20%; top: 12%; width: 34%; height: 20%; border-radius: 50%; background: radial-gradient(closest-side, rgba(255,255,255,.85), transparent); filter: blur(2px); transform: rotate(-25deg); }
+.claude-pv .lum .rim { position: absolute; inset: 0; border-radius: 50%; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.35), inset 0 0 18px rgba(255,255,255,.25); }
+.claude-pv .orbit { position: absolute; left: 50%; top: 42%; width: 168px; height: 168px; transform: translate(-50%, -50%) rotateX(72deg); border-radius: 50%; border: 1.5px solid transparent; background: conic-gradient(from 0deg, transparent, rgba(190,160,255,.9), transparent 40%, rgba(255,140,210,.8), transparent 75%) border-box; -webkit-mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: clOrb 6s linear infinite; }
+@keyframes clOrb { to { transform: translate(-50%, -50%) rotateX(72deg) rotate(360deg); } }
+.claude-pv .ribbons { position: absolute; left: 0; right: 0; bottom: 30px; width: 100%; height: 40px; opacity: .35; transition: opacity .4s; filter: blur(.5px) drop-shadow(0 0 4px #b04cff); }
+.claude-pv .ribbons path { fill: none; stroke-width: 2; stroke-linecap: round; animation: clRib 1.8s ease-in-out infinite alternate; }
+.claude-pv .ribbons path:nth-child(2) { animation-delay: -.6s; } .claude-pv .ribbons path:nth-child(3) { animation-delay: -1.2s; }
+@keyframes clRib { from { transform: scaleY(1); } to { transform: scaleY(-1); } }
+.claude-pv .ribbons path { transform-origin: center; transform-box: fill-box; }
+.claude-pv .thinking .ribbons { opacity: 1; }
+.claude-pv .thinking .lum { transform: translate(-50%, -50%) scale(1.08); box-shadow: 0 0 80px 0 rgba(170,120,255,.9), 0 0 140px -10px rgba(255,90,180,.8); }
+.claude-pv .thinking .lum .b { animation-duration: 1.6s; }
+.claude-pv .orbStage .lbl { position: absolute; left: 0; right: 0; bottom: 10px; text-align: center; font-family: var(--mono); font-size: 8px; letter-spacing: .16em; color: rgba(220,200,255,.85); white-space: nowrap; }
+
+.claude-pv .glassAns { position: relative; flex: 1; min-height: 0; border-radius: 24px; padding: 10px 14px 12px; overflow: hidden; display: flex; flex-direction: column; background: linear-gradient(160deg, rgba(255,255,255,.09), rgba(255,255,255,.02)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.12), inset 0 1px 0 rgba(255,255,255,.25); }
+.claude-pv .glassAns::before { content: ""; position: absolute; left: -40px; bottom: -70px; width: 260px; height: 140px; background: radial-gradient(closest-side, rgba(176,76,255,.35), transparent); pointer-events: none; }
+.claude-pv .gh { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 22px; }
+.claude-pv .gh .caps { color: #e6c8ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.claude-pv .vAsk, .claude-pv .vTasks { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.claude-pv [hidden] { display: none !important; }
+.claude-pv .ansT { flex: 1; min-height: 0; font-size: 13px; line-height: 17px; margin-top: 6px; font-weight: 500; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; user-select: text; }
+.claude-pv .ask { display: flex; gap: 6px; margin-top: 6px; }
+.claude-pv .ask input { flex: 1; min-width: 0; height: 30px; border: 0; border-radius: 15px; padding: 0 14px; font: inherit; font-size: 12px; font-weight: 600; color: var(--pearl); background: rgba(255,255,255,.1); box-shadow: inset 0 0 0 1px rgba(255,255,255,.16); user-select: text; }
+.claude-pv .ask input::placeholder { color: rgba(255,255,255,.55); }
+.claude-pv .ask input:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--gold); }
+.claude-pv .ask button { width: 30px; height: 30px; border-radius: 50%; border: 0; display: grid; place-items: center; background: #fff; color: #000; cursor: pointer; flex: none; transition: transform .3s var(--spring), opacity .2s; }
+.claude-pv .ask button svg { width: 14px; height: 14px; }
+.claude-pv .ask button:active { transform: scale(.88); }
+.claude-pv .ask button:disabled { opacity: .45; cursor: default; }
+
+.claude-pv .runs { display: flex; flex-direction: column; gap: 5px; margin-top: 6px; }
+.claude-pv .run { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 9px; height: 30px; }
+.claude-pv .run .st { width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 8px -1px currentColor; }
+.claude-pv .run .st.running { animation: clPulse 1.2s ease-in-out infinite; }
+@keyframes clPulse { 50% { opacity: .35; } }
+.claude-pv .rt { min-width: 0; }
+.claude-pv .rt b { display: block; font-size: 11px; line-height: 14px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.claude-pv .rt span { display: block; font-size: 9px; line-height: 11px; color: rgba(255,255,255,.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.claude-pv .run .w { font-family: var(--mono); font-size: 8px; font-weight: 700; color: #e6c8ff; }
+.claude-pv .note { font-size: 11px; line-height: 15px; color: rgba(255,255,255,.7); margin-top: 8px; white-space: normal; }
+.claude-pv .skel { height: 22px; border-radius: 11px; }
+
+.claude-pv .gpills { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+.claude-pv .gp { position: relative; height: 30px; border-radius: 15px; border: 0; cursor: pointer; color: #fff; font: inherit; font-size: 10.5px; font-weight: 700; white-space: nowrap; background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.04)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.22), inset 0 1px 0 rgba(255,255,255,.5), 0 8px 16px -8px var(--c); transition: transform .35s var(--spring), opacity .2s; }
+.claude-pv .gp::after { content: ""; position: absolute; left: 18%; right: 18%; bottom: -3px; height: 8px; border-radius: 50%; background: var(--c); filter: blur(6px); opacity: .8; pointer-events: none; }
+.claude-pv .gp:hover { transform: translateY(-1px); }
+.claude-pv .gp:active { transform: scale(.94); }
+.claude-pv .gp:disabled { opacity: .5; cursor: default; }
+.claude-pv .orbStage:focus-visible, .claude-pv .gp:focus-visible, .claude-pv .toggle button:focus-visible, .claude-pv .ask button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .claude-pv .lum .b, .claude-pv .orbit, .claude-pv .ribbons path, .claude-pv .run .st.running { animation: none; }
+  .claude-pv .lum, .claude-pv .gp, .claude-pv .ask button { transition: none; }
+}

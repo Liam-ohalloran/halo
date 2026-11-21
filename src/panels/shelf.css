@@ -1,0 +1,55 @@
+/* Shelf tab (card 22), glass family. Copied from the prototype's SHELF block: three file tiles and a drop tile, then the
+   selected box and four glass buttons. 96 + 10 + 100 = 206 plus 10 padding each side, so it fits and nothing scrolls. */
+.shelf-pv .glassBg { position: absolute; inset: 0; border-radius: 22px; overflow: hidden; background: #06060a; }
+.shelf-pv .glassBg i { position: absolute; border-radius: 50%; filter: blur(30px); opacity: .75; }
+.shelf-pv .shG { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: 96px minmax(0, 1fr); gap: 10px; height: 100%; padding: 10px; }
+.shelf-pv .lg { position: relative; border-radius: 22px; cursor: pointer; overflow: hidden; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; min-width: 0;
+  background: linear-gradient(170deg, rgba(255,255,255,.2), rgba(255,255,255,.04) 45%, rgba(255,255,255,.08)); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.28), inset 0 1.5px 0 rgba(255,255,255,.6), inset 0 -8px 16px -8px rgba(255,255,255,.15), 0 14px 26px -14px var(--c); transition: transform .45s var(--spring), box-shadow .3s; }
+.shelf-pv .lg::after { content: ""; position: absolute; left: 15%; right: 15%; bottom: -6px; height: 16px; border-radius: 50%; background: var(--c); filter: blur(10px); opacity: .9; pointer-events: none; }
+.shelf-pv .lg:hover { transform: translateY(-3px); }
+.shelf-pv .lg.blank { opacity: .4; cursor: default; }
+.shelf-pv .lg.blank:hover { transform: none; }
+.shelf-pv .lg.sel { box-shadow: inset 0 0 0 2px rgba(255,255,255,.9), inset 0 1.5px 0 #fff, 0 14px 30px -10px var(--c); }
+.shelf-pv .lg .fx { position: absolute; left: 12px; top: 10px; font-family: var(--mono); font-size: 8px; font-weight: 700; letter-spacing: .14em; color: var(--c); filter: brightness(1.25); }
+.shelf-pv .lg .nm { position: absolute; left: 12px; right: 12px; bottom: 22px; font-size: 12px; font-weight: 800; line-height: 1.15; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.shelf-pv .lg .sz { position: absolute; left: 12px; right: 12px; bottom: 9px; font-family: var(--mono); font-size: 8px; color: rgba(255,255,255,.75); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shelf-pv .lg .doc { position: absolute; right: 12px; top: 12px; width: 26px; height: 32px; border-radius: 4px 10px 4px 4px; background: linear-gradient(160deg, rgba(255,255,255,.9), rgba(255,255,255,.55)); box-shadow: 0 4px 10px -2px var(--c); }
+.shelf-pv .lg.add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 10.5px; font-weight: 700; color: rgba(255,255,255,.9); }
+.shelf-pv .lg.add svg { width: 20px; height: 20px; }
+.shelf-pv .lg.add.over { box-shadow: inset 0 0 0 2px #3D9BFF, 0 0 30px -4px #3D9BFF; }
+.shelf-pv .lg.add[aria-disabled='true'] { opacity: .5; cursor: default; }
+
+.shelf-pv .acts { grid-column: span 4; display: grid; grid-template-columns: 1.4fr repeat(4, minmax(0, 1fr)); gap: 10px; min-height: 0; }
+.shelf-pv .selBox { border-radius: 22px; padding: 10px 14px; background: rgba(0,0,0,.35); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); min-width: 0; }
+.shelf-pv .sbh { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; }
+.shelf-pv .selBox small { font-family: var(--mono); font-size: 7.5px; letter-spacing: .14em; color: rgba(255,255,255,.75); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.shelf-pv .selBox .note { margin: 0; flex: none; border: 0; color: var(--pearl); background: rgba(255,255,255,.14); cursor: pointer; font-size: 11px; line-height: 14px; width: 18px; height: 16px; padding: 0; display: grid; place-items: center; transition: transform .3s var(--spring), background .2s; }
+.shelf-pv .selBox .note:hover { background: rgba(255,255,255,.26); }
+.shelf-pv .selBox .note:active { transform: scale(.94); }
+.shelf-pv .sbn { display: block; width: 100%; border: 0; padding: 0; margin-top: 4px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 6px; }
+.shelf-pv .selBox b { display: block; font-size: 13px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shelf-pv .selBox .mt { height: 4px; border-radius: 3px; background: rgba(255,255,255,.12); margin-top: 10px; overflow: hidden; }
+.shelf-pv .selBox .mt i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #3D9BFF, #BF5AF2); border-radius: 3px; transition: width .5s var(--spring); }
+.shelf-pv .selBox .mt i.busy { animation: shPulse 1s ease-in-out infinite; }
+@keyframes shPulse { 50% { opacity: .4; } }
+.shelf-pv .lqb { position: relative; border: 0; border-radius: 999px; cursor: pointer; color: #fff; font: inherit; font-size: 11px; font-weight: 800; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,.2), rgba(255,255,255,.04)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.3), inset 0 1.5px 0 rgba(255,255,255,.65), 0 10px 20px -10px var(--c); transition: transform .35s var(--spring), opacity .2s; }
+.shelf-pv .lqb::after { content: ""; position: absolute; left: 20%; right: 20%; bottom: -4px; height: 12px; border-radius: 50%; background: var(--c); filter: blur(8px); opacity: .95; pointer-events: none; }
+.shelf-pv .lqb:hover { transform: translateY(-2px); }
+.shelf-pv .lqb:active { transform: scale(.93); }
+.shelf-pv .lqb:disabled { opacity: .4; cursor: default; transform: none; }
+.shelf-pv .lqb svg { width: 16px; height: 16px; position: relative; z-index: 1; }
+.shelf-pv .lqb span { position: relative; z-index: 1; white-space: nowrap; }
+.shelf-pv :is(.lg, .lqb, .sbn, .note):focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* Empty: a quiet line on the first tile's spot. Loading: shimmer over the tiles. Error: one sentence and a retry. */
+.shelf-pv.is-empty .selBox b { color: rgba(255,255,255,.7); }
+.shelf-pv.is-loading .shG > [data-k="tiles"] { display: none !important; }
+.shelf-pv.is-loading .shG::before { content: ""; grid-column: span 3; border-radius: 22px; background: linear-gradient(100deg, rgba(255,255,255,.04) 30%, rgba(255,255,255,.14) 50%, rgba(255,255,255,.04) 70%) 0 0 / 200% 100%; animation: shLoad 1.3s linear infinite; }
+@keyframes shLoad { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.shelf-pv .shErr { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; gap: 12px; background: #0e0e12; border-radius: 22px; z-index: 2; font-size: 11px; font-weight: 600; }
+.shelf-pv.is-err .shErr { display: flex; }
+.shelf-pv .shErr button { height: 26px; padding: 0 12px; border-radius: 999px; border: 0; background: var(--pearl); color: #000; font-size: 11px; font-weight: 700; cursor: pointer; transition: transform .3s var(--spring); }
+.shelf-pv .shErr button:active { transform: scale(.94); }
+@media (prefers-reduced-motion: reduce) { .shelf-pv .lg, .shelf-pv .lqb, .shelf-pv .selBox .mt i { transition: none; } .shelf-pv.is-loading .shG::before, .shelf-pv .selBox .mt i.busy { animation: none; } }

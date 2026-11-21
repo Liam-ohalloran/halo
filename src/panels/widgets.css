@@ -1,0 +1,39 @@
+/* Widgets tab (card 22), compact grid family. Copied from the prototype's WIDGETS block: #1c1c1e tiles, a 1 px border,
+   blue for today. A 6 x 3 grid so nothing scrolls. */
+.widgets-pv .mG { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 7px; height: 100%; }
+.widgets-pv .mw { position: relative; border-radius: 16px; padding: 8px 10px; background: #1c1c1e; box-shadow: inset 0 0 0 1px rgba(255,255,255,.07); overflow: hidden; min-width: 0; transition: transform .4s var(--spring); }
+.widgets-pv .mw.c2 { grid-column: span 2; } .widgets-pv .mw.r2 { grid-row: span 2; }
+.widgets-pv .mw .l { font-size: 8.5px; color: #a1a1a9; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.widgets-pv .mw .v { font-size: 20px; font-weight: 700; line-height: 1.1; margin-top: 3px; white-space: nowrap; }
+.widgets-pv .mw .v .u { font-size: 10px; color: #a1a1a9; font-weight: 600; }
+.widgets-pv .mw .nil { color: #a1a1a9; }
+.widgets-pv .bigClock { font-size: 30px; font-weight: 700; letter-spacing: -.02em; margin-top: 3px; line-height: 1.05; }
+.widgets-pv .dm { display: grid; grid-template-columns: repeat(26, minmax(0, 1fr)); gap: 2.5px; margin-top: 7px; }
+.widgets-pv .dm i { aspect-ratio: 1; border-radius: 50%; background: #3a3a3e; }
+.widgets-pv .dm i.on { background: #fff; }
+.widgets-pv .dm i.now { background: #30D158; box-shadow: 0 0 5px #30D158; }
+.widgets-pv .calw { display: flex; gap: 3px; margin-top: 6px; }
+.widgets-pv .calw div { flex: 1; text-align: center; border-radius: 8px; padding: 3px 0; }
+.widgets-pv .calw div small { display: block; font-size: 7px; color: #a1a1a9; font-weight: 600; }
+.widgets-pv .calw div b { font-size: 12px; font-weight: 700; }
+.widgets-pv .calw div.on { background: #0A84FF; }
+.widgets-pv .calw div.on small { color: #fff; }
+.widgets-pv .rw { display: flex; align-items: center; gap: 7px; }
+.widgets-pv .rw svg { flex: none; }
+.widgets-pv .gl { display: block; }
+.widgets-pv .gml { display: flex; flex-direction: column; gap: 4px; margin-top: 5px; }
+.widgets-pv .gml button { display: flex; align-items: center; gap: 6px; font: inherit; font-size: 10px; font-weight: 600; color: inherit; background: none; border: 0; padding: 1px 2px; border-radius: 8px; cursor: pointer; text-align: left; transition: background .2s, transform .3s var(--spring); }
+.widgets-pv .gml button:hover { background: rgba(255,255,255,.07); }
+.widgets-pv .gml button:active { transform: scale(.97); }
+.widgets-pv .gml button i { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid #8e8e93; flex: none; transition: background .25s, border-color .25s; }
+.widgets-pv .gml button.done i { background: #30D158; border-color: #30D158; }
+.widgets-pv .gml button.done { color: #a1a1a9; text-decoration: line-through; }
+.widgets-pv .cdb { display: block; width: 100%; height: 100%; margin: -8px -10px; padding: 8px 10px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 16px; min-width: 0; transition: background .2s, transform .3s var(--spring); }
+.widgets-pv .cdb:hover { background: rgba(255,255,255,.06); }
+.widgets-pv .cdb:active { transform: scale(.97); }
+.widgets-pv :is(.cdb, .gml button):focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.widgets-pv .wdErr { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; gap: 12px; background: #0e0e12; border-radius: 16px; z-index: 2; font-size: 11px; font-weight: 600; }
+.widgets-pv.is-err .wdErr { display: flex; }
+.widgets-pv .wdErr button { height: 26px; padding: 0 12px; border-radius: 999px; border: 0; background: var(--pearl); color: #000; font-size: 11px; font-weight: 700; cursor: pointer; transition: transform .3s var(--spring); }
+.widgets-pv .wdErr button:active { transform: scale(.94); }
+@media (prefers-reduced-motion: reduce) { .widgets-pv .mw, .widgets-pv .cdb, .widgets-pv .gml button { transition: none; } }

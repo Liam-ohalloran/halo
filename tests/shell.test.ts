@@ -4,7 +4,7 @@ import { RAIL, TAB_IDS, TAB_THEMES, RAIL_ICONS, parseTab } from '../src/styles/t
 import { dayLabel, rangeLabel, tabMeta, weekStart } from '../src/lib/shell-meta.ts'
 
 test('rail order is Home, Music, Study, Pay, Sixers, Week, divider, More, Controls (with Money and Marks)', () => {
-  assert.deepEqual(RAIL, ['home', 'music', 'study', 'pay', 'sixers', 'week', 'money', 'alerts', 'marks', null, 'more', 'controls'])
+  assert.deepEqual(RAIL, ['home', 'music', 'study', 'pay', 'sixers', 'week', 'money', 'alerts', 'marks', 'claude', 'shelf', 'widgets', null, 'more', 'controls'])
 })
 
 test('every tab has a full theme and an icon', () => {

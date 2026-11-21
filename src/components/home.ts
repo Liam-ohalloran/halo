@@ -2,6 +2,7 @@ import '../styles/tokens.css'
 import '../styles/home.css'
 import '../styles/phone.css'
 import '../styles/proto.css'
+import '../styles/desktop.css'
 import './components.css'
 import './sixers.css'
 import { h } from './dom'
@@ -30,6 +31,7 @@ import { buildAlertsView, createAlertsStore } from '../lib/alerts'
 import type { PvRoot } from '../ui/charts'
 import { supabase, supabaseBackend } from '../supabase'
 import { isEmbed } from '../lib/embed'
+import { attachDesktop, isDesktop } from '../lib/desktop'
 import { EmbedShell } from './EmbedShell'
 import { Shell, type ShellHandle } from './Shell'
 import { SettingsPanel, type Account } from './Settings'
@@ -126,7 +128,8 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   // iPhone width: the panels become a swipeable stack under the island (card 10) instead of opening inside it.
   // Embedded in NotchPixel's web tab (?embed=1): no island at all, the panels fill the viewport.
   const embed = isEmbed()
-  const phone = !embed && matchMedia('(max-width: 480px)').matches
+  // The desktop app's window is only as wide as the island, so a narrow width must not mean a phone there.
+  const phone = !embed && !isDesktop() && matchMedia('(max-width: 480px)').matches
   document.documentElement.classList.toggle('phone', phone)
 
   // The stage is the visible window, so the island can grow as tall as the screen allows.
@@ -341,8 +344,12 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     rows: () => (nightMode.get() ? alertsStore.rows().filter((r) => r.type === 'leave_reminder') : alertsStore.rows()),
     subscribe: (cb: () => void) => { const a = alertsStore.subscribe(cb); const b = nightMode.subscribe(cb); return () => { a(); b() } },
   } : null
+  // Card 25: inside the Halo desktop app the window follows the island's size and lets clicks through everywhere else.
+  const detachDesktop = sh && isDesktop() ? attachDesktop(sh) : null
   const banners: BannersHandle | null = sh && bannerSource && live ? Banners(sh, live, { source: bannerSource, clock, go: () => showShellTab('alerts') }) : null
   let alertsPanel: ReturnType<typeof AlertsPanel> | null = null
+  // Dev only (never in a production build): lets scripts/desktop-demo.mjs fire a HUD pill and a banner in the real app.
+  if (import.meta.env.DEV && sh && live) (window as unknown as { __haloDev?: unknown }).__haloDev = { sh, live, banners }
   let moneyPanel: ReturnType<typeof MoneyPanel> | null = null
   let marksPanel: ReturnType<typeof MarksPanel> | null = null
   let claudePanel: ReturnType<typeof ClaudePanel> | null = null
@@ -599,7 +606,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   void loadPrefs()
 
   return () => {
-    stop(); ro.disconnect(); unsub(); unsubTimer(); stopEvents?.(); live?.destroy(); if (artUrl) URL.revokeObjectURL(artUrl); payPanel?.destroy(); alertsPanel?.destroy(); moneyPanel?.destroy(); marksPanel?.destroy(); claudePanel?.destroy(); nightPanel?.destroy(); unsubNight(); shelfPanel?.destroy(); widgetsPanel?.destroy(); unsubAlerts?.(); banners?.destroy(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
+    stop(); ro.disconnect(); unsub(); unsubTimer(); stopEvents?.(); live?.destroy(); if (artUrl) URL.revokeObjectURL(artUrl); payPanel?.destroy(); alertsPanel?.destroy(); moneyPanel?.destroy(); marksPanel?.destroy(); claudePanel?.destroy(); nightPanel?.destroy(); unsubNight(); shelfPanel?.destroy(); widgetsPanel?.destroy(); unsubAlerts?.(); banners?.destroy(); detachDesktop?.(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
     document.removeEventListener('pointerdown', onOutside)
     document.removeEventListener('visibilitychange', onVisible)
     removeEventListener('online', onOnline)

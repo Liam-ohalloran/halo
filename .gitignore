@@ -9,3 +9,7 @@ scripts/_dbg*.mjs
 scripts/_ears.mjs
 scripts/_probe*.mjs
 scripts/_plain-680.png
+
+dist-desktop
+desktop/src-tauri/target
+desktop/src-tauri/gen

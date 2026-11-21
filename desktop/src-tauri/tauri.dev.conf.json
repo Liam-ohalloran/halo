@@ -1,0 +1,26 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "app": {
+    "security": {
+      "csp": null,
+      "capabilities": [
+        "default",
+        {
+          "identifier": "dev-server",
+          "description": "Debug only. Lets the app talk to Vite's dev server page when npm run desktop:dev is given a window url override. This file is only read by tauri dev, so the installer never has it.",
+          "windows": [
+            "main"
+          ],
+          "remote": {
+            "urls": [
+              "http://localhost:5173/*"
+            ]
+          },
+          "permissions": [
+            "core:default"
+          ]
+        }
+      ]
+    }
+  }
+}

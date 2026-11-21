@@ -2,6 +2,9 @@
 import type { AlertRow, Backend, Shift, StudySession, Test } from '../types'
 import type { Goal, MoneyItem } from '../lib/money'
 import type { Mark } from '../lib/marks'
+import type { TaskRun } from '../lib/claude'
+import { badge, type ShelfItem } from '../lib/shelf'
+import { DEFAULT_COUNTDOWNS, type Countdown } from '../lib/widgets'
 import { DEFAULT_SETTINGS } from '../types'
 import { weekStart, addDays } from '../time'
 
@@ -102,6 +105,36 @@ function marksFixture(mode: string): Mark[] {
   return rows
 }
 
+/** Claude, Shelf and Widgets fixtures (card 22), hung off the demo clock (Sat 21 Nov 2026, 3:48 pm Perth). `claude` has a few task runs,
+ *  `claudemany` has long names, `claudeempty` has none. `shelf` has five things, `shelfmany` is full with long names, `shelfempty` has none.
+ *  `widgets` has the three countdowns, `widgetsmany` gives them long names, `widgetsempty` starts with an empty table (the app fills it in). */
+function runsFixture(mode: string): TaskRun[] {
+  if (!mode.startsWith('claude') || mode === 'claudeempty') return []
+  const at = (min: number) => perthAt(0, 15, 48 - min)
+  const run = (id: string, title: string, status: TaskRun['status'], detail: string, min: number): TaskRun => ({ id, title, status, detail, created_at: at(min), finished_at: status === 'running' ? null : at(min - 2) })
+  const rows = [run('r1', 'Morning briefing', 'done', 'Sent to Alerts', 480), run('r2', 'Sync TickTick', 'running', '', 3), run('r3', 'Blink cover check', 'done', 'No new covers', 95), run('r4', 'New marks check', 'failed', 'SEQTA sign in expired', 200)]
+  if (mode === 'claudemany') rows.unshift(run('r5', 'A scheduled task with a very long name that keeps going', 'done', 'And a detail line that is also far too long to ever fit in one line here', 20), run('r6', 'Another one', 'done', '', 30))
+  return rows
+}
+function shelfFixture(mode: string): ShelfItem[] {
+  if (!mode.startsWith('shelf') || mode === 'shelfempty') return []
+  let n = 0
+  const f = (name: string, size: number, mime: string, min: number): ShelfItem => ({ id: `f${++n}`, kind: 'file', name, content: '', storage_path: `u/${n}/${name}`, size_bytes: size, mime, created_at: perthAt(0, 15, 48 - min) })
+  const rows: ShelfItem[] = [
+    f('Chem summer work.pdf', 2.1 * 1024 * 1024, 'application/pdf', 5), f('Halo board.png', 840 * 1024, 'image/png', 30), f('TASKS.md', 24 * 1024, 'text/markdown', 90),
+    { id: 'l1', kind: 'link', name: 'curtin.edu.au', content: 'https://www.curtin.edu.au/study/', storage_path: null, size_bytes: null, mime: null, created_at: perthAt(0, 12, 0) },
+    { id: 't1', kind: 'text', name: 'Ring Mum about Sunday', content: 'Ring Mum about Sunday lunch, and ask about the car.', storage_path: null, size_bytes: null, mime: null, created_at: perthAt(0, 11, 0) },
+  ]
+  if (mode === 'shelfmany') rows.unshift(f('A really long file name for the ninety page report final version 7.docx', 18 * 1024 * 1024, 'application/msword', 2), f('Methods formula sheet.pdf', 310 * 1024, 'application/pdf', 3), f('Photo.jpg', 4.2 * 1024 * 1024, 'image/jpeg', 4))
+  return rows
+}
+function countdownFixture(mode: string): Countdown[] {
+  if (!mode.startsWith('widgets') || mode === 'widgetsempty') return []
+  const rows = DEFAULT_COUNTDOWNS.map((d, i) => ({ ...d, id: `c${i}` }))
+  if (mode === 'widgetsmany') { rows[0].name = 'Doomsday and everything after'; rows[1].name = 'Birthday party'; rows[2].name = 'Christmas Day lunch' }
+  return rows
+}
+
 export function mockBackend(mode: string): Backend {
   const now = new Date()
   const mon = weekStart(now)
@@ -141,6 +174,16 @@ export function mockBackend(mode: string): Backend {
 
   const money = moneyFixture(mode)
   const marksRows = marksFixture(mode)
+  const runs = runsFixture(mode)
+  const runListeners = new Set<() => void>()
+  const shelf = shelfFixture(mode)
+  const shelfListeners = new Set<() => void>()
+  const cds = countdownFixture(mode)
+  // Dev only: lets a test play the part of a scheduled task or the phone adding to the Shelf.
+  ;(globalThis as unknown as { __mockClaude?: unknown }).__mockClaude = {
+    insertRun: (r: Partial<TaskRun> & { id: string; title: string }) => { runs.unshift({ status: 'done', detail: '', created_at: new Date().toISOString(), finished_at: null, ...r }); runListeners.forEach((f) => f()) },
+    insertShelf: (r: ShelfItem) => { shelf.unshift(r); shelfListeners.forEach((f) => f()) },
+  }
   const nextId = () => `n${Math.random().toString(36).slice(2, 9)}`
   const alerts = alertsFixture(mode)
   const alertListeners = new Set<() => void>()
@@ -193,6 +236,26 @@ export function mockBackend(mode: string): Backend {
     marks: () => gate(marksRows.map((m) => ({ ...m }))),
     async addMark(m) { marksRows.push({ ...m, id: nextId() }); await sleep(80) },
     async deleteMark(id) { marksRows.splice(marksRows.findIndex((m) => m.id === id), 1); await sleep(80) },
+    taskRuns: () => gate(runs.map((r) => ({ ...r }))),
+    onTaskRunsChange(cb) { runListeners.add(cb); return () => runListeners.delete(cb) },
+    async askClaude(prompt) {
+      await sleep(500)
+      if (mode === 'claudeoffline') throw new Error('not set up')
+      return `You asked: ${prompt.slice(0, 60)}. This is a sample answer from the dev backend.`
+    },
+    shelfItems: () => gate(shelf.map((s) => ({ ...s }))),
+    async addShelfFile(file) {
+      await sleep(150)
+      shelf.unshift({ id: nextId(), kind: 'file', name: file.name, content: '', storage_path: `u/${file.name}`, size_bytes: file.size, mime: file.type || null, created_at: new Date().toISOString() })
+      shelfListeners.forEach((f) => f())
+    },
+    async addShelfText(it) { await sleep(80); shelf.unshift({ id: nextId(), ...it, storage_path: null, size_bytes: null, mime: null, created_at: new Date().toISOString() }); shelfListeners.forEach((f) => f()) },
+    async removeShelfItem(it) { await sleep(80); shelf.splice(shelf.findIndex((s) => s.id === it.id), 1); shelfListeners.forEach((f) => f()) },
+    shelfUrl: async (it) => `https://example.test/signed/${encodeURIComponent(it.name)}?badge=${badge(it)}`,
+    onShelfChange(cb) { shelfListeners.add(cb); return () => shelfListeners.delete(cb) },
+    countdowns: () => gate(cds.map((c) => ({ ...c }))),
+    async saveCountdown(c) { const x = cds.find((y) => y.id === c.id); if (x) Object.assign(x, c); await sleep(80) },
+    async seedCountdowns() { await sleep(80); if (!cds.length) cds.push(...DEFAULT_COUNTDOWNS.map((d, i) => ({ ...d, id: `c${i}` }))) },
     unreadAlerts: () => gate(alerts.filter((a) => !a.read_at).map((a) => ({ ...a }))),
     async markAlertsRead(ids) {
       for (const a of alerts) if (ids.includes(a.id)) a.read_at = new Date().toISOString()

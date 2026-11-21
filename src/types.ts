@@ -43,6 +43,9 @@ export interface AlertRow {
 
 import type { Goal, MoneyItem } from './lib/money'
 import type { Mark } from './lib/marks'
+import type { TaskRun } from './lib/claude'
+import type { ShelfItem } from './lib/shelf'
+import type { Countdown } from './lib/widgets'
 
 /** Everything the UI needs from the database. Real impl talks to Supabase; dev impl is in-memory. */
 export interface Backend {
@@ -81,6 +84,24 @@ export interface Backend {
   marks(): Promise<Mark[]>
   addMark(m: Omit<Mark, 'id'>): Promise<void>
   deleteMark(id: string): Promise<void>
+  /** Claude tab (card 22). Task runs are inserted by scheduled tasks, the app only reads them. */
+  taskRuns(): Promise<TaskRun[]>
+  onTaskRunsChange(cb: () => void): () => void
+  /** Asks the ask-claude edge function, which holds the Anthropic key. Rejects when it is not set up. */
+  askClaude(prompt: string): Promise<string>
+  /** Shelf tab (card 22). Files go to the private shelf bucket, links and notes live in the row. */
+  shelfItems(): Promise<ShelfItem[]>
+  addShelfFile(file: File): Promise<void>
+  addShelfText(it: { kind: 'link' | 'text'; name: string; content: string }): Promise<void>
+  removeShelfItem(it: ShelfItem): Promise<void>
+  /** A short lived link to a file in the bucket. */
+  shelfUrl(it: ShelfItem, seconds: number): Promise<string>
+  onShelfChange(cb: () => void): () => void
+  /** Widgets tab (card 22). */
+  countdowns(): Promise<Countdown[]>
+  saveCountdown(c: { id: string; name: string; target_date: string }): Promise<void>
+  /** Puts Doomsday, birthday and Christmas in when the table is empty. */
+  seedCountdowns(): Promise<void>
   /** Realtime: called whenever a shift row changes. Returns unsubscribe. */
   onShiftsChange(cb: () => void, onStatus?: (live: boolean) => void): () => void
 }

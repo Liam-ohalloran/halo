@@ -1,6 +1,7 @@
 import '../styles/tokens.css'
 import '../styles/signin.css'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { isDesktop } from '../lib/desktop'
 
 const EMAIL_KEY = 'halo.email'
 
@@ -94,7 +95,21 @@ export function mountSignIn(app: HTMLElement, client: SupabaseClient, notice?: s
     form.addEventListener('submit', async (e) => {
       e.preventDefault()
       const v = input.value.trim()
-      if (/^https?:\/\/\S+/.test(v)) { location.href = v; return }
+      if (/^https?:\/\/\S+/.test(v)) {
+        // The desktop app has no address bar to land on, so it signs in with the link's one time token instead of opening it.
+        if (isDesktop()) {
+          let hash: string | null = null
+          try { hash = new URL(v).searchParams.get('token') } catch { /* not a link */ }
+          if (!hash) { msg.className = 'signin-msg err'; msg.textContent = "That isn't the link from the email."; return }
+          go.disabled = true
+          const { error } = await client.auth.verifyOtp({ token_hash: hash, type: 'magiclink' })
+          go.disabled = false
+          if (error) { msg.className = 'signin-msg err'; msg.textContent = plainError(error.message) }
+          return
+        }
+        location.href = v
+        return
+      }
       msg.className = 'signin-msg err'
       msg.textContent = "That isn't the link from the email."
     })

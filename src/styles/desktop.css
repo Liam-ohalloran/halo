@@ -1,0 +1,33 @@
+/* Card 25: the Halo desktop app. The window is transparent and only as big as the island, so the page has no
+   background of its own and nothing scrolls. Island style floats as a capsule, Notch style hangs off the top edge
+   with the ears (the shell's default). The app sets html[data-desk-style]. */
+html.desktop, html.desktop body, html.desktop.home, html.desktop.home body, html.desktop.signin, html.desktop.signin body { background: transparent !important; overflow: hidden; margin: 0; height: 100%; }
+html.desktop.signin body { background: #000 !important; border-radius: 0 0 26px 26px; }
+html.desktop .signin-wrap { min-height: 100%; height: 100%; padding: 0; }
+html.desktop .signin-card { max-width: none; height: 100%; border-radius: 0 0 26px 26px; justify-content: center; }
+html.desktop *, html.desktop *::before, html.desktop *::after { -webkit-user-drag: none; }
+html.desktop .sh .sh-body, html.desktop .sh { user-select: none; }
+html.desktop input, html.desktop textarea { user-select: text; }
+
+/* Island style: a floating capsule, rounded all round, no ears. */
+html.desktop[data-desk-style='island'] .sh { border-radius: var(--cr); border-top: 1px solid transparent; }
+html.desktop[data-desk-style='island'] .sh[data-open='true'] { border-radius: 26px; }
+html.desktop[data-desk-style='island'] .sh::before, html.desktop[data-desk-style='island'] .sh::after { display: none; }
+html.desktop[data-desk-style='island'] .sh-clip { border-radius: inherit; }
+
+/* The window is only as big as the island, so an outer glow would be cut off in a hard rectangle. In the app the key
+   line stays (inside the edge) and the spill is left out. */
+html.desktop .sh[data-open='false'] {
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--k) 30%, transparent), inset 1px 0 0 color-mix(in srgb, var(--k) 30%, transparent), inset -1px 0 0 color-mix(in srgb, var(--k) 30%, transparent) !important;
+  animation: none !important;
+}
+html.desktop .sh[data-open='true'] { box-shadow: none !important; }
+
+/* The closed island is never keyboard focused in the app (the window does not take focus), so the focus ring a
+   programmatic focus can leave behind would only look like a stray gold outline. */
+html.desktop .sh-pill:focus-visible { outline: none; }
+
+/* Settings in the app has more rows than the 600 x 290 window has room for, so the switches sit two to a line. */
+.set-panel.desk { display: grid; grid-template-columns: 1fr 1fr; align-content: center; gap: var(--s2); }
+.set-panel.desk .set-row { min-width: 0; min-height: 40px; }
+.set-panel.desk .set-row.wide { grid-column: 1 / -1; }

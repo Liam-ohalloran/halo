@@ -53,6 +53,14 @@ export function Banners(sh: ShellHandle, live: IslandLiveHandle, o: BannersOptio
   let timers: number[] = []
   const later = (fn: () => void, ms: number) => { const t = window.setTimeout(() => { timers = timers.filter((x) => x !== t); if (alive) fn() }, ms); timers.push(t); return t }
 
+  // Is the pointer on the island? Tracked from enter and leave events, not :hover, because inside the desktop app the
+  // window is click through away from the island and the browser's own hover state can go stale there.
+  let hovering = false
+  const enter = (e: PointerEvent) => { if (e.pointerType !== 'touch') hovering = true }
+  const leave = (e: PointerEvent) => { if (e.pointerType !== 'touch') hovering = false }
+  sh.el.addEventListener('pointerenter', enter)
+  sh.el.addEventListener('pointerleave', leave)
+
   // ---- Stack under the island ----
   const nst = h('div', { class: 'nst', 'aria-label': 'Recent alerts', role: 'group' })
   const more = h('button', { type: 'button', class: 'npMore' }) as HTMLButtonElement
@@ -179,7 +187,7 @@ export function Banners(sh: ShellHandle, live: IslandLiveHandle, o: BannersOptio
     const tick = () => {
       if (!alive) return
       // Hovering the island holds the banner open, and so does the window opening (the loop then finishes at once).
-      left = holdLeft(left, sh.el.matches(':hover') || sh.el.contains(document.activeElement), TICK_MS)
+      left = holdLeft(left, hovering, TICK_MS)
       if (left > 0 && !sh.isOpen) { later(tick, TICK_MS); return }
       live.banner(null)
       later(() => { setStack(addToStack(stack, r)); current = null; busy = false; later(pump, slow(GAP_MS)) }, slow(CLOSE_MS))
@@ -214,6 +222,6 @@ export function Banners(sh: ShellHandle, live: IslandLiveHandle, o: BannersOptio
     play(r) { local.add(r.id); queue.push(r); pump() },
     get waiting() { return queue.size + (busy ? 1 : 0) },
     get stack() { return stack },
-    destroy() { alive = false; off(); timers.forEach(clearTimeout); nst.remove() },
+    destroy() { alive = false; off(); timers.forEach(clearTimeout); nst.remove(); sh.el.removeEventListener('pointerenter', enter); sh.el.removeEventListener('pointerleave', leave) },
   }
 }

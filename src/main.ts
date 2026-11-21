@@ -7,6 +7,7 @@ import { mountPay } from './panels/pay'
 import { mountStudy } from './views/study'
 import { mountAuth } from './views/auth'
 import { isEmbed } from './lib/embed'
+import { isDesktop, sizeForScreen } from './lib/desktop'
 
 type Tab = 'now' | 'pay' | 'study'
 const TABS: { id: Tab; label: string }[] = [
@@ -136,6 +137,7 @@ function booting() {
 
 async function start() {
   isEmbed() // reads ?embed=1, remembers it, and sets html.embed before anything draws
+  isDesktop() // reads ?desktop=1 (the Halo desktop app), and sets html.desktop
   // index.html ships with class="home" so the first paint is the Halo black. The old draft screens opt out.
   if (params.has('legacy') || (import.meta.env.DEV && params.has('mock'))) document.documentElement.classList.remove('home')
   // Dev-only preview of the Now panel on fixtures with a fixed clock: /?demo=soon&open=1 (stripped from production builds).
@@ -165,8 +167,9 @@ async function start() {
         // Card 15b: on desktop and embedded, "Signed in as" and "Add to Home Screen" live in Settings (the More tab).
         mountHome(app, { account: { email, onSignOut: () => void supabase.auth.signOut() } })
         // The phone keeps its stack for now, so it keeps the footer too.
-        if (!isEmbed() && matchMedia('(max-width: 480px)').matches) mountSignedInNote(app, supabase, email)
+        if (!isEmbed() && !isDesktop() && matchMedia('(max-width: 480px)').matches) mountSignedInNote(app, supabase, email)
       } else {
+        if (isDesktop()) sizeForScreen(460, 440) // the sign-in card needs a window of its own while the island is not there
         mountSignIn(app, supabase, linkError ? "That link didn't work. Send a new one." : undefined)
       }
     }
@@ -215,6 +218,6 @@ async function start() {
 
 start()
 
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+if (import.meta.env.PROD && 'serviceWorker' in navigator && !isDesktop()) {
   addEventListener('load', () => navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js').catch(() => {}))
 }

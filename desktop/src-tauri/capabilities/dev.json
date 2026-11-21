@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "dev-server",
+  "description": "Lets the app talk to Vite's dev server page while you run npm run desktop:dev with a window url override. Not used by the installed app, which loads its own files.",
+  "windows": ["main"],
+  "remote": { "urls": ["http://localhost:5173/*"] },
+  "permissions": ["core:default"]
+}

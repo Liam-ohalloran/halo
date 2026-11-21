@@ -1,0 +1,84 @@
+/* Money and Marks tabs (card 21), colour tiles family. Copied from the prototype's MONEY and MARKS blocks.
+   A fixed 4 x 3 grid of 70 px rows (the Study layout), so nothing scrolls. */
+.money-pv .grid, .marks-pv .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(3, 70px); gap: 8px; height: 100%; }
+.money-pv .t, .marks-pv .t { min-width: 0; }
+.money-pv .hd { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-height: 15px; }
+.money-pv .hd .caps { flex: none; }
+.money-pv .hd b { font-size: 17px; font-weight: 800; white-space: nowrap; letter-spacing: -.02em; }
+.money-pv .hd b small { font-size: 10px; opacity: .6; font-weight: 600; }
+.money-pv .hd .more { margin-left: auto; font-family: var(--mono); font-size: 8px; color: var(--fog); white-space: nowrap; }
+.money-pv .big small { font-size: 10px; }
+.money-pv .note, .marks-pv .note { font-size: 10px; line-height: 13px; opacity: .65; margin-top: 8px; white-space: normal; }
+
+.money-pv .addb { border: 0; color: var(--pearl); background: rgba(255,255,255,.12); cursor: pointer; flex: none; transition: transform .3s var(--spring), background .2s; }
+.money-pv .addb:hover { background: rgba(255,255,255,.22); }
+.money-pv .addb:active { transform: scale(.92); }
+
+.money-pv .mstack { display: flex; height: 10px; border-radius: 6px; overflow: hidden; gap: 2px; margin-top: 8px; }
+.money-pv .mstack i { height: 100%; width: 0; transition: width calc(800ms * var(--slow)) var(--spring); }
+.money-pv .legend { display: flex; justify-content: space-between; gap: 6px; margin-top: 6px; }
+.money-pv .legend div { display: flex; align-items: center; gap: 3px; overflow: hidden; font-size: 8px; color: rgba(245,247,255,.75); white-space: nowrap; }
+.money-pv .legend b { width: 6px; height: 6px; border-radius: 2px; flex: none; }
+.money-pv .legend em { font-style: normal; font-weight: 700; color: var(--pearl); }
+
+.money-pv .goals3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
+.money-pv .g { display: flex; align-items: center; gap: 5px; min-width: 0; border: 0; background: none; color: inherit; text-align: left; padding: 2px; border-radius: 12px; cursor: pointer; transition: background .2s, transform .3s var(--spring); }
+.money-pv .g:hover { background: rgba(255,255,255,.07); }
+.money-pv .g:active { transform: scale(.96); }
+.money-pv .g svg { flex: none; }
+.money-pv .gt { min-width: 0; }
+.money-pv .g b { display: block; font-size: 10px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.money-pv .g span { display: block; font-size: 9px; opacity: .75; white-space: nowrap; }
+.money-pv .g em { display: block; font-style: normal; font-family: var(--mono); font-size: 7.5px; white-space: nowrap; }
+
+.money-pv .subsL { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 12px; margin-top: 2px; }
+.money-pv .txs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 16px; margin-top: 2px; }
+.money-pv .r { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 6px; align-items: center; font-size: 9.5px; height: 16px; border: 0; background: none; color: inherit; text-align: left; padding: 1px 3px 1px 0; border-radius: 8px; cursor: pointer; min-width: 0; font-family: inherit; transition: background .2s, transform .3s var(--spring); }
+.money-pv .r:hover { background: rgba(255,255,255,.07); }
+.money-pv .r:active { transform: scale(.97); }
+.money-pv .r.nomore { grid-template-columns: minmax(0, 1fr); cursor: default; opacity: .65; padding-left: 20px; }
+.money-pv .r.nomore:hover { background: none; }
+.money-pv .r i { width: 14px; height: 14px; border-radius: 5px; display: grid; place-items: center; font-style: normal; font-size: 8px; font-weight: 800; background: rgba(255,255,255,.08); }
+.money-pv .r span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.money-pv .r b { font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.money-pv .t.teal .big { font-size: 24px; }
+.money-pv .t.teal .big small { font-size: 11px; }
+
+.money-pv :is(.addb, .g, .r):focus-visible, .marks-pv :is(.tile, .addb):focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* Loading: shimmer in place of the numbers. Error: one sentence and a retry. */
+.money-pv.is-loading .big, .money-pv.is-loading .sub, .money-pv.is-loading .hd b { color: transparent !important; border-radius: 6px; background: linear-gradient(90deg, rgba(255,255,255,.07), rgba(255,255,255,.16), rgba(255,255,255,.07)); background-size: 200% 100%; animation: pvShimmer 1.4s linear infinite; }
+.money-pv.is-loading .big { width: 70px; height: 21px; } .money-pv.is-loading .sub { width: 54px; height: 11px; opacity: 1; }
+.money-pv.is-loading .hd b { width: 54px; height: 17px; }
+.money-pv.is-loading .addb { visibility: hidden; }
+.money-pv .mErr, .marks-pv .mErr { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; gap: 12px; background: #0e0e12; border-radius: 20px; z-index: 2; font-size: 11px; font-weight: 600; }
+.money-pv.is-err .mErr, .marks-pv.is-err .mErr { display: flex; }
+.money-pv .mErr button, .marks-pv .mErr button { height: 26px; padding: 0 12px; border-radius: 999px; border: 0; background: var(--pearl); color: #000; font-size: 11px; font-weight: 700; cursor: pointer; transition: transform .3s var(--spring); }
+.money-pv .mErr button:active, .marks-pv .mErr button:active { transform: scale(.94); }
+
+/* ---- Marks ---- */
+.marks-pv .atar { display: flex; flex-direction: column; padding: 9px 12px; }
+.marks-pv .atar .row { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
+.marks-pv .atar .rg { position: relative; width: 110px; height: 110px; flex: none; }
+.marks-pv .atar .rg > div { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.marks-pv .atar .rg b { font-size: 26px; font-weight: 800; }
+.marks-pv .atar .rg b small { font-size: 13px; opacity: .6; }
+.marks-pv .atar .rg .caps { color: var(--fog); font-size: 7.5px; }
+.marks-pv .atar .side { min-width: 0; font-size: 10px; line-height: 15px; opacity: .85; white-space: normal; }
+.marks-pv .atar .side b { display: block; font-size: 11px; font-weight: 800; opacity: 1; }
+.marks-pv .atar .addb { margin-top: 6px; align-self: flex-start; border: 0; color: #000; background: var(--gold); cursor: pointer; transition: transform .3s var(--spring), filter .2s; }
+.marks-pv .addb:hover { filter: brightness(1.1); }
+.marks-pv .addb:active { transform: scale(.94); }
+.marks-pv button.tile { border: 0; padding: 9px 12px; text-align: left; color: inherit; font-family: inherit; cursor: pointer; transition: transform .3s var(--spring); }
+.marks-pv button.tile:hover { transform: translateY(-2px); }
+.marks-pv button.tile:active { transform: scale(.97); }
+.marks-pv .t .big { font-size: 20px; }
+.marks-pv .t .sub { overflow: hidden; text-overflow: ellipsis; }
+.marks-pv .t .sub em { font-style: normal; font-weight: 800; }
+.marks-pv .t .spk { position: absolute; right: 8px; top: 8px; }
+.marks-pv .t .spk svg { width: 50px; height: 24px; }
+.marks-pv .nil { opacity: .5; }
+.marks-pv.is-loading .big, .marks-pv.is-loading .sub { color: transparent !important; border-radius: 6px; background: linear-gradient(90deg, rgba(255,255,255,.07), rgba(255,255,255,.16), rgba(255,255,255,.07)); background-size: 200% 100%; animation: pvShimmer 1.4s linear infinite; }
+.marks-pv.is-loading .big { width: 54px; height: 20px; } .marks-pv.is-loading .sub { width: 44px; height: 11px; opacity: 1; }
+.marks-pv.is-loading .spk, .marks-pv.is-loading .rg svg { visibility: hidden; }
+@media (prefers-reduced-motion: reduce) { .money-pv .mstack i { transition: none; } .money-pv .r, .money-pv .g, .money-pv .addb, .marks-pv button.tile { transition: none; } .money-pv.is-loading .big, .marks-pv.is-loading .big { animation: none; } }

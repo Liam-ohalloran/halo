@@ -15,10 +15,10 @@ import { createServer } from 'vite'
 import { chromium } from 'playwright'
 import { pathToFileURL } from 'node:url'
 
-export const ALL_TABS = ['home', 'music', 'study', 'pay', 'sixers', 'week', 'alerts', 'more', 'controls']
-export const DEFAULT_TABS = ['home', 'pay', 'study', 'week', 'alerts']
+export const ALL_TABS = ['home', 'music', 'study', 'pay', 'sixers', 'week', 'alerts', 'money', 'marks', 'more', 'controls']
+export const DEFAULT_TABS = ['home', 'pay', 'study', 'week', 'alerts', 'money', 'marks']
 /** The Week tab has its own fixtures: a normal week, and a busy one with clashes and a crowded EARLY row. */
-export const API_FOR = (tab, state) => (tab === 'week' && state !== 'empty' ? (state === 'busy' ? 'weekbusy' : 'week') : tab === 'alerts' ? (state === 'busy' ? 'alertsmany' : state === 'empty' ? 'alertsempty' : 'alerts') : state)
+export const API_FOR = (tab, state) => (tab === 'money' || tab === 'marks' ? (state === 'busy' ? `${tab}many` : state === 'empty' ? `${tab}empty` : tab) : tab === 'week' && state !== 'empty' ? (state === 'busy' ? 'weekbusy' : 'week') : tab === 'alerts' ? (state === 'busy' ? 'alertsmany' : state === 'empty' ? 'alertsempty' : 'alerts') : state)
 
 /** Runs inside the page. Returns a list of problems. */
 export function auditInPage() {
@@ -78,6 +78,7 @@ export function auditInPage() {
       const out = Math.max(b.left - rect.left, rect.right - b.right, b.top - rect.top, rect.bottom - b.bottom)
       if (out > 1) problems.push(`clipped: ${label(el)} sticks out ${out.toFixed(1)}px past ${label(c)}`)
     }
+    if (marquee(el)) { const eb = el.getBoundingClientRect(); rect.left = Math.max(rect.left, eb.left); rect.right = Math.min(rect.right, eb.right) }
     items.push({ el, rect })
   }
   // overlap: shrink each box a touch so neighbouring lines of text, which share a few px of line height, do not count
@@ -116,7 +117,7 @@ async function main() {
   const browser = await chromium.launch()
   let failed = 0
   for (const tab of tabs) {
-    for (const state of tab === 'week' || tab === 'alerts' ? ['full', 'busy', 'empty'] : ['full', 'empty']) {
+    for (const state of tab === 'week' || tab === 'alerts' || tab === 'money' || tab === 'marks' ? ['full', 'busy', 'empty'] : ['full', 'empty']) {
       const problems = await checkTab(browser, 'http://localhost:5251/halo/', tab, state)
       console.log(`${problems.length ? 'FAIL' : 'ok  '} ${tab} (${state})`)
       for (const p of problems) console.log(`       ${p}`)

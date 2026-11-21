@@ -1,5 +1,7 @@
 // Dev-only fixtures for screenshots and design review. Never shipped (guarded by import.meta.env.DEV).
 import type { AlertRow, Backend, Shift, StudySession, Test } from '../types'
+import type { Goal, MoneyItem } from '../lib/money'
+import type { Mark } from '../lib/marks'
 import { DEFAULT_SETTINGS } from '../types'
 import { weekStart, addDays } from '../time'
 
@@ -53,6 +55,53 @@ function alertsFixture(mode: string): AlertRow[] {
   return base
 }
 
+
+/** Money and Marks fixtures (card 21), hung off the demo clock (Sat 21 Nov 2026). `money` is a normal month, `moneymany` overflows every
+ *  tile with long names, `moneyempty` has nothing. Same for `marks`. Any other mode has no money or marks rows. */
+const isoDay = (d: number) => new Date(Date.UTC(2026, 10, 21 + d)).toISOString().slice(0, 10)
+function moneyFixture(mode: string): { shifts: Shift[]; items: MoneyItem[]; goals: Goal[] } {
+  if (!mode.startsWith('money') || mode === 'moneyempty') return { shifts: [], items: [], goals: [] }
+  const many = mode === 'moneymany'
+  const shifts = [
+    shiftRow('m1', 'SATURDAY PA 6:30-3', 'PA', 0, 6.5, 15), shiftRow('m2', 'TUESDAY PI 4-9', 'PI', -4, 16, 21), shiftRow('m3', 'THURSDAY PA 5:30-9', 'PA', -2, 17.5, 21),
+    shiftRow('m4', 'SUNDAY PL 6-2', 'PL', 1, 6, 14), shiftRow('m5', 'SATURDAY PA 5:30-10', 'PA', -7, 17.5, 22), shiftRow('m6', 'SUNDAY PA 6-2', 'PA', -6, 6, 14),
+    shiftRow('m7', 'FRIDAY PB 4-9', 'PB', -8, 16, 21), shiftRow('m8', 'SATURDAY PA 6:30-3', 'PA', -14, 6.5, 15), shiftRow('m9', 'WEDNESDAY PI 4-9', 'PI', -17, 16, 21),
+  ]
+  const item = (id: string, kind: 'spend' | 'sub', name: string, amount: number, category: string, d: number): MoneyItem => ({ id, kind, name, amount, category, on_date: isoDay(d) })
+  const items = [
+    item('i1', 'spend', 'Boost Juice', 9.5, 'Food', -1), item('i2', 'spend', 'Transperth', 4.8, 'Travel', -2), item('i3', 'spend', 'Cinema', 32.2, 'Fun', -3),
+    item('i4', 'spend', 'Lunch', 48.9, 'Food', -4), item('i5', 'spend', 'Cap', 18, 'Shop', -4), item('i6', 'spend', 'Uber', 19.2, 'Travel', -5), item('i7', 'spend', 'Snacks', 10, 'Other', -1),
+    item('s1', 'sub', 'Spotify', 13.99, 'Subscription', -9), item('s2', 'sub', 'Netflix', 18.99, 'Subscription', 11), item('s3', 'sub', 'iCloud', 4.49, 'Subscription', 14), item('s4', 'sub', 'Xbox', 4.49, 'Subscription', 18),
+  ]
+  const goals: Goal[] = [
+    { id: 'g1', name: 'Car fund', saved: 1840, target: 5000, colour: '#5CFF7A' }, { id: 'g2', name: 'GC trip', saved: 620, target: 900, colour: '#FFC23D' }, { id: 'g3', name: 'Laptop', saved: 310, target: 1800, colour: '#3D9BFF' },
+  ]
+  if (many) {
+    shifts.push(shiftRow('m10', 'SUNDAY EXTRA PA 10-1', 'PA', 1, 10, 13), shiftRow('m11', 'FRIDAY PA 9-5', 'PA', -1, 9, 17), shiftRow('m12', 'MONDAY CLOSE 3-10', 'CL', -5, 15, 22))
+    items.push(
+      item('i8', 'spend', 'A very long place name that keeps on going', 123.45, 'Food', -1), item('i9', 'spend', 'Concert tickets and a taxi home', 289.99, 'Fun', -2),
+      item('s5', 'sub', 'YouTube Premium Family Plan', 22.99, 'Subscription', 5), item('s6', 'sub', 'Disney Plus', 13.99, 'Subscription', 7), item('s7', 'sub', 'Apple Music', 12.99, 'Subscription', 9),
+    )
+    goals.push({ id: 'g4', name: 'Japan trip with the whole group', saved: 12000.5, target: 15000, colour: '#FF2FA3' }, { id: 'g5', name: 'Phone', saved: 100, target: 1500, colour: '#BF5AF2' })
+  }
+  return { shifts, items, goals }
+}
+function marksFixture(mode: string): Mark[] {
+  if (!mode.startsWith('marks') || mode === 'marksempty') return []
+  let n = 0
+  const m = (subject: string, assessment: string, score: number, d: number, out_of = 100, weighting: number | null = 10): Mark => ({ id: `k${++n}`, subject, assessment, score, out_of, weighting, date: isoDay(d) })
+  const rows = [
+    ...[72, 78, 75, 81, 84].map((v, i) => m('Chemistry', `Test ${i + 1}`, v, -80 + i * 15)),
+    ...[80, 83, 86, 85, 88].map((v, i) => m('Methods', `Test ${i + 1}`, v, -78 + i * 15)),
+    ...[70, 74, 77, 73, 79].map((v, i) => m('Specialist', `Test ${i + 1}`, v, -76 + i * 15)),
+    ...[85, 88, 87, 90, 91].map((v, i) => m('Human Biology', `Test ${i + 1}`, v, -74 + i * 15)),
+    ...[76, 79, 81, 80, 82].map((v, i) => m('English', `Task ${i + 1}`, v, -72 + i * 15)),
+    m('Religion', 'Reflection', 41, -30, 50, 15),
+  ]
+  if (mode === 'marksmany') rows.push(m('Digital Technologies and Design', 'Major project', 46, -3, 50, 30), m('Physical Education Studies', 'Practical', 17, -4, 20), m('Geography', 'Fieldwork report', 33, -5, 40))
+  return rows
+}
+
 export function mockBackend(mode: string): Backend {
   const now = new Date()
   const mon = weekStart(now)
@@ -90,6 +139,9 @@ export function mockBackend(mode: string): Backend {
   let active: StudySession | null = stored ??
     (mode === 'running' ? { id: 'a', subject: 'Specialist', started_at: new Date(now.getTime() - 17 * 6e4 - 23e3).toISOString(), ended_at: null, minutes: null } : null)
 
+  const money = moneyFixture(mode)
+  const marksRows = marksFixture(mode)
+  const nextId = () => `n${Math.random().toString(36).slice(2, 9)}`
   const alerts = alertsFixture(mode)
   const alertListeners = new Set<() => void>()
   // Dev only: lets a test play the part of the scheduled task that inserts a row.
@@ -111,7 +163,6 @@ export function mockBackend(mode: string): Backend {
     nextTest: (n) => gate(tests.find((t) => new Date(t.due_at) > n) ?? null),
     upcomingTests: (n) => gate(tests.filter((t) => new Date(t.due_at) > n)),
     testsBetween: (a, b) => gate(tests.filter((t) => new Date(t.due_at) >= a && new Date(t.due_at) < b)),
-    shiftsBetween: (a, b) => gate(shifts.filter((s) => new Date(s.starts_at) < b && new Date(s.ends_at) > a)),
     settings: () => gate({ ...DEFAULT_SETTINGS }),
     activeSession: () => gate(active),
     sessionsSince: (d) => gate(sessions.filter((s) => new Date(s.started_at) >= d)),
@@ -129,6 +180,19 @@ export function mockBackend(mode: string): Backend {
       keep(null)
       return gate(s)
     },
+    shiftsBetween: (a, b) => gate((mode.startsWith('money') ? money.shifts : shifts).filter((s) => new Date(s.starts_at) < b && new Date(s.ends_at) > a)),
+    goals: () => gate(money.goals.map((g) => ({ ...g }))),
+    async saveGoal(g) {
+      if (g.id) { const x = money.goals.find((y) => y.id === g.id); if (x) Object.assign(x, g) } else money.goals.push({ ...g, id: nextId() })
+      await sleep(80)
+    },
+    async deleteGoal(id) { money.goals.splice(money.goals.findIndex((g) => g.id === id), 1); await sleep(80) },
+    moneyItems: () => gate(money.items.map((i) => ({ ...i }))),
+    async addMoneyItem(i) { money.items.unshift({ ...i, id: nextId() }); await sleep(80) },
+    async deleteMoneyItem(id) { money.items.splice(money.items.findIndex((i) => i.id === id), 1); await sleep(80) },
+    marks: () => gate(marksRows.map((m) => ({ ...m }))),
+    async addMark(m) { marksRows.push({ ...m, id: nextId() }); await sleep(80) },
+    async deleteMark(id) { marksRows.splice(marksRows.findIndex((m) => m.id === id), 1); await sleep(80) },
     unreadAlerts: () => gate(alerts.filter((a) => !a.read_at).map((a) => ({ ...a }))),
     async markAlertsRead(ids) {
       for (const a of alerts) if (ids.includes(a.id)) a.read_at = new Date().toISOString()

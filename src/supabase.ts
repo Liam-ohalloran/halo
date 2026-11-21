@@ -94,6 +94,44 @@ export const supabaseBackend: Backend = {
     return () => { void supabase.removeChannel(ch) }
   },
 
+  async goals() {
+    const rows = must(await supabase.from('goals').select('id,name,saved,target,colour').order('created_at')) as Record<string, unknown>[]
+    return rows.map((r) => ({ id: String(r.id), name: String(r.name), saved: Number(r.saved), target: Number(r.target), colour: String(r.colour) }))
+  },
+  async saveGoal(g) {
+    const body = { name: g.name, saved: g.saved, target: g.target, colour: g.colour }
+    const res = g.id ? await supabase.from('goals').update(body).eq('id', g.id) : await supabase.from('goals').insert(body)
+    if (res.error) throw new Error(res.error.message)
+  },
+  async deleteGoal(id) {
+    const res = await supabase.from('goals').delete().eq('id', id)
+    if (res.error) throw new Error(res.error.message)
+  },
+  async moneyItems() {
+    const rows = must(await supabase.from('money_items').select('id,kind,name,amount,category,on_date').order('on_date', { ascending: false }).limit(300)) as Record<string, unknown>[]
+    return rows.map((r) => ({ id: String(r.id), kind: r.kind as 'spend' | 'sub', name: String(r.name), amount: Number(r.amount), category: String(r.category), on_date: String(r.on_date) }))
+  },
+  async addMoneyItem(i) {
+    const res = await supabase.from('money_items').insert({ kind: i.kind, name: i.name, amount: i.amount, category: i.category, on_date: i.on_date })
+    if (res.error) throw new Error(res.error.message)
+  },
+  async deleteMoneyItem(id) {
+    const res = await supabase.from('money_items').delete().eq('id', id)
+    if (res.error) throw new Error(res.error.message)
+  },
+  async marks() {
+    const rows = must(await supabase.from('marks').select('id,subject,assessment,score,out_of,weighting,date').order('date', { ascending: false }).limit(500)) as Record<string, unknown>[]
+    return rows.map((r) => ({ id: String(r.id), subject: String(r.subject), assessment: String(r.assessment), score: Number(r.score), out_of: Number(r.out_of), weighting: r.weighting == null ? null : Number(r.weighting), date: String(r.date) }))
+  },
+  async addMark(m) {
+    const res = await supabase.from('marks').insert({ subject: m.subject, assessment: m.assessment, score: m.score, out_of: m.out_of, weighting: m.weighting, date: m.date })
+    if (res.error) throw new Error(res.error.message)
+  },
+  async deleteMark(id) {
+    const res = await supabase.from('marks').delete().eq('id', id)
+    if (res.error) throw new Error(res.error.message)
+  },
+
   async settings() {
     const row = must(
       await supabase

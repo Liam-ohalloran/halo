@@ -92,3 +92,13 @@ values ('<liams user id>', 'message', 'New message', 'Messages, hidden');
 - Keep titles and bodies plain Australian English with no em dashes, no hyphens used as dashes and no semicolons.
 - Never put passwords, tokens, message contents from private chats or anything else sensitive in `title` or `body`. Halo shows them on screen.
 - Halo is read only on Blink, Snapchat, TikTok and myJob. An alert may link to them, it never acts on them.
+
+## Banners (card 18)
+
+A row inserted into `alerts` pops out of the island as a 520 x 84 banner within a couple of seconds (Supabase realtime). It holds for 4 seconds, longer while the pointer is on it, then settles back and becomes a small pill in a stack under the island. Hover the stack to fan it out, and the pill under the pointer grows into a banner sized card.
+
+- Banners come one at a time. If several arrive together the most important type goes first (same order as the table above), then the oldest.
+- Alerts that were already unread when Halo started do not pop out. They are only in the Alerts tab.
+- While the window is open the banner waits, since the alerts are already in front of Liam.
+- The banner's button only opens a web link (`action_label` plus an `http` or `https` `action_url`) or, for `leave_reminder`, snoozes it for 5 minutes. Halo never posts, replies or submits anything.
+- Try every type on `/island` (the Notify row).

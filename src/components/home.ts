@@ -37,6 +37,7 @@ import { parseTab, type TabId as ShellTabId } from '../styles/tabs'
 import type { Backend } from '../types'
 import { supabaseNowSource, getTravelMinutes, type NowData, type NowSource } from '../lib/now'
 import { fmtClockPm, perthDayBounds, shiftView, type ShiftView } from '../lib/now-model'
+import { Banners, type BannersHandle } from './Banners'
 import { IslandLive, type IslandLiveHandle, type LiveData } from './IslandLive'
 import { fmtToFull, gameStatus, leaveChip, pillTime } from '../lib/island-live'
 import { hudFromEvent, newHudMemory } from '../lib/hud'
@@ -330,10 +331,17 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   let weekPanel: ReturnType<typeof WeekPanel> | null = null
   // Alerts (card 20). One shared list feeds the tab and the island's gold dot. Desktop and embed only.
   const alertsStore = sh ? createAlertsStore(api) : null
-  // Night mode mutes the unread dot, like the other banners. Leave reminders are never muted.
+  // Night mode mutes the unread dot and the alert banners, like the other banners. Leave reminders are never muted.
   const pushUnread = () => { if (alertsStore) live!.setUnread(isMuted('unread', nightMode.get()) ? 0 : buildAlertsView(alertsStore.rows()).unread) }
   const unsubAlerts = alertsStore?.subscribe(pushUnread)
   const unsubNight = nightMode.subscribe(() => pushUnread())
+  // Card 18: new alerts pop out of the island as banners, then settle into a stack under it. At night only leave reminders do.
+  const bannerSource = alertsStore ? {
+    ...alertsStore,
+    rows: () => (nightMode.get() ? alertsStore.rows().filter((r) => r.type === 'leave_reminder') : alertsStore.rows()),
+    subscribe: (cb: () => void) => { const a = alertsStore.subscribe(cb); const b = nightMode.subscribe(cb); return () => { a(); b() } },
+  } : null
+  const banners: BannersHandle | null = sh && bannerSource && live ? Banners(sh, live, { source: bannerSource, clock, go: () => showShellTab('alerts') }) : null
   let alertsPanel: ReturnType<typeof AlertsPanel> | null = null
   let moneyPanel: ReturnType<typeof MoneyPanel> | null = null
   let marksPanel: ReturnType<typeof MarksPanel> | null = null
@@ -591,7 +599,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   void loadPrefs()
 
   return () => {
-    stop(); ro.disconnect(); unsub(); unsubTimer(); stopEvents?.(); live?.destroy(); if (artUrl) URL.revokeObjectURL(artUrl); payPanel?.destroy(); alertsPanel?.destroy(); moneyPanel?.destroy(); marksPanel?.destroy(); claudePanel?.destroy(); nightPanel?.destroy(); unsubNight(); shelfPanel?.destroy(); widgetsPanel?.destroy(); unsubAlerts?.(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
+    stop(); ro.disconnect(); unsub(); unsubTimer(); stopEvents?.(); live?.destroy(); if (artUrl) URL.revokeObjectURL(artUrl); payPanel?.destroy(); alertsPanel?.destroy(); moneyPanel?.destroy(); marksPanel?.destroy(); claudePanel?.destroy(); nightPanel?.destroy(); unsubNight(); shelfPanel?.destroy(); widgetsPanel?.destroy(); unsubAlerts?.(); banners?.destroy(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
     document.removeEventListener('pointerdown', onOutside)
     document.removeEventListener('visibilitychange', onVisible)
     removeEventListener('online', onOnline)

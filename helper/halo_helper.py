@@ -445,6 +445,107 @@ async def _guard_async(coro):
         raise HTTPException(503, str(e))
 
 
+# ---------------------------------------------------------------------------
+# Change probes for /events (card 17). Read only: they look, they never change a setting.
+# Each returns the same shape the matching GET endpoint uses, or raises Unavailable.
+# ---------------------------------------------------------------------------
+
+
+def _capture_volume():
+    if not IS_WINDOWS:
+        raise Unavailable("Mic only works on Windows.")
+    _com_init()
+    from pycaw.pycaw import AudioUtilities  # type: ignore
+
+    dev = AudioUtilities.GetMicrophone()
+    if hasattr(dev, "EndpointVolume"):
+        return dev.EndpointVolume
+    from comtypes import CLSCTX_ALL  # type: ignore
+    from ctypes import POINTER, cast
+    from pycaw.pycaw import IAudioEndpointVolume  # type: ignore
+
+    return cast(dev.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None), POINTER(IAudioEndpointVolume))
+
+
+def probe_mic() -> dict:
+    return {"muted": bool(_capture_volume().GetMute())}
+
+
+def probe_caps() -> dict:
+    if not IS_WINDOWS:
+        raise Unavailable("Caps lock only works on Windows.")
+    import ctypes
+
+    return {"on": bool(ctypes.windll.user32.GetKeyState(0x14) & 1)}
+
+
+def output_kind(name: str) -> str:
+    n = name.lower()
+    if any(w in n for w in ("headphone", "headset", "bluetooth", "buds", "airpods", "wh-")):
+        return "headphones"
+    if any(w in n for w in ("monitor", "hdmi", "display", "nvidia", "displayport")):
+        return "monitor"
+    return "speakers"
+
+
+def probe_output() -> dict:
+    if not IS_WINDOWS:
+        raise Unavailable("Audio output only works on Windows.")
+    _com_init()
+    from pycaw.pycaw import AudioUtilities  # type: ignore
+
+    dev = AudioUtilities.GetSpeakers()
+    name = getattr(dev, "FriendlyName", None)
+    if not name:
+        dev_id = dev.GetId()
+        for d in AudioUtilities.GetAllDevices():
+            if d.id == dev_id:
+                name = d.FriendlyName
+    if not name:
+        raise Unavailable("No audio output.")
+    return {"name": name, "kind": output_kind(name)}
+
+
+def probe_brightness() -> dict:
+    return get_brightness()
+
+
+def probe_power() -> dict:
+    return get_power_mode()
+
+
+# (event name, run every N polls, probe, needs await)
+EXTRA_PROBES: list[tuple[str, int, Any, bool]] = [
+    ("brightness", 2, probe_brightness, False),
+    ("mic", 1, probe_mic, False),
+    ("caps", 1, probe_caps, False),
+    ("output", 3, probe_output, False),
+    ("wifi", 5, get_wifi, True),
+    ("bluetooth", 5, get_bluetooth, True),
+    ("power", 5, probe_power, False),
+]
+
+
+async def collect_extra(last: dict, ticks: int, probes=None) -> dict:
+    """Runs the probes that are due and returns only the ones whose answer changed since `last` (which it updates)."""
+    changed: dict[str, Any] = {}
+    for name, every, probe, is_async in probes if probes is not None else EXTRA_PROBES:
+        if ticks % every:
+            continue
+        try:
+            if is_async:
+                value = await probe()
+            else:
+                value = await run_in_threadpool(lambda p=probe: (_com_init(), p())[1])
+        except Exception:
+            continue  # not available on this laptop right now: say nothing
+        if value != last.get(name):
+            last[name] = value
+            changed[name] = value
+    return changed
+
+
+
 def create_app(token: str, media: Optional[Media] = None, poll_seconds: float = 1.0) -> FastAPI:
     media = media or Media()
 
@@ -554,7 +655,7 @@ def create_app(token: str, media: Optional[Media] = None, poll_seconds: float = 
 
     @app.get("/events")
     async def events():
-        """Server sent events. Emits `media`, `volume` and `battery` when they change.
+        """Server sent events. Emits `media`, `volume`, `battery`, `brightness`, `mic`, `caps`, `output`, `wifi`, `bluetooth` and `power` when they change.
 
         EventSource can't send headers, so Halo reads this with fetch() and a stream reader.
         """
@@ -592,6 +693,7 @@ def create_app(token: str, media: Optional[Media] = None, poll_seconds: float = 
                             snapshots["battery"] = b
                     except Exception:
                         pass
+                snapshots.update(await collect_extra(last, ticks))
                 ticks += 1
                 for name, data in snapshots.items():
                     yield f"event: {name}\ndata: {json.dumps(data)}\n\n"

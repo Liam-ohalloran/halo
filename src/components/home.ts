@@ -27,7 +27,14 @@ import { SettingsPanel, type Account } from './Settings'
 import { parseTab, type TabId as ShellTabId } from '../styles/tabs'
 import type { Backend } from '../types'
 import { supabaseNowSource, getTravelMinutes, type NowData, type NowSource } from '../lib/now'
-import { perthDayBounds, shiftView, type ShiftView } from '../lib/now-model'
+import { fmtClockPm, perthDayBounds, shiftView, type ShiftView } from '../lib/now-model'
+import { IslandLive, type IslandLiveHandle, type LiveData } from './IslandLive'
+import { fmtToFull, gameStatus, leaveChip, pillTime } from '../lib/island-live'
+import { hudFromEvent, newHudMemory } from '../lib/hud'
+import { getArtUrl, subscribeEvents, type Media } from '../lib/helper'
+import { shortSubject } from '../lib/study'
+import { subjectHex } from '../panels/studyPill'
+import { view as timerView } from '../panels/studyTimer'
 
 // Home: the island. Resting when nothing is close, a compact pill inside two hours of a shift or while a
 // study session runs, and the tab bar with the Now, Study, Pay and Sixers panels when it opens (HALO.md 3.1e).
@@ -147,6 +154,8 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   if (embedRoot && sh) embedRoot.append(sh.el)
   app.replaceChildren(stage)
   const shell = sh // the shell drives layout where the old embedded shell did
+  // Card 17: on desktop the closed island is drawn by IslandLive (live states and HUD pills). The phone keeps its island.
+  let live: IslandLiveHandle | null = null
 
   // ---- Expanded content: tab bar and one panel per tab
   let activeId: TabId = toPanel(activeTab) ?? (isTab(o.tab) ? o.tab : lastTab())
@@ -171,6 +180,11 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   }
 
   const timer = createStudyTimer(api, 'Human Biology')
+  if (sh) {
+    live = IslandLive(sh, {
+      onTimer: (a) => { if (a === 'stop') void timer.reset(); else if (timer.state.status === 'running') timer.pause(); else timer.resume() },
+    })
+  }
   const studyPill = StudyPill(timer)
   const payListeners = new Set<() => void>()
   let payPanel: ReturnType<typeof PayPanel> | null = null
@@ -285,7 +299,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   let weekPanel: ReturnType<typeof WeekPanel> | null = null
   // Alerts (card 20). One shared list feeds the tab and the island's gold dot. Desktop and embed only.
   const alertsStore = sh ? createAlertsStore(api) : null
-  const unsubAlerts = alertsStore?.subscribe(() => sh!.setUnread(buildAlertsView(alertsStore.rows()).unread))
+  const unsubAlerts = alertsStore?.subscribe(() => live!.setUnread(buildAlertsView(alertsStore.rows()).unread))
   let alertsPanel: ReturnType<typeof AlertsPanel> | null = null
   panelFor = (id) => {
     if (id === 'alerts' && alertsStore) return (alertsPanel ??= AlertsPanel(alertsStore, clock))
@@ -355,19 +369,48 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   }
 
   function syncBase() {
+    if (live) return // the live layer sizes the closed island itself
     if (isl.state === 'expanded' || isl.state === 'alert') return
     if (isl.state !== wantBase) isl.setState(wantBase)
   }
 
   // The glow follows the open tab while expanded, otherwise whatever the pill is showing.
   function applyTint() {
+    if (live) return // the live layer sets the key line, the open window takes its tab's glow from the shell
     if (isl.state !== 'expanded' && sixersLive && game?.game) isl.setColours(teamColour(game.game.sixers.tri), teamColour(game.game.opponent.tri))
     else isl.setTint(isl.state === 'expanded' ? TAB_TINT[activeId] : baseTint)
   }
 
   // One live thing at a time (HALO.md 1): a running study session takes the pill, otherwise a shift soon.
   let studyOn = false
+  /** The study timer as the closed island shows it, or null when no session is running. */
+  const timerBit = (): LiveData['timer'] => {
+    const st = timer.state
+    if (st.status === 'idle') return null
+    return { label: `FOCUS · ${shortSubject(st.subject).toUpperCase()}`, left: timerView(st, Date.now()).left, total: st.targetMs, running: st.status === 'running', colour: subjectHex(st.subject) }
+  }
+  /** Card 17: work out each live state from the data and hand it to the island. Highest priority wins inside it. */
+  function syncLive(now: Date) {
+    const t = now.getTime()
+    const sv = data?.shift ? shiftView(data.shift, now, getTravelMinutes()) : null
+    const chip = sv && sv.phase === 'upcoming' ? leaveChip(sv.leaveBy, sv.start, t) : null
+    const g = game?.game
+    const station = sv?.shift.station?.trim()
+    live!.update({
+      leave: sv && chip ? { chip, sub: `Shift ${pillTime(fmtClockPm(sv.start))} · leave by ${pillTime(fmtClockPm(sv.leaveBy))}` } : null,
+      game: g && g.status === 'live'
+        ? { us: { tri: g.sixers.tri, score: g.sixers.score, colour: teamColour(g.sixers.tri) }, them: { tri: g.opponent.tri, score: g.opponent.score, colour: teamColour(g.opponent.tri) }, status: gameStatus(g.statusText) }
+        : null,
+      timer: timerBit(),
+      shift: sv?.soon
+        ? sv.phase === 'live'
+          ? { label: `ON SHIFT${station ? ` · ${station}` : ''}`, big: `${sv.countdown} left`, rightLabel: 'ENDS', rightValue: pillTime(fmtClockPm(sv.end)) }
+          : { label: `SHIFT${station ? ` · ${station}` : ''} · ${pillTime(fmtClockPm(sv.start))}`, big: `in ${sv.countdown}`, rightLabel: 'LEAVE BY', rightValue: pillTime(fmtClockPm(sv.leaveBy)) }
+        : null,
+    })
+  }
   function syncIsland(now: Date) {
+    if (live) return syncLive(now)
     const sv = data?.shift ? shiftView(data.shift, now, getTravelMinutes()) : null
     if (sixersLive) {
       wantBase = 'wide'
@@ -391,6 +434,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   // The timer calls back about 4 times a second while running. Only react when the live thing changes.
   let timerKey = ''
   const unsubTimer = timer.subscribe(() => {
+    live?.update({ timer: timerBit() }) // the countdown text moves with the timer, nothing else is touched
     const k = `${timer.state.status}|${timer.state.subject}`
     if (k === timerKey) return
     timerKey = k
@@ -419,6 +463,41 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     },
     onError: (offline) => { if (!game) { sixersCard.error(offline); homeTab.setGame(null) } },
   })
+
+  // ---- The laptop (card 17): the helper tells the island what is playing, when the charger goes in and every change
+  // Liam makes (volume, brightness, Wi-Fi and so on). Without the helper (the phone, helper off) none of this shows.
+  let stopEvents: (() => void) | null = null
+  let artUrl: string | null = null
+  let artFor = ''
+  if (live && !embed) {
+    const mem = newHudMemory()
+    const setArt = (url: string | null) => { if (artUrl) URL.revokeObjectURL(artUrl); artUrl = url }
+    stopEvents = subscribeEvents((name, d) => {
+      if (name === 'media') {
+        const m = d as Media
+        const on = !!m.available && !!m.title && m.playing
+        const cur = live!.data.music
+        live!.update({ music: on ? { title: m.title, art: cur && artFor === `${m.title}|${m.artist}` ? cur.art : null, playing: true } : null })
+        const id = `${m.title}|${m.artist}`
+        if (on && m.has_art && artFor !== id) {
+          artFor = id
+          void getArtUrl().then((u) => {
+            if (!u) return
+            if (artFor !== id) { URL.revokeObjectURL(u); return }
+            setArt(u)
+            const now = live!.data.music
+            if (now) live!.update({ music: { ...now, art: u } })
+          })
+        }
+        return
+      }
+      const hud = hudFromEvent(mem, name, d)
+      if (!hud) return
+      // A plug in is the Charging state for 3 seconds, with its floating bar. Everything else is a HUD pill.
+      if (hud.kind === 'charge' && hud.on) live!.charging({ pct: hud.pct, toFull: fmtToFull((d as { minutes_left?: number | null }).minutes_left) })
+      else live!.hud(hud)
+    }, (up) => { if (!up) live!.update({ music: null, charge: null }) })
+  }
 
   // ---- Clock: once a second, only while the page is visible (HALO.md 3.8)
   let tickTimer = 0
@@ -456,7 +535,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   if (o.open && !phone && !sh) requestAnimationFrame(() => requestAnimationFrame(() => isl.open()))
 
   return () => {
-    stop(); ro.disconnect(); unsub(); unsubTimer(); payPanel?.destroy(); alertsPanel?.destroy(); unsubAlerts?.(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
+    stop(); ro.disconnect(); unsub(); unsubTimer(); stopEvents?.(); live?.destroy(); if (artUrl) URL.revokeObjectURL(artUrl); payPanel?.destroy(); alertsPanel?.destroy(); unsubAlerts?.(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
     document.removeEventListener('pointerdown', onOutside)
     document.removeEventListener('visibilitychange', onVisible)
     removeEventListener('online', onOnline)

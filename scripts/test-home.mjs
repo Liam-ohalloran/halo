@@ -1,5 +1,5 @@
 // Home smoke test: signed in, hover, click, switch every tab, check nothing freezes and nothing logs an error.
-// Desktop (680 x 420) is the card 15b island window: hover 300 ms opens, leaving for 1 s closes, the rail has 8 tabs.
+// Desktop (680 x 420) is the card 15b island window: hover 300 ms opens, leaving for 1 s closes, the rail has 9 tabs.
 // The 390 wide phone keeps the old island and four tabs.
 // Usage: node scripts/test-home.mjs <base url> [screenshot dir]
 //   node scripts/test-home.mjs https://liam-ohalloran.github.io/halo/ screenshots/home/live
@@ -71,7 +71,7 @@ for (const [size, [width, height]] of Object.entries({ 'notchpixel-680x420': [68
   if (hasHover) { await page.mouse.move(width / 2, 14); await page.mouse.down(); await page.mouse.up(); await page.waitForTimeout(900) }
   check((await state()) === (phone ? 'resting' : 'expanded'), phone ? 'tap leaves the phone island resting' : 'click opens the island')
   const tabs = await page.getByRole('tab').all()
-  check(tabs.length === (phone ? 4 : 8), `tab bar has ${phone ? 'Now, Study, Pay, Sixers' : 'the eight rail tabs'} (${tabs.length} tabs)`)
+  check(tabs.length === (phone ? 4 : 9), `tab bar has ${phone ? 'Now, Study, Pay, Sixers' : 'the nine rail tabs'} (${tabs.length} tabs)`)
   const home = phone ? 'Now' : 'Home'
   for (const name of [home, 'Study', 'Pay', 'Sixers', 'Study', home, 'Sixers', 'Pay']) {
     await page.getByRole('tab', { name }).click()

@@ -165,3 +165,18 @@
 .sh .sh-body .s-bars { gap: 2px; }
 .sh .sh-body .s-callout { padding: 4px 10px; }
 .sh .sh-body .s-ring .h-ring, .sh .sh-body .s-ring .h-ring svg { width: 80px; height: 80px; }
+
+/* ---- Card 17: the closed island's live states ---- */
+/* Closed to closed size changes: 380 ms, no waiting for a window to shrink first. HUD pills use a spring. */
+.sh[data-open='false'][data-size='live'] {
+  transition: width 380ms var(--ease-shrink), height 380ms var(--ease-shrink), border-radius 380ms var(--ease-shrink), border-color 180ms ease, box-shadow 400ms ease;
+}
+.sh[data-open='false'][data-size='hud'] {
+  transition: width 420ms var(--ease-grow), height 420ms var(--ease-grow), border-radius 420ms var(--ease-grow), border-color 180ms ease, box-shadow 400ms ease;
+}
+.sh[data-open='false'][data-size='snap'] { transition: none; }
+/* The live layer sits over the pill. Only its own buttons take clicks, so a click anywhere else opens Halo. */
+.sh-live { position: absolute; inset: 0; pointer-events: none; opacity: 1; transition: opacity 160ms ease calc(var(--out) + var(--shrink) - 40ms); }
+.sh[data-open='true'] .sh-live { opacity: 0; visibility: hidden; transition: opacity 90ms ease, visibility 0s linear 90ms; }
+/* The old gold dot is drawn by the live layer now (island-live.css). */
+.sh-dot { display: none; }

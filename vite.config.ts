@@ -13,6 +13,7 @@ export default defineConfig({
       study: resolve(__dirname, 'study/index.html'),
       sixers: resolve(__dirname, 'sixers/index.html'),
       install: resolve(__dirname, 'install/index.html'),
+      island: resolve(__dirname, 'island/index.html'),
     } },
     target: 'es2022', cssMinify: true, sourcemap: false,
   },

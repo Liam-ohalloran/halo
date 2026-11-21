@@ -1,0 +1,123 @@
+/* Card 17: the closed island's live states and HUD pills. Ported from the approved prototype
+   (design/prototype/index.html: LIVE STATES, HUD pills). Colours come from the content: --lc is the state's colour,
+   --hc the HUD pill's. The ears and the size live in shell.css. Nothing here puts overflow hidden on .sh itself. */
+
+.sh { --slow: 1; }
+
+/* Every view is laid over the whole island and fades. A view fades in only after the size has settled (300 ms),
+   and the one it replaces fades out at once. */
+.il-view { position: absolute; inset: 0; opacity: 0; pointer-events: none; transition: opacity calc(120ms * var(--slow)) ease; font-variant-numeric: tabular-nums; }
+.il-view.on { opacity: 1; transition: opacity calc(200ms * var(--slow)) ease calc(300ms * var(--slow)); }
+.il-view.on button { pointer-events: auto; }
+.il-view.il-hud.on { transition: opacity calc(200ms * var(--slow)) ease calc(140ms * var(--slow)); }
+.il-view[inert] { visibility: hidden; transition: opacity calc(120ms * var(--slow)) ease, visibility 0s linear calc(120ms * var(--slow)); }
+
+/* A line of light along the bottom edge for the plain states. The outlined states draw a ring instead. */
+.il-view::after { content: ''; position: absolute; left: 20%; right: 20%; bottom: 0; height: 1.5px; border-radius: 2px; background: var(--lc); box-shadow: 0 0 10px var(--lc); opacity: 0.8; }
+.il-timer::after, .il-shift::after, .il-hud::after { display: none; }
+.il-hud::after { display: block; left: 18%; right: 18%; background: var(--hc); box-shadow: 0 0 10px var(--hc); opacity: 0.85; }
+
+/* Outlined island: a glowing coloured border, big time, buttons. */
+.il-ring { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; border: 2px solid var(--lc); border-top: 0; transition: opacity 300ms ease;
+  box-shadow: 0 0 18px -2px var(--lc), inset 0 0 14px -4px var(--lc); }
+.sh[data-ring='1'][data-open='false'] .il-ring { opacity: 1; }
+.sh[data-ring='1'][data-open='false'] { box-shadow: 0 0 30px -6px var(--lc); }
+/* A coloured glow under the plain states, a pulse for Leave now. */
+.sh[data-open='false'][data-live='leave'], .sh[data-open='false'][data-live='game'], .sh[data-open='false'][data-live='music'], .sh[data-open='false'][data-live='charge'] { box-shadow: 0 10px 26px -14px var(--lc); }
+.sh[data-open='false'][data-live='hud'] { box-shadow: 0 10px 30px -12px var(--hc); }
+.sh[data-open='false'][data-live='leave'] { animation: il-leave 1.6s ease-in-out infinite; }
+@keyframes il-leave { 50% { box-shadow: 0 8px 34px -6px rgba(255, 69, 58, 0.95); } }
+
+.il-in { position: absolute; inset: 0; display: flex; align-items: center; gap: 8px; padding: 2px 14px 0; min-width: 0; }
+.il-in b { font-size: 12px; font-weight: 800; white-space: nowrap; color: #fff; }
+.il-in.il-big { padding: 2px 14px 0 18px; gap: 12px; }
+.il-s { font-size: 9.5px; font-weight: 500; color: #9a9aa2; white-space: nowrap; flex: 1; min-width: 0; }
+
+/* Leave now */
+.il-pulse { width: 8px; height: 8px; border-radius: 50%; background: #FF453A; box-shadow: 0 0 8px #FF453A; flex: none; animation: il-blink 1s ease-in-out infinite alternate; }
+@keyframes il-blink { from { opacity: 0.35; } to { opacity: 1; } }
+.il-chip { font-size: 10px; font-weight: 800; padding: 3px 9px; border-radius: 999px; background: #FF453A; color: #fff; box-shadow: 0 0 12px -2px #FF453A; white-space: nowrap; }
+
+/* Live game */
+.il-logo { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; flex: none; font-size: 7px; font-weight: 800; color: #000; box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.3); }
+.il-in .il-sc { font-size: 16px; font-weight: 800; min-width: 22px; text-align: center; transition: opacity 300ms ease; }
+.il-q { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; font-family: var(--mono); font-size: 8.5px; color: #9a9aa2; white-space: nowrap; }
+.il-q em { font-style: normal; }
+.il-q i { width: 6px; height: 6px; border-radius: 50%; background: #FF453A; box-shadow: 0 0 6px #FF453A; animation: il-blink 1s ease-in-out infinite alternate; }
+
+/* Study timer and shift soon (the outlined island) */
+.il-trk { fill: none; stroke: color-mix(in srgb, var(--lc) 22%, transparent); stroke-width: 4; }
+.il-arc { fill: none; stroke: var(--lc); stroke-width: 4; stroke-linecap: round; filter: drop-shadow(0 0 4px var(--lc)); transition: stroke-dashoffset 300ms linear; }
+.il-t { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.il-t.r { flex: none; align-items: flex-end; }
+.il-t small { font-family: var(--mono); font-size: 7.5px; letter-spacing: 0.12em; text-transform: uppercase; color: color-mix(in srgb, var(--lc) 70%, #fff); white-space: nowrap; }
+.il-in .il-t b { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; white-space: nowrap; }
+.il-in .il-t b.sm { font-size: 15px; }
+.il-b { width: 32px; height: 32px; border-radius: 50%; border: 0; padding: 0; display: grid; place-items: center; cursor: pointer; flex: none; transition: transform 300ms var(--spring, cubic-bezier(.34, 1.5, .5, 1)), filter 150ms ease; }
+.il-b:hover { filter: brightness(1.2); }
+.il-b:active { transform: scale(0.88); }
+.il-b:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.il-b svg { width: 13px; height: 13px; }
+.il-b.w { background: color-mix(in srgb, var(--lc) 30%, #222); color: var(--lc); }
+.il-b.r { background: #FF453A; color: #fff; box-shadow: 0 0 12px -3px #FF453A; }
+.il-ic { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--lc); color: #000; box-shadow: 0 0 14px -2px var(--lc); flex: none; }
+.il-ic svg { width: 15px; height: 15px; }
+
+/* Music: art, title, moving bars */
+.il-art { width: 24px; height: 24px; border-radius: 7px; background: #1c1c1e center / cover no-repeat; flex: none; }
+.il-mq { flex: 1; min-width: 0; overflow: hidden; }
+/* Fade the edges only while a long title scrolls, so a short title is never touched. */
+.il-mq:has(.il-tt.run) { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 8px, #000 calc(100% - 8px), transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 8px, #000 calc(100% - 8px), transparent 100%); }
+.il-in .il-tt { display: inline-block; font-size: 11px; font-weight: 800; white-space: nowrap; }
+.il-tt.run { animation: il-mq var(--t, 8s) ease-in-out infinite alternate; }
+@keyframes il-mq { 0%, 20% { transform: translateX(0); } 80%, 100% { transform: translateX(calc(-1 * var(--d, 0px))); } }
+.il-eq { display: flex; align-items: flex-end; gap: 2px; height: 14px; flex: none; }
+.il-eq i { width: 3px; height: calc(var(--h) * 100%); border-radius: 2px; background: #1ED760; opacity: 0.85; transform-origin: bottom; }
+.il-eq.on i { animation: il-eq 0.9s ease-in-out infinite alternate; }
+@keyframes il-eq { from { transform: scaleY(0.35); } to { transform: scaleY(1); } }
+
+/* Charging, and the separate floating pill under it */
+.il-bolt { color: #30D158; display: flex; flex: none; }
+.il-bolt svg { width: 14px; height: 14px; }
+.il-in .il-pct { margin-left: auto; color: #30D158; }
+.il-chg { position: absolute; left: 50%; top: 42px; width: 290px; height: 34px; margin-left: -145px; border-radius: 17px; background: #000; display: flex; align-items: center; gap: 9px; padding: 0 13px; --hc: #30D158;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 10px 26px -10px rgba(48, 209, 88, 0.7); opacity: 0; transform: translateY(-14px) scale(0.6); pointer-events: none;
+  transition: opacity 250ms ease, transform calc(520ms * var(--slow)) var(--spring, cubic-bezier(.34, 1.5, .5, 1)); }
+.il-chg.on { opacity: 1; transform: none; }
+.sh[data-open='true'] .il-chg { opacity: 0; transition: opacity 90ms ease; }
+.il-chg .hTr { flex: 1; margin: 0; }
+.il-full { font-size: 10px; font-weight: 800; color: #30D158; white-space: nowrap; }
+
+/* Idle with unread: a small gold dot */
+.il-unread { position: absolute; top: calc(var(--ch) / 2 - 3.5px); right: 18px; width: 7px; height: 7px; border-radius: 50%; background: #FFC23D; box-shadow: 0 0 8px #FFC23D; opacity: 0; transition: opacity 200ms ease; }
+.il-unread.on { opacity: 1; }
+
+/* ---- HUD pills ---- */
+.hIn { position: absolute; inset: 0; display: flex; align-items: center; gap: 10px; padding: 2px 14px 0 10px; animation: il-hin calc(320ms * var(--slow)) var(--spring, cubic-bezier(.34, 1.5, .5, 1)) both; }
+@keyframes il-hin { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: none; } }
+.hIc { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; flex: none; color: var(--hc); background: color-mix(in srgb, var(--hc) 18%, #000); transition: background 300ms ease, color 300ms ease; }
+.hIc.lit { background: var(--hc); color: #000; box-shadow: 0 0 14px -2px var(--hc); }
+.hIc svg { width: 15px; height: 15px; overflow: visible; }
+.hMid { flex: 1; min-width: 0; }
+.hMid small { display: block; font-family: var(--mono); font-size: 7.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #8d8d96; white-space: nowrap; }
+.hIn .hMid b { display: block; font-size: 12px; font-weight: 800; white-space: nowrap; line-height: 1.2; color: #fff; }
+.hTr { position: relative; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.12); margin-top: 4px; }
+.hTr i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: linear-gradient(90deg, color-mix(in srgb, var(--hc) 55%, #000), var(--hc)); box-shadow: 0 0 10px var(--hc); transition: width calc(260ms * var(--slow)) var(--spring, cubic-bezier(.34, 1.5, .5, 1)); }
+.hTr b { position: absolute; top: 50%; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; background: #fff; box-shadow: 0 0 8px #fff; transition: left calc(260ms * var(--slow)) var(--spring, cubic-bezier(.34, 1.5, .5, 1)); }
+.hTr.bat i { transition: width calc(1200ms * var(--slow)) var(--ease, cubic-bezier(.4, 0, .2, 1)); background: linear-gradient(90deg, #1f9d4c, var(--hc)); }
+.hV { font-size: 13px; font-weight: 800; min-width: 28px; text-align: right; color: #fff; }
+.hSt { font-size: 9.5px; font-weight: 800; padding: 3px 9px; border-radius: 999px; white-space: nowrap; background: rgba(255, 255, 255, 0.1); color: #9a9aa2; transition: background 250ms ease, color 250ms ease; }
+.hSt.on { background: color-mix(in srgb, var(--hc) 25%, transparent); color: color-mix(in srgb, var(--hc) 60%, #fff); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hc) 55%, transparent); }
+.hCh { display: flex; gap: 3px; margin-top: 3px; }
+.hCh i { font-style: normal; font-size: 8.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; color: #8d8d96; background: rgba(255, 255, 255, 0.07); transition: all 250ms ease; white-space: nowrap; }
+.hCh i.on { background: var(--hc); color: #000; box-shadow: 0 0 8px -1px var(--hc); }
+
+/* Reduced motion: sizes jump, fades are short, nothing pulses or bounces. */
+@media (prefers-reduced-motion: reduce) {
+  .sh[data-size] { transition: border-color 1ms, box-shadow 1ms; }
+  .il-view.on, .il-view.il-hud.on { transition: opacity 150ms ease; }
+  .sh[data-live='leave'], .il-pulse, .il-q i, .il-eq.on i, .hIn, .il-tt.run { animation: none !important; }
+  .il-chg, .hTr i, .hTr b { transition-duration: 1ms; }
+}
+html.reduce-motion .sh[data-size] { transition: border-color 1ms, box-shadow 1ms; }
+html.reduce-motion .il-view.on { transition: opacity 150ms ease; }

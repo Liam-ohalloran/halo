@@ -60,6 +60,13 @@ export interface ShellHandle {
   setKey(hex: string): void
   /** Unread alerts. Above zero, the resting island shows a small gold dot (card 20, card 17 restyles it). */
   setUnread(n: number): void
+  /** The closed island's live layer (card 17). It sits over the pill and only its buttons take clicks. */
+  live: HTMLElement
+  /**
+   * Size of the closed island (card 17). `live` animates 380 ms, `hud` 420 ms with a spring, `snap` doesn't animate.
+   * It only moves the closed island: opening still grows to 600 x 290.
+   */
+  setSize(s: { w: number; h: number; r: number }, how?: 'live' | 'hud' | 'snap'): void
 }
 
 const style = (el: HTMLElement, css: string) => { el.setAttribute('style', css); return el }
@@ -82,6 +89,7 @@ export function Shell(o: ShellOptions): ShellHandle {
   const skinsEl = h('div', { class: 'sh-skins', 'aria-hidden': 'true' })
   const inner = h('div', { class: 'sh-inner' })
   const pill = h('button', { type: 'button', class: 'sh-pill', 'aria-label': 'Open Halo', 'aria-expanded': 'false', 'aria-controls': 'sh-body' }) as HTMLButtonElement
+  const live = h('div', { class: 'sh-live' })
   const skins = new Map<TabId, HTMLElement>()
   for (const t of Object.values(TAB_THEMES)) {
     const skin = h('div', { class: 'sh-skin', 'aria-hidden': 'true' })
@@ -143,7 +151,7 @@ export function Shell(o: ShellOptions): ShellHandle {
   skinsEl.append(...skins.values())
   inner.append(header, host)
   const dot = h('span', { class: 'sh-dot', 'aria-hidden': 'true' })
-  clip.append(skinsEl, pill, dot, inner)
+  clip.append(skinsEl, pill, live, dot, inner)
   el.append(clip)
 
   // ---- Coming soon panels, one per tab, made on demand
@@ -205,6 +213,7 @@ export function Shell(o: ShellOptions): ShellHandle {
     if (v === isOpen) return
     isOpen = v
     el.dataset.open = String(v)
+    delete el.dataset.size // the next size change after a close starts from a settled island
     pill.setAttribute('aria-expanded', String(v))
     inner.toggleAttribute('inert', !v)
     pill.tabIndex = v ? -1 : 0
@@ -240,6 +249,14 @@ export function Shell(o: ShellOptions): ShellHandle {
     el.dataset.collapsed = s
   }
   setCollapsed('resting')
+  const setSize = (s: { w: number; h: number; r: number }, how: 'live' | 'hud' | 'snap' = 'live') => {
+    el.style.setProperty('--cw', `${s.w}px`)
+    el.style.setProperty('--ch', `${s.h}px`)
+    el.style.setProperty('--cr', `${s.r}px`)
+    if (isOpen) return
+    // Closed to closed: no waiting for a window to shrink first, so drop the close delay.
+    el.dataset.size = how
+  }
 
   apply(TAB_THEMES[active])
   refreshMeta()
@@ -249,6 +266,7 @@ export function Shell(o: ShellOptions): ShellHandle {
   return {
     el, host, get active() { return active }, setActive, refreshMeta, soon,
     get isOpen() { return isOpen }, open, close, pill, setCollapsed, get collapsed() { return collapsed },
+    live, setSize,
     setKey: (hex) => el.style.setProperty('--k', hex),
     setUnread: (n) => {
       el.dataset.unread = n > 0 ? '1' : '0'

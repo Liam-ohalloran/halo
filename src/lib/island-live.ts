@@ -59,8 +59,9 @@ export const HUD_LOOK = { narrow: { w: 310, h: 44, r: 22 }, wide: { w: 360, h: 4
 export const SIZE_MS = 380
 export const CONTENT_DELAY_MS = 300
 
-/** A HUD pill sits above every live state except Leave now. */
-export function pickDisplay(kind: LiveKind, hudOn: boolean): 'hud' | LiveKind {
+/** A HUD pill sits above every live state except Leave now. A notification banner sits above all of them. */
+export function pickDisplay(kind: LiveKind, hudOn: boolean, bannerOn = false): 'banner' | 'hud' | LiveKind {
+  if (bannerOn) return 'banner' // card 18: a notification banner sits above everything, Leave now included
   return hudOn && kind !== 'leave' ? 'hud' : kind
 }
 

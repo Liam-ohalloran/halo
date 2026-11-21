@@ -3,6 +3,7 @@ import '../styles/island-live.css'
 import { h } from './dom'
 import type { ShellHandle } from './Shell'
 import { HUD_LOOK, LOOK, mmss, pickDisplay, pickLive, type LiveKind } from '../lib/island-live'
+import { BANNER, type BannerModel } from '../lib/banner'
 import type { HudModel } from '../lib/hud'
 import { hudIconMarkup } from './hud-icons'
 import { slow } from '../lib/motion'
@@ -23,9 +24,11 @@ export interface LiveData {
   shift: { label: string; big: string; rightLabel: string; rightValue: string } | null
   music: { title: string; art: string | null; playing: boolean } | null
   charge: { pct: number; toFull: string | null } | null
+  /** Card 18: a notification banner. Sits above everything else while it is set. */
+  banner: BannerModel | null
   unread: number
 }
-export const emptyLive = (): LiveData => ({ leave: null, game: null, timer: null, shift: null, music: null, charge: null, unread: 0 })
+export const emptyLive = (): LiveData => ({ leave: null, game: null, timer: null, shift: null, music: null, charge: null, banner: null, unread: 0 })
 
 export interface IslandLiveOptions {
   /** The pause and stop buttons on the study timer pill. */
@@ -40,7 +43,11 @@ export interface IslandLiveHandle {
   /** Show a HUD pill. A pill with the same key as the one on screen updates in place. */
   hud(m: HudModel): void
   /** What the closed island shows right now. */
-  readonly shown: 'hud' | LiveKind
+  readonly shown: 'banner' | 'hud' | LiveKind
+  /** Show a notification banner, or null to let it settle back (card 18). */
+  banner(m: BannerModel | null): void
+  /** What a tap on the banner (`open`) or its button (`action`) does. Set by Banners. */
+  onBanner(cb: (what: 'action' | 'open') => void): void
   readonly data: LiveData
   destroy(): void
 }
@@ -154,6 +161,28 @@ function musicView(): View {
   }
 }
 
+function bannerView(onBanner: (w: 'action' | 'open') => void): View {
+  const el = mk('banner', '<div class="il-in il-bn"><span class="bIc"><svg viewBox="0 0 24 24" aria-hidden="true"></svg></span><div class="bTx"><b></b><span></span></div><div class="bR"><small class="num"></small><button type="button" class="bBtn"></button></div></div>')
+  const btn = q<HTMLButtonElement>(el, '.bBtn')
+  let type = ''
+  el.addEventListener('click', (e) => {
+    const isBtn = (e.target as Element).closest('.bBtn')
+    e.stopPropagation()
+    onBanner(isBtn ? 'action' : 'open')
+  })
+  return {
+    el,
+    patch: (d: BannerModel) => {
+      if (type !== d.type) { type = d.type; q(el, '.bIc svg').innerHTML = d.icon }
+      set(q(el, '.bTx b'), d.title)
+      set(q(el, '.bTx span'), d.body)
+      set(q(el, '.bR small'), d.time)
+      set(btn, d.action?.label ?? '')
+      btn.hidden = !d.action
+    },
+  }
+}
+
 function chargeView(): View {
   const el = mk('charge', `<div class="il-in"><span class="il-bolt">${BOLT}</span><b class="num il-pct"></b></div>`)
   return { el, patch: (d: NonNullable<LiveData['charge']>) => set(q(el, '.il-pct'), `${d.pct}%`) }
@@ -193,12 +222,13 @@ function patchHud(root: HTMLElement, m: HudModel) {
 
 export function IslandLive(sh: ShellHandle, o: IslandLiveOptions = {}): IslandLiveHandle {
   const data = emptyLive()
+  let bannerCb: (what: 'action' | 'open') => void = () => {}
   const layer = sh.live
   const ring = h('div', { class: 'il-ring', 'aria-hidden': 'true' })
   const hudEl = h('div', { class: 'il-view il-hud', 'data-k': 'hud' })
   const dot = h('span', { class: 'il-unread', 'aria-hidden': 'true' })
   const views: Record<string, View> = {
-    leave: leaveView(), game: gameView(), timer: timerView((a) => o.onTimer?.(a)), shift: shiftView(), music: musicView(), charge: chargeView(),
+    leave: leaveView(), game: gameView(), timer: timerView((a) => o.onTimer?.(a)), shift: shiftView(), music: musicView(), charge: chargeView(), banner: bannerView((w) => bannerCb(w)),
   }
   const chg = h('div', { class: 'il-chg', 'aria-hidden': 'true' })
   chg.innerHTML = `<span class="il-bolt">${BOLT}</span><div class="hTr bat"><i></i></div><span class="il-full num"></span>`
@@ -211,7 +241,7 @@ export function IslandLive(sh: ShellHandle, o: IslandLiveOptions = {}): IslandLi
   let hudDrawn: HudModel | null = null
   let hudTimer = 0
   let chargeTimer = 0
-  let shown: 'hud' | LiveKind | '' = ''
+  let shown: 'banner' | 'hud' | LiveKind | '' = ''
   let sizeKey = ''
   let alive = true
 
@@ -241,21 +271,23 @@ export function IslandLive(sh: ShellHandle, o: IslandLiveOptions = {}): IslandLi
   function render() {
     if (!alive) return
     const kind = pickLive({ leave: !!data.leave, game: !!data.game, timer: !!data.timer, shift: !!data.shift, music: !!data.music, charge: !!data.charge, unread: data.unread })
-    const disp = pickDisplay(kind, !!hud)
-    if (disp === 'hud' && hud) showHud(hud)
+    const disp = pickDisplay(kind, !!hud, !!data.banner)
+    if (disp === 'banner' && data.banner) (views.banner.patch as (x: unknown) => void)(data.banner)
+    else if (disp === 'hud' && hud) showHud(hud)
     else if (disp !== 'hud') {
       const v = views[disp]
       const d = data[disp as keyof LiveData]
       if (v && d) (v.patch as (x: unknown) => void)(d)
     }
     // Sizes and colours only move when what is shown changes.
-    const look = disp === 'hud' && hud ? { ...(hud.wide ? HUD_LOOK.wide : HUD_LOOK.narrow), colour: hud.colour, ring: false } : LOOK[kind]
-    const colour = disp === 'hud' ? look.colour : kind === 'timer' && data.timer ? data.timer.colour : look.colour
+    const look = disp === 'banner' && data.banner ? { ...BANNER, colour: data.banner.colour, ring: false }
+      : disp === 'hud' && hud ? { ...(hud.wide ? HUD_LOOK.wide : HUD_LOOK.narrow), colour: hud.colour, ring: false } : LOOK[kind]
+    const colour = disp === 'hud' || disp === 'banner' ? look.colour : kind === 'timer' && data.timer ? data.timer.colour : look.colour
     const key = `${disp}|${look.w}`
     if (key !== sizeKey) {
       const first = sizeKey === ''
       sizeKey = key
-      sh.setSize(look, first ? 'snap' : disp === 'hud' || shown === 'hud' ? 'hud' : 'live')
+      sh.setSize(look, first ? 'snap' : disp === 'banner' ? 'banner' : disp === 'hud' || shown === 'hud' ? 'hud' : 'live')
     }
     if (disp !== shown) {
       shown = disp
@@ -281,6 +313,8 @@ export function IslandLive(sh: ShellHandle, o: IslandLiveOptions = {}): IslandLi
   return {
     update(part) { Object.assign(data, part); render() },
     setUnread(n) { data.unread = n; sh.setUnread(n); render() },
+    banner(m) { data.banner = m; render() },
+    onBanner(cb) { bannerCb = cb },
     charging(info) {
       window.clearTimeout(chargeTimer)
       data.charge = info
@@ -295,7 +329,7 @@ export function IslandLive(sh: ShellHandle, o: IslandLiveOptions = {}): IslandLi
       hudTimer = window.setTimeout(endHud, slow(m.hold))
       render()
     },
-    get shown() { return (shown || 'idle') as 'hud' | LiveKind },
+    get shown() { return (shown || 'idle') as 'banner' | 'hud' | LiveKind },
     get data() { return data },
     destroy() { alive = false; window.clearTimeout(hudTimer); window.clearTimeout(chargeTimer); chg.remove(); layer.replaceChildren() },
   }

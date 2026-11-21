@@ -63,10 +63,10 @@ export interface ShellHandle {
   /** The closed island's live layer (card 17). It sits over the pill and only its buttons take clicks. */
   live: HTMLElement
   /**
-   * Size of the closed island (card 17). `live` animates 380 ms, `hud` 420 ms with a spring, `snap` doesn't animate.
+   * Size of the closed island (card 17). `live` animates 380 ms, `hud` 420 ms with a spring, `banner` 520 ms with the open spring (card 18), `snap` doesn't animate.
    * It only moves the closed island: opening still grows to 600 x 290.
    */
-  setSize(s: { w: number; h: number; r: number }, how?: 'live' | 'hud' | 'snap'): void
+  setSize(s: { w: number; h: number; r: number }, how?: 'live' | 'hud' | 'banner' | 'snap'): void
 }
 
 const style = (el: HTMLElement, css: string) => { el.setAttribute('style', css); return el }
@@ -224,12 +224,15 @@ export function Shell(o: ShellOptions): ShellHandle {
   const open = () => setOpen(true)
   const close = () => setOpen(false)
   pill.addEventListener('click', open)
+  // Card 18: resting on a notification banner holds it open, and resting on the stack of pills under the island fans it
+  // out. Neither should pull the window open, so hover only opens when it is on the island itself.
+  const hoverOpen = () => { if (el.dataset.live === 'banner' || el.querySelector('.nst:hover')) return; open() }
   if (auto) {
     // Hover for 300 ms opens. Moving away for 1 s closes, and coming back in time cancels it.
     el.addEventListener('pointerenter', (e) => {
       if (e.pointerType === 'touch') return
       clearTimeout(leaveT)
-      if (!isOpen) { clearTimeout(hoverT); hoverT = window.setTimeout(open, HOVER_OPEN_MS) }
+      if (!isOpen) { clearTimeout(hoverT); hoverT = window.setTimeout(hoverOpen, HOVER_OPEN_MS) }
     })
     el.addEventListener('pointerleave', (e) => {
       if (e.pointerType === 'touch') return
@@ -249,7 +252,7 @@ export function Shell(o: ShellOptions): ShellHandle {
     el.dataset.collapsed = s
   }
   setCollapsed('resting')
-  const setSize = (s: { w: number; h: number; r: number }, how: 'live' | 'hud' | 'snap' = 'live') => {
+  const setSize = (s: { w: number; h: number; r: number }, how: 'live' | 'hud' | 'banner' | 'snap' = 'live') => {
     el.style.setProperty('--cw', `${s.w}px`)
     el.style.setProperty('--ch', `${s.h}px`)
     el.style.setProperty('--cr', `${s.r}px`)

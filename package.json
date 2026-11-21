@@ -23,7 +23,8 @@
     "test": "node --test \"tests/*.test.ts\"",
     "check:overflow": "node scripts/check-overflow.mjs",
     "shots:card16": "node scripts/shots-card16.mjs",
-    "test:card16": "node scripts/test-card16.mjs"
+    "test:card16": "node scripts/test-card16.mjs",
+    "shots:card18": "node scripts/shots-card18.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0"

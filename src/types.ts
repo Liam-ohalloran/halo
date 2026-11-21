@@ -41,6 +41,9 @@ export interface AlertRow {
   read_at: string | null
 }
 
+import type { Goal, MoneyItem } from './lib/money'
+import type { Mark } from './lib/marks'
+
 /** Everything the UI needs from the database. Real impl talks to Supabase; dev impl is in-memory. */
 export interface Backend {
   /** The shift happening now, or else the next one. */
@@ -66,6 +69,18 @@ export interface Backend {
   markAlertsRead(ids: string[]): Promise<void>
   /** Realtime: called whenever an alert row is inserted or changed. Returns unsubscribe. */
   onAlertsChange(cb: () => void): () => void
+  /** Money tab (card 21). Manual rows only, nothing here touches a bank. */
+  goals(): Promise<Goal[]>
+  saveGoal(g: { id?: string; name: string; saved: number; target: number; colour: string }): Promise<void>
+  deleteGoal(id: string): Promise<void>
+  /** Spend and subscription rows, newest first. */
+  moneyItems(): Promise<MoneyItem[]>
+  addMoneyItem(i: Omit<MoneyItem, 'id'>): Promise<void>
+  deleteMoneyItem(id: string): Promise<void>
+  /** Marks tab (card 21). Typed in by hand. */
+  marks(): Promise<Mark[]>
+  addMark(m: Omit<Mark, 'id'>): Promise<void>
+  deleteMark(id: string): Promise<void>
   /** Realtime: called whenever a shift row changes. Returns unsubscribe. */
   onShiftsChange(cb: () => void, onStatus?: (live: boolean) => void): () => void
 }

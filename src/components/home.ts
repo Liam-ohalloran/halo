@@ -17,6 +17,8 @@ import { createStudyTimer } from '../panels/studyTimer'
 import { PayPanel } from '../panels/pay'
 import { WeekPanel } from '../panels/week'
 import { AlertsPanel } from '../panels/alerts'
+import { MoneyPanel } from '../panels/money'
+import { MarksPanel } from '../panels/marks'
 import { buildAlertsView, createAlertsStore } from '../lib/alerts'
 import type { PvRoot } from '../ui/charts'
 import { supabase, supabaseBackend } from '../supabase'
@@ -301,7 +303,11 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   const alertsStore = sh ? createAlertsStore(api) : null
   const unsubAlerts = alertsStore?.subscribe(() => live!.setUnread(buildAlertsView(alertsStore.rows()).unread))
   let alertsPanel: ReturnType<typeof AlertsPanel> | null = null
+  let moneyPanel: ReturnType<typeof MoneyPanel> | null = null
+  let marksPanel: ReturnType<typeof MarksPanel> | null = null
   panelFor = (id) => {
+    if (id === 'money') return (moneyPanel ??= MoneyPanel(api, clock))
+    if (id === 'marks') return (marksPanel ??= MarksPanel(api, clock))
     if (id === 'alerts' && alertsStore) return (alertsPanel ??= AlertsPanel(alertsStore, clock))
     if (id === 'week') return (weekPanel ??= WeekPanel(api, (cb) => { weekListeners.add(cb); return () => weekListeners.delete(cb) }, clock))
     const p = toPanel(id)
@@ -535,7 +541,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   if (o.open && !phone && !sh) requestAnimationFrame(() => requestAnimationFrame(() => isl.open()))
 
   return () => {
-    stop(); ro.disconnect(); unsub(); unsubTimer(); stopEvents?.(); live?.destroy(); if (artUrl) URL.revokeObjectURL(artUrl); payPanel?.destroy(); alertsPanel?.destroy(); unsubAlerts?.(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
+    stop(); ro.disconnect(); unsub(); unsubTimer(); stopEvents?.(); live?.destroy(); if (artUrl) URL.revokeObjectURL(artUrl); payPanel?.destroy(); alertsPanel?.destroy(); moneyPanel?.destroy(); marksPanel?.destroy(); unsubAlerts?.(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
     document.removeEventListener('pointerdown', onOutside)
     document.removeEventListener('visibilitychange', onVisible)
     removeEventListener('online', onOnline)

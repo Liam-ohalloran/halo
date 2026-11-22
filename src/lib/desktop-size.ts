@@ -55,6 +55,26 @@ export function layoutFor(l: Layout, style: DesktopStyle, margin = 0): Placed {
   return { win, regions }
 }
 
+/**
+ * The window while the island is open (and while it is closing): always this size, 600 x 290 plus the margin. The page
+ * animates the island inside it with CSS, and the app only moves the click through regions. It is never resized between
+ * opening and the end of the close animation, because resizing a transparent window in the middle of a tab switch is what
+ * made it flicker.
+ */
+export function openWindow(style: DesktopStyle): Placed {
+  return layoutFor({ island: shellTarget(true, 0, 0, 0), stack: null }, style, MOVE_MARGIN)
+}
+
+/** The same parts that take the mouse, but placed inside a window of a given (bigger) size. They stay centred and at the top. */
+export function regionsIn(win: Box, l: Layout, style: DesktopStyle): Region[] {
+  const exact = layoutFor(l, style)
+  const dx = (win.w - exact.win.w) / 2
+  return exact.regions.map((r) => ({ ...r, x: r.x + dx }))
+}
+
+/** How long the window waits after the island starts closing before it shrinks: the close animation is 120 ms out and 380 ms in, plus a margin. */
+export const CLOSE_SETTLE_MS = 700
+
 /** While moving: the larger of what the window already is and what the next state needs, so it only grows. */
 export function growOnly(current: Box, next: Box): Box {
   return { w: Math.max(current.w, next.w), h: Math.max(current.h, next.h) }

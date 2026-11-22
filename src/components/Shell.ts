@@ -104,6 +104,7 @@ export function Shell(o: ShellOptions): ShellHandle {
   const pill = h('button', { type: 'button', class: 'sh-pill', 'aria-label': 'Open Halo', 'aria-expanded': 'false', 'aria-controls': 'sh-body' }) as HTMLButtonElement
   const live = h('div', { class: 'sh-live' })
   const skins = new Map<TabId, HTMLElement>()
+  let skinZ = 0
   for (const t of Object.values(TAB_THEMES)) {
     const skin = h('div', { class: 'sh-skin', 'aria-hidden': 'true' })
     skin.style.background = t.bg
@@ -150,26 +151,19 @@ export function Shell(o: ShellOptions): ShellHandle {
   })
   const header = h('header', { class: 'sh-head' }, h('div', { class: 'sh-seg' }, rail), h('div', { class: 'sh-rt' }, time, pen))
 
-  // ---- Body: panels crossfade. A panel is kept after it fades out and shown again later, so no animation may
-  // outlive its switch: a fade that held opacity 0 once pinned a panel invisible (the old opacity 0 bug).
+  // ---- Body: switching tabs swaps panels. Nothing fades and nothing is rebuilt (HALO.md: no flash on interaction).
+  // A panel is built the first time its tab is shown and then stays mounted. The one that is not showing is only hidden
+  // (display none), so it is not taken out of the page and put back, and no two panels are ever on screen half faded at
+  // once, which is what made fast tab switching flicker. The tab's own entrance animation (tiles popping in) is played by
+  // the caller after show().
   const host = h('div', { class: 'sh-body', id: 'sh-body', role: 'tabpanel' }) as ShellHost
   let current: HTMLElement | null = null
-  const clear = (p: HTMLElement) => { for (const a of p.getAnimations()) a.cancel() }
   host.show = (panel) => {
     const old = current
-    for (const c of [...host.children] as HTMLElement[]) if (c !== panel && c !== old) { clear(c); c.remove() }
-    clear(panel)
-    panel.style.pointerEvents = ''
     panel.classList.add('h-panel')
-    host.append(panel)
-    if (old && old !== panel) {
-      clear(old)
-      old.style.pointerEvents = 'none'
-      const out = old.animate([{ opacity: 1 }, { opacity: 0 }], { duration: FADE_MS, easing: 'ease', fill: 'forwards' })
-      out.onfinish = () => { out.cancel(); if (current !== old) old.remove() }
-      const inn = panel.animate([{ opacity: 0 }, { opacity: 1 }], { duration: FADE_MS, easing: 'ease', fill: 'backwards' })
-      inn.onfinish = () => inn.cancel() // back to the plain CSS state: opacity 1
-    }
+    panel.classList.remove('h-off')
+    if (panel.parentElement !== host) host.append(panel)
+    if (old && old !== panel) old.classList.add('h-off')
     current = panel
   }
 
@@ -202,7 +196,13 @@ export function Shell(o: ShellOptions): ShellHandle {
     inner.style.setProperty('--sh-pr', `${t.pad[1]}px`)
     inner.style.setProperty('--sh-pb', `${t.pad[2]}px`)
     inner.style.setProperty('--sh-pl', `${t.pad[3]}px`)
-    for (const [id, skin] of skins) skin.classList.toggle('is-on', id === t.id)
+    // The skin coming in goes on top and fades in over the one leaving, which stays solid until it is covered. Fading
+    // one out while the other fades in dips through the black base for a moment.
+    for (const [id, skin] of skins) {
+      const on = id === t.id
+      if (on && !skin.classList.contains('is-on')) skin.style.zIndex = String(++skinZ)
+      skin.classList.toggle('is-on', on)
+    }
     for (const [id, b] of buttons) {
       const on = id === t.id
       b.classList.toggle('on', on)

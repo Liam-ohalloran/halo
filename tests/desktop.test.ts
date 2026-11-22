@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { EAR, ISLAND_GAP, MOVE_MARGIN, STACK_GAP, growOnly, layoutFor, px, shellTarget, stackBox } from '../src/lib/desktop-size.ts'
+import { CLOSE_SETTLE_MS, EAR, ISLAND_GAP, MOVE_MARGIN, openWindow, regionsIn, STACK_GAP, growOnly, layoutFor, px, shellTarget, stackBox } from '../src/lib/desktop-size.ts'
 
 const closed = { w: 200, h: 34, r: 17 }
 
@@ -58,4 +58,24 @@ test('the charging pill pushes the stack down', () => {
 test('px parses CSS lengths and falls back', () => {
   assert.equal(px('200px', 1), 200)
   assert.equal(px('', 34), 34)
+})
+
+test('open: one fixed window size, the same whatever the tab, and the island is caught in the middle of it', () => {
+  const w = openWindow('notch')
+  assert.deepEqual(w.win, { w: 600 + 2 * EAR + 2 * MOVE_MARGIN, h: 290 + MOVE_MARGIN })
+  assert.deepEqual(w.regions[0], { x: EAR + MOVE_MARGIN, y: 0, w: 600, h: 290, rt: 0, rb: 26 })
+  assert.deepEqual(openWindow('notch'), openWindow('notch'))
+  assert.equal(openWindow('island').win.h, 290 + ISLAND_GAP + MOVE_MARGIN)
+})
+
+test('closing: the click through regions move to the closed shape inside the big window, without resizing it', () => {
+  const big = openWindow('notch').win
+  const r = regionsIn(big, { island: { w: 200, h: 34, r: 17 }, stack: null }, 'notch')[0]
+  assert.equal(r.w, 200)
+  assert.equal(r.x, (big.w - 200) / 2) // still centred in the big window
+  assert.equal(r.y, 0)
+})
+
+test('the window shrinks only after the close animation (120 ms out, 380 ms in) has finished', () => {
+  assert.ok(CLOSE_SETTLE_MS >= 120 + 380)
 })

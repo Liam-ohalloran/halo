@@ -4,7 +4,7 @@
 // The web code owns the size of the island. It tells the app through `halo.desktop.setSize()`, and the app resizes its
 // window to match, so the window never covers more than the island (plus a little room while it moves).
 
-import { growOnly, layoutFor, px, SETTLE_MS, shellTarget, stackBox, MOVE_MARGIN, type Box, type DesktopStyle, type IslandShape, type Layout } from './desktop-size'
+import { CLOSE_SETTLE_MS, growOnly, layoutFor, openWindow, px, regionsIn, SETTLE_MS, shellTarget, stackBox, MOVE_MARGIN, type Box, type DesktopStyle, type IslandShape, type Layout } from './desktop-size'
 
 interface TauriGlobal {
   core: { invoke: <T = unknown>(cmd: string, args?: Record<string, unknown>) => Promise<T> }
@@ -112,16 +112,60 @@ export function attachDesktop(sh: ShellLike): () => void {
     return shellTarget(el.dataset.open === 'true', v('--cw', 200), v('--ch', 34), v('--cr', 17))
   }
   let lastOpen = el.dataset.open === 'true'
+  let regionsKey = ''
+  const setRegions = (regions: unknown) => {
+    const k = JSON.stringify(regions)
+    if (k === regionsKey) return
+    regionsKey = k
+    void call('set_regions', { regions })
+  }
   const fit = () => {
+    const open = el.dataset.open === 'true'
+    if (open !== lastOpen) { lastOpen = open; bridge.setFocusable(open) }
+    if (open) {
+      // Open: the window is its full size and stays that size, however the island moves inside it. Only on opening does
+      // it grow (once, before the animation), and the regions say where the mouse is caught.
+      clearTimeout(settleT)
+      const w = openWindow(style)
+      if (applied.w !== w.win.w || applied.h !== w.win.h) { regionsKey = JSON.stringify(w.regions); send(w.win, w.regions) }
+      else setRegions(w.regions)
+      return
+    }
     const nst = el.querySelector('.nst')
     const count = nst && nst.classList.contains('on') ? Number((nst as HTMLElement).style.getPropertyValue('--n') || 0) : 0
-    const open = el.dataset.open === 'true'
-    apply({ island: island(), stack: open ? null : stackBox(count, !!nst?.classList.contains('fan')), charge: el.dataset.live === 'charge' })
-    if (open !== lastOpen) { lastOpen = open; bridge.setFocusable(open) }
+    const l = { island: island(), stack: stackBox(count, !!nst?.classList.contains('fan')), charge: el.dataset.live === 'charge' }
+    if (closing) {
+      // Just closed: the island is shrinking inside the big window. Leave the window alone until that has finished, then
+      // take it down to the closed size. Meanwhile the regions already follow the closed shape.
+      setRegions(regionsIn(applied, l, style))
+      clearTimeout(settleT)
+      settleT = window.setTimeout(() => { closing = false; layout = l; const exact = layoutFor(l, style); regionsKey = JSON.stringify(exact.regions); send(exact.win, exact.regions) }, CLOSE_SETTLE_MS)
+      return
+    }
+    layout = l
+    apply(l)
   }
-  const mo = new MutationObserver(fit)
-  mo.observe(el, { attributes: true, attributeFilter: ['data-open', 'data-collapsed', 'data-size', 'data-live', 'style'], subtree: true, attributeOldValue: false })
-  cleanups.push(() => mo.disconnect())
+  let closing = false
+  // Watch the island itself, and its stack of alert pills, for a change of state or size. Not what is inside the open
+  // panels: a tab switch changes hundreds of styles in there and none of them is the window's business.
+  const mo = new MutationObserver((list) => {
+    const open = el.dataset.open === 'true'
+    if (lastOpen && !open) closing = true
+    else if (open) closing = false
+    void list
+    fit()
+  })
+  const watchAttrs = { attributes: true, attributeFilter: ['data-open', 'data-collapsed', 'data-size', 'data-live', 'style', 'class'] }
+  mo.observe(el, watchAttrs)
+  let nstSeen: Element | null = null
+  const watchStack = () => {
+    const nst = el.querySelector('.nst')
+    if (nst && nst !== nstSeen) { nstSeen = nst; mo.observe(nst, watchAttrs) }
+  }
+  const mo2 = new MutationObserver(() => { watchStack(); fit() })
+  mo2.observe(el, { childList: true })
+  watchStack()
+  cleanups.push(() => { mo.disconnect(); mo2.disconnect() })
 
   // Style (Island or Notch) comes from the app. It changes the shape and the window size, so refit when it moves.
   const applyStyle = (s: DesktopStyle) => {

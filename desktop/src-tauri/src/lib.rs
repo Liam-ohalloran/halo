@@ -110,11 +110,24 @@ fn apply_placement(app: &AppHandle, force: bool) {
     }
     rt.placed = Some((x, y, pw, ph));
     drop(rt);
-    // Size first with the monitor's own scale, then position. Twice, because moving between monitors with different
-    // scales can nudge the size.
-    let _ = win.set_size(PhysicalSize::new(pw, ph));
-    let _ = win.set_position(PhysicalPosition::new(x, y));
-    let _ = win.set_size(PhysicalSize::new(pw, ph));
+    move_window(&win, x, y, pw, ph);
+}
+
+/// Move and resize in one step. Doing it as two calls (size, then position) shows a frame of the new size at the old
+/// place, which flickers on a transparent window.
+fn move_window(win: &WebviewWindow, x: i32, y: i32, w: u32, h: u32) {
+    #[cfg(windows)]
+    {
+        use windows::Win32::Foundation::HWND;
+        use windows::Win32::UI::WindowsAndMessaging::{SetWindowPos, SWP_NOACTIVATE, SWP_NOZORDER};
+        if let Ok(hwnd) = win.hwnd() {
+            let done = unsafe { SetWindowPos(HWND(hwnd.0), None, x, y, w as i32, h as i32, SWP_NOACTIVATE | SWP_NOZORDER) };
+            if done.is_ok() {
+                return;
+            }
+        }
+    }
+    let _ = win.set_size(PhysicalSize::new(w, h));
     let _ = win.set_position(PhysicalPosition::new(x, y));
 }
 

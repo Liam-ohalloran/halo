@@ -40,11 +40,12 @@
 
 /* The only overflow hidden: an inner wrapper that follows the rounded bottom. Never on .sh, or the ears would be cut. */
 .sh-clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
-.sh-skins { position: absolute; inset: 0; opacity: 0; transition: opacity var(--out) ease; }
+.sh-skins { position: absolute; inset: 0; isolation: isolate; opacity: 0; transition: opacity var(--out) ease; }
 .sh[data-open='true'] .sh-skins { opacity: 1; transition: opacity 220ms ease; }
 
 /* One skin per tab, stacked. Only the open tab's is visible, so one tab's glow never bleeds into another's. */
-.sh-skin { position: absolute; inset: 0; overflow: hidden; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 180ms ease, visibility 0s linear 180ms; }
+/* A skin that is leaving waits until the new one has faded in over it, then goes at once. */
+.sh-skin { position: absolute; inset: 0; overflow: hidden; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 0s linear 200ms, visibility 0s linear 200ms; }
 .sh-skin.is-on { opacity: 1; visibility: visible; transition: opacity 180ms ease; }
 
 /* Closed content: the live pills. Fades in after the shrink, out as soon as the grow starts. */
@@ -123,6 +124,8 @@
 /* Body: panels sit on top of each other and crossfade. */
 .sh-body { position: relative; flex: 1 1 0; min-height: 0; margin-top: 8px; overflow: hidden; container-type: inline-size; }
 .sh-body .h-panel { left: 0; right: 0; top: 0; }
+/* Tabs that are not showing stay mounted but hidden. Never faded. */
+.sh-body .h-panel.h-off { display: none !important; }
 
 /* Tabs not built yet. */
 .sh-soon { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }

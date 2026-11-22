@@ -53,3 +53,13 @@
 .shelf-pv .shErr button { height: 26px; padding: 0 12px; border-radius: 999px; border: 0; background: var(--pearl); color: #000; font-size: 11px; font-weight: 700; cursor: pointer; transition: transform .3s var(--spring); }
 .shelf-pv .shErr button:active { transform: scale(.94); }
 @media (prefers-reduced-motion: reduce) { .shelf-pv .lg, .shelf-pv .lqb, .shelf-pv .selBox .mt i { transition: none; } .shelf-pv.is-loading .shG::before, .shelf-pv .selBox .mt i.busy { animation: none; } }
+
+/* Card 26: the Clip chip shows only with the helper, and clipboard mode shows the last 25 things copied. */
+.shelf-pv .selBox .clipmode { display: none; margin: 0 0 0 4px; flex: none; border: 0; color: var(--pearl); background: rgba(255,255,255,.14); cursor: pointer; font-family: var(--mono); font-size: 7.5px; font-weight: 700; letter-spacing: .08em; height: 16px; padding: 0 4px; border-radius: 999px; transition: transform .3s var(--spring), background .2s; }
+.shelf-pv.has-clip .selBox .clipmode { display: block; }
+.shelf-pv .selBox .clipmode:hover { background: rgba(255,255,255,.26); }
+.shelf-pv .selBox .clipmode:active { transform: scale(.94); }
+.shelf-pv .selBox .clipmode[aria-pressed='true'] { background: var(--pearl); color: #000; }
+.shelf-pv.is-clip .selBox .note { display: none; }
+.shelf-pv .sbh { gap: 2px; }
+.shelf-pv .selBox .note, .shelf-pv .selBox .clipmode { margin-left: 0; }

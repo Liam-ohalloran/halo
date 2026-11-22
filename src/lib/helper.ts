@@ -9,7 +9,14 @@ export const HELPER_TOKEN_KEY = 'halo.helperToken'
 export interface Battery { present: boolean; percent: number | null; charging: boolean; minutes_left: number | null }
 export interface Media { available: boolean; title: string; artist: string; album: string; source: string; playing: boolean; position: number; duration: number; has_art: boolean }
 
+// Inside the Halo desktop app (card 26) the helper is bundled: the app starts it, picks its port and keeps the pairing
+// token in the Windows Credential Manager, then gives both to the page. Nobody pastes a token there.
+let connection: { url: string; token: string } | null = null
+export function setHelperConnection(c: { url: string; token: string } | null) { connection = c }
+export const helperBase = (): string => connection?.url ?? HELPER_URL
+
 export function helperToken(): string | null {
+  if (connection) return connection.token
   try { return localStorage.getItem(HELPER_TOKEN_KEY) } catch { return null }
 }
 
@@ -19,7 +26,7 @@ async function call(path: string, init: RequestInit = {}): Promise<Response | nu
   const ctl = new AbortController()
   const t = setTimeout(() => ctl.abort(), 2000)
   try {
-    const res = await fetch(HELPER_URL + path, { ...init, headers: { 'X-Halo-Token': token }, signal: ctl.signal })
+    const res = await fetch(helperBase() + path, { ...init, headers: { 'X-Halo-Token': token, ...(init.body ? { 'Content-Type': 'application/json' } : {}) }, signal: ctl.signal })
     return res.ok ? res : null
   } catch {
     return null
@@ -48,6 +55,43 @@ export async function getArtUrl(): Promise<string | null> {
   if (!r) return null
   try { return URL.createObjectURL(await r.blob()) } catch { return null }
 }
+
+export interface Volume { level: number; muted: boolean }
+export async function getVolume(): Promise<Volume | null> {
+  const r = await call('/volume')
+  return r ? ((await r.json()) as Volume) : null
+}
+export async function setVolume(level: number): Promise<void> {
+  await call('/volume', { method: 'POST', body: JSON.stringify({ level: Math.max(0, Math.min(100, Math.round(level))) }) })
+}
+
+// ---- Windows notifications (card 26) ----------------------------------------
+/** 'allowed', 'denied' or 'unspecified' (Windows has not been asked yet), or null when there is no helper. */
+export async function notificationAccess(): Promise<string | null> {
+  const r = await call('/notifications/access')
+  return r ? ((await r.json()) as { access: string }).access : null
+}
+/** Windows shows its own question. Halo reads nothing until Liam says yes there. */
+export async function requestNotificationAccess(): Promise<string | null> {
+  const r = await call('/notifications/request', { method: 'POST' })
+  return r ? ((await r.json()) as { access: string }).access : null
+}
+
+// ---- Clipboard history (card 26) --------------------------------------------
+export interface ClipItem { id: string; kind: 'text' | 'image'; text?: string; chars?: number; w?: number; h?: number; thumb?: string; at: number }
+export async function getClipboard(): Promise<{ revision: number; items: ClipItem[] } | null> {
+  const r = await call('/clipboard')
+  return r ? ((await r.json()) as { revision: number; items: ClipItem[] }) : null
+}
+/** Puts a kept item back on the clipboard. */
+export async function copyClipboardItem(id: string): Promise<boolean> {
+  return (await call(`/clipboard/${encodeURIComponent(id)}/copy`, { method: 'POST' })) !== null
+}
+
+// Other parts of the page (the Shelf tab) hear the helper's events too, without opening a second stream.
+type Listener = (name: string, data: unknown) => void
+const listeners = new Set<Listener>()
+export function onHelperEvent(cb: Listener): () => void { listeners.add(cb); return () => listeners.delete(cb) }
 
 // ---- Events (card 17) -------------------------------------------------------
 // The helper streams what changes on the laptop over /events (server sent events). EventSource can't send the token
@@ -100,7 +144,7 @@ export function subscribeEvents(on: HelperEventHandler, onConnection?: (up: bool
     ctl = new AbortController()
     busy = true
     try {
-      const res = await fetch(HELPER_URL + '/events', { headers: { 'X-Halo-Token': token }, signal: ctl.signal })
+      const res = await fetch(helperBase() + '/events', { headers: { 'X-Halo-Token': token }, signal: ctl.signal })
       if (!res.ok || !res.body) throw new Error('no stream')
       setUp(true)
       wait = 2000
@@ -113,7 +157,7 @@ export function subscribeEvents(on: HelperEventHandler, onConnection?: (up: bool
         buf += dec.decode(value, { stream: true })
         const { messages, rest } = parseSse(buf)
         buf = rest
-        for (const m of messages) on(m.event, m.data)
+        for (const m of messages) { listeners.forEach((l) => l(m.event, m.data)); on(m.event, m.data) }
       }
     } catch { /* closed, refused or aborted: fall through and retry */ }
     busy = false

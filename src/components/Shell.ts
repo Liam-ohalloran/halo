@@ -326,6 +326,8 @@ export function Shell(o: ShellOptions): ShellHandle {
       clearTimeout(leaveT)
       if (!isOpen) { clearTimeout(hoverT); hoverT = window.setTimeout(hoverOpen, HOVER_OPEN_MS) }
     })
+    // Card 26: turning the wheel over the closed island is for the volume, so it must not also open the window.
+    el.addEventListener('wheel', () => { if (!isOpen) clearTimeout(hoverT) }, { passive: true })
     el.addEventListener('pointerleave', (e) => {
       if (e.pointerType === 'touch') return
       clearTimeout(hoverT)

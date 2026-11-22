@@ -7,6 +7,7 @@ X-Halo-Token header. Read only for everything except the laptop controls Halo as
 from __future__ import annotations
 
 import asyncio
+import gc
 import hmac
 import inspect
 import io
@@ -28,6 +29,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from halo_extras import (
+    ClipboardHistory,
+    Notifications,
+    Unavailable,
+    probe_airplane,
+    probe_night,
+    write_clipboard,
+)
+
 HOST = "127.0.0.1"
 PORT = 47800
 VERSION = "1.0.0"
@@ -35,6 +45,9 @@ VERSION = "1.0.0"
 ALLOWED_ORIGINS = [
     "https://liam-ohalloran.github.io",
     "http://localhost:5173",
+    # The Halo desktop app (card 25) loads its own files from this origin.
+    "http://tauri.localhost",
+    "https://tauri.localhost",
 ]
 
 IS_WINDOWS = sys.platform == "win32"
@@ -76,10 +89,6 @@ def token_is_valid(supplied: Optional[str], expected: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-class Unavailable(Exception):
-    """A feature can't be used right now. The message is safe to show to Liam."""
-
-
 def _com_init() -> None:
     if IS_WINDOWS:
         try:
@@ -88,6 +97,20 @@ def _com_init() -> None:
             comtypes.CoInitialize()
         except Exception:
             pass
+
+
+def _com_call(fn, *args):
+    """Run a call that uses Windows COM (pycaw, volume and so on) and clean up on the same thread.
+
+    comtypes objects can end up in reference cycles. If Python's garbage collector frees one later, on whichever thread
+    happens to be running (the web server's), the COM release happens on the wrong thread and crashes the whole helper
+    with an access violation. Collecting here, on the thread that made the objects, releases them where they belong.
+    """
+    _com_init()
+    try:
+        return fn(*args)
+    finally:
+        gc.collect()
 
 
 def friendly_source(app_id: str) -> str:
@@ -113,6 +136,33 @@ def friendly_source(app_id: str) -> str:
     return name or "Unknown"
 
 
+def pick_session(rows: list[dict]) -> int:
+    """Which media session Music shows. `rows` are {app, playing, current}. Returns an index into them.
+
+    Spotify is the default, but only wins while it is playing or nothing else is. A playing session from any other app
+    beats a paused Spotify, so YouTube in Chrome shows up. Ties go to the one Windows calls current.
+    """
+    def spotify(r: dict) -> bool:
+        return "spotify" in (r["app"] or "").lower()
+
+    playing = [i for i, r in enumerate(rows) if r["playing"]]
+    if playing:
+        for i in playing:
+            if spotify(rows[i]):
+                return i
+        for i in playing:
+            if rows[i]["current"]:
+                return i
+        return playing[0]
+    for i, r in enumerate(rows):
+        if spotify(r):
+            return i
+    for i, r in enumerate(rows):
+        if r["current"]:
+            return i
+    return 0
+
+
 class Media:
     """Windows system media controls (GlobalSystemMediaTransportControls)."""
 
@@ -128,7 +178,24 @@ class Media:
         )
 
         mgr = await Manager.request_async()
-        return mgr.get_current_session()
+        return await self._choose(mgr)
+
+    async def _choose(self, mgr):
+        """Music follows Spotify when it is there, but anything else that is playing (YouTube in Chrome, a video) shows
+        while Spotify is paused. See pick_session."""
+        from winsdk.windows.media.control import (  # type: ignore
+            GlobalSystemMediaTransportControlsSessionPlaybackStatus as Status,
+        )
+
+        sessions = list(mgr.get_sessions())
+        if not sessions:
+            return mgr.get_current_session()
+        current = mgr.get_current_session()
+        rows = [
+            {"app": s.source_app_user_model_id, "playing": s.get_playback_info().playback_status == Status.PLAYING, "current": current is not None and s.source_app_user_model_id == current.source_app_user_model_id}
+            for s in sessions
+        ]
+        return sessions[pick_session(rows)]
 
     async def info(self) -> dict:
         empty = {
@@ -426,8 +493,7 @@ def _guard(fn, *args):
     """Run a blocking backend call off the event loop, turning Unavailable into a 503."""
 
     def call():
-        _com_init()
-        return fn(*args)
+        return _com_call(fn, *args)
 
     async def go():
         try:
@@ -523,6 +589,9 @@ EXTRA_PROBES: list[tuple[str, int, Any, bool]] = [
     ("wifi", 5, get_wifi, True),
     ("bluetooth", 5, get_bluetooth, True),
     ("power", 5, probe_power, False),
+    # Card 26: pills when airplane mode or night light changes. Read only.
+    ("airplane", 3, probe_airplane, True),
+    ("night", 3, probe_night, False),
 ]
 
 
@@ -536,7 +605,7 @@ async def collect_extra(last: dict, ticks: int, probes=None) -> dict:
             if is_async:
                 value = await probe()
             else:
-                value = await run_in_threadpool(lambda p=probe: (_com_init(), p())[1])
+                value = await run_in_threadpool(_com_call, probe)
         except Exception:
             continue  # not available on this laptop right now: say nothing
         if value != last.get(name):
@@ -546,8 +615,10 @@ async def collect_extra(last: dict, ticks: int, probes=None) -> dict:
 
 
 
-def create_app(token: str, media: Optional[Media] = None, poll_seconds: float = 1.0) -> FastAPI:
+def create_app(token: str, media: Optional[Media] = None, poll_seconds: float = 1.0, notifications: Optional[Notifications] = None, clipboard: Optional[ClipboardHistory] = None) -> FastAPI:
     media = media or Media()
+    notifications = notifications or Notifications()
+    clipboard = clipboard or ClipboardHistory()
 
     def require_token(x_halo_token: Optional[str] = Header(default=None)) -> None:
         if not token_is_valid(x_halo_token, token):
@@ -579,7 +650,7 @@ def create_app(token: str, media: Optional[Media] = None, poll_seconds: float = 
             "ok": True,
             "version": VERSION,
             "time": datetime.now(timezone.utc).isoformat(),
-            "not_supported": ["night_light", "focus"],
+            "not_supported": ["focus", "keyboard_light"],
         }
 
     @app.get("/media")
@@ -653,9 +724,34 @@ def create_app(token: str, media: Optional[Media] = None, poll_seconds: float = 
     async def power_post(body: PowerBody):
         return await _guard(set_power_mode, body.mode)
 
+    @app.get("/notifications/access")
+    async def notifications_access():
+        return {"access": await notifications.access()}
+
+    @app.post("/notifications/request")
+    async def notifications_request():
+        return {"access": await _guard_async(notifications.request())}
+
+    @app.get("/clipboard")
+    async def clipboard_list():
+        return {"revision": clipboard.revision, "items": clipboard.snapshot()}
+
+    @app.post("/clipboard/clear")
+    async def clipboard_clear():
+        clipboard.clear()
+        return {"ok": True}
+
+    @app.post("/clipboard/{clip_id}/copy")
+    async def clipboard_copy(clip_id: str):
+        clip = clipboard.get(clip_id)
+        if clip is None:
+            raise HTTPException(404, "That item is gone.")
+        await _guard(write_clipboard, clip)
+        return {"ok": True}
+
     @app.get("/events")
     async def events():
-        """Server sent events. Emits `media`, `volume`, `battery`, `brightness`, `mic`, `caps`, `output`, `wifi`, `bluetooth` and `power` when they change.
+        """Server sent events. Emits `media`, `volume`, `battery`, `brightness`, `mic`, `caps`, `output`, `wifi`, `bluetooth`, `power`, `airplane`, `night` and `clipboard` when they change, and `notification` for each new Windows notification.
 
         EventSource can't send headers, so Halo reads this with fetch() and a stream reader.
         """
@@ -679,7 +775,7 @@ def create_app(token: str, media: Optional[Media] = None, poll_seconds: float = 
                 except Exception:
                     pass
                 try:
-                    v = await run_in_threadpool(lambda: (_com_init(), get_volume())[1])
+                    v = await run_in_threadpool(_com_call, get_volume)
                     if v != last.get("volume"):
                         last["volume"] = v
                         snapshots["volume"] = v
@@ -694,10 +790,20 @@ def create_app(token: str, media: Optional[Media] = None, poll_seconds: float = 
                     except Exception:
                         pass
                 snapshots.update(await collect_extra(last, ticks))
+                if clipboard.revision != last.get("clip_rev"):
+                    last["clip_rev"] = clipboard.revision
+                    snapshots["clipboard"] = {"revision": clipboard.revision}
+                new_notes: list[dict] = []
+                try:
+                    new_notes = await notifications.poll()
+                except Exception:
+                    pass
                 ticks += 1
                 for name, data in snapshots.items():
                     yield f"event: {name}\ndata: {json.dumps(data)}\n\n"
-                if not snapshots:
+                for n in new_notes:
+                    yield f"event: notification\ndata: {json.dumps(n)}\n\n"
+                if not snapshots and not new_notes:
                     yield ": keep-alive\n\n"
                 await asyncio.sleep(poll_seconds)
 
@@ -743,9 +849,22 @@ class PrivateNetworkMiddleware:
 # ---------------------------------------------------------------------------
 
 
-def _port_free() -> bool:
+def _port_free(port: int = PORT) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        return s.connect_ex((HOST, PORT)) != 0
+        return s.connect_ex((HOST, port)) != 0
+
+
+def app_config(env: Optional[dict] = None) -> dict:
+    """Settings the Halo desktop app passes in (card 26). HALO_TOKEN is the pairing token, which the app keeps in the
+    Windows Credential Manager, so the helper does not write one to disk. HALO_PORT is the port the app found free.
+    HALO_NO_TRAY=1 hides the tray icon (the app is the tray). With none of them it behaves as the stand alone helper."""
+    env = os.environ if env is None else env
+    token = (env.get("HALO_TOKEN") or "").strip() or None
+    try:
+        port = int(env.get("HALO_PORT") or PORT)
+    except ValueError:
+        port = PORT
+    return {"token": token, "port": port, "no_tray": env.get("HALO_NO_TRAY") == "1", "app": token is not None}
 
 
 def _copy_to_clipboard(text: str) -> None:
@@ -768,17 +887,25 @@ def main() -> int:
         sys.stdout = open(os.devnull, "w")
     if sys.stderr is None:
         sys.stderr = open(os.devnull, "w")
-    if not _port_free():
+    cfg = app_config()
+    if cfg["app"]:
+        # The app keeps the helper's output in a log. A native crash (an access violation) then says where it happened.
+        import faulthandler
+
+        faulthandler.enable()
+    if not _port_free(cfg["port"]):
         return 0  # already running
     import uvicorn
 
-    token = load_or_create_token()
-    app = create_app(token)
-    server = uvicorn.Server(uvicorn.Config(app, host=HOST, port=PORT, log_level="warning"))
+    token = cfg["token"] or load_or_create_token()
+    clipboard = ClipboardHistory()
+    app = create_app(token, clipboard=clipboard)
+    server = uvicorn.Server(uvicorn.Config(app, host=HOST, port=cfg["port"], log_level="warning"))
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
+    clipboard.start()
 
-    if "--no-tray" in sys.argv:
+    if "--no-tray" in sys.argv or cfg["no_tray"]:
         thread.join()
         return 0
 

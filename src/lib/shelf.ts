@@ -1,6 +1,8 @@
 // Shelf (card 22). The pure model for the Shelf tab: what can go on it, how an item is named and coloured, and the rules.
 // Files live in the private `shelf` bucket, links and notes live in the row itself. Nothing here talks to Supabase.
 
+import type { ClipItem } from './helper'
+
 export interface ShelfItem {
   id: string
   kind: 'file' | 'link' | 'text'
@@ -74,4 +76,14 @@ export function shelfProblem(count: number, sizeBytes = 0): string | null {
 export function pageOf<T>(items: readonly T[], offset: number, size = 3): T[] {
   if (items.length <= size) return [...items]
   return Array.from({ length: size }, (_, i) => items[(offset + i) % items.length])
+}
+
+/** A clipboard entry from the helper, shaped like a Shelf item so the same tiles show it (card 26). */
+export function clipToItem(c: ClipItem): ShelfItem {
+  const base = { storage_path: null, size_bytes: null, mime: null, created_at: new Date(c.at * 1000).toISOString() }
+  if (c.kind === 'image') return { ...base, id: c.id, kind: 'file', name: `Image ${c.w} × ${c.h}`, content: '', mime: 'image/png' }
+  const text = c.text ?? ''
+  const link = safeUrl(text)
+  const first = text.trim().split(/\r?\n/)[0].slice(0, 60) || 'Empty'
+  return { ...base, id: c.id, kind: link ? 'link' : 'text', name: link ?? first, content: text }
 }

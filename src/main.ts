@@ -163,7 +163,8 @@ async function start() {
     const { sample } = await import('./dev/nba-sample')
     const sx = (params.get('sixers') ?? 'none') as Parameters<typeof sample>[0]
     const { homeMock } = await import('./dev/home-mock')
-    mountHome(app, { source: mockSource(mode), api: mockBackend(params.get('api') ?? 'full'), home: homeMock(params.get('home') ?? 'full'), sixers: () => Promise.resolve(sample(sx)), now: () => new Date(start + Date.now() - t0), open: params.has('open'), tab: params.get('tab') ?? undefined,
+    const { baseFixture } = await import('./dev/base-mock')
+    mountHome(app, { source: mockSource(mode), api: mockBackend(params.get('api') ?? 'full'), home: homeMock(params.get('home') ?? 'full'), base: params.has('base') ? baseFixture(params.get('base') || 'proto') : undefined, sixers: () => Promise.resolve(sample(sx)), now: () => new Date(start + Date.now() - t0), open: params.has('open'), tab: params.get('tab') ?? undefined,
       // ?account=1 shows Settings as a signed in user sees it (fixtures only, no real sign in).
       account: params.has('account') ? { email: 'liam@example.com', onSetPassword: async (p: string) => (p === 'fail-me-now' ? 'Could not save that. Try again.' : null) } : undefined })
     return

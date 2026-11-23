@@ -7,11 +7,13 @@ const MIN = 60_000
 /** Perth (+08:00) time on Sat 21 Nov 2026 plus `dayOffset` days. */
 const perth = (dayOffset: number, h: number, m = 0) => new Date(Date.UTC(2026, 10, 21 + dayOffset, h - 8, m)).toISOString()
 
-export type NowMode = 'full' | 'soon' | 'live' | 'quiet' | 'busy' | 'empty' | 'loading' | 'error'
+export type NowMode = 'base' | 'baseday' | 'full' | 'soon' | 'live' | 'quiet' | 'busy' | 'empty' | 'loading' | 'error'
 
 /** The fixed clock to use for each mode. */
 export function mockClock(mode: NowMode): Date {
   switch (mode) {
+    case 'base': return new Date(perth(2, 19, 45))      // Mon 23 Nov, 7:45 pm: the time the Base prototype is drawn at (night)
+    case 'baseday': return new Date(perth(2, 13, 20))   // the same Monday at lunchtime (the sun is up)
     case 'soon': return new Date(perth(0, 15, 48))      // 1:42 before the 5:30 pm shift
     case 'live': return new Date(perth(0, 18, 12))      // 42 minutes into the shift
     case 'busy': return new Date(perth(0, 9, 5))
@@ -32,6 +34,9 @@ export function mockSource(mode: NowMode): NowSource {
 
   const full: NowData = { shift, test, today: { shifts: [shift], tests: todayTests, sessions: weekSessions.filter((s) => s.id !== 'w3').map((s) => s) }, weekSessions }
   const data: Record<NowMode, NowData | 'wait' | 'throw'> = {
+    // Nothing live (no shift today), so the closed island is free to cycle.
+    base: { shift: null, test: null, today: { shifts: [], tests: [], sessions: [] }, weekSessions: [] },
+    baseday: { shift: null, test: null, today: { shifts: [], tests: [], sessions: [] }, weekSessions: [] },
     full: { ...full, today: { shifts: [], tests: [], sessions: [] } },
     soon: full,
     live: full,

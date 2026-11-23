@@ -180,3 +180,34 @@ html.reduce-motion .il-view.on { transition: opacity 150ms ease; }
 .nst.fan .npMore { top: var(--more-y, 200px); }
 .npMore:focus-visible { outline: 2px solid #fff; border-radius: 6px; }
 @media (prefers-reduced-motion: reduce) { .np, .nst, .npMore { transition-duration: 1ms !important; } }
+
+/* ---- Card 29: the cycle. Each mode fades and rises in with a spring while the island's width springs to the mode's own width.
+   Copied from the prototype's closed island (design/prototype/base-tab.html): 12 px / 600 title, 10 px / 500 detail at 60% white. ---- */
+.sh[data-open='false'][data-live='cycle'] { box-shadow: 0 10px 26px -14px var(--lc), 0 0 20px -6px var(--lc); }
+.il-cycle { font-family: 'Inter', var(--font), system-ui, sans-serif; }
+.il-cycle .cm { position: absolute; inset: 0; display: flex; align-items: center; gap: 9px; padding: 2px 14px 0; min-width: 0; opacity: 0; transform: translateY(6px) scale(0.96); pointer-events: none;
+  transition: opacity calc(250ms * var(--slow)) ease, transform calc(350ms * var(--slow)) cubic-bezier(0.34, 1.4, 0.5, 1); }
+.il-cycle .cm.on { opacity: 1; transform: none; transition-delay: calc(180ms * var(--slow)); }
+.il-cycle .cm b { font-size: 12px; font-weight: 600; white-space: nowrap; color: #fff; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.il-cycle .cm .cm-m, .il-cycle .cm .cm-r { font-size: 10px; font-weight: 500; color: rgba(255, 255, 255, 0.6); white-space: nowrap; }
+.il-cycle .cm .cm-r { margin-left: auto; display: flex; align-items: center; gap: 4px; flex: none; }
+.il-cycle .cm .cm-r em { font-style: normal; }
+.il-cycle .cm .cm-ri { width: 12px; height: 12px; flex: none; }
+.il-cycle .cm-lead { flex: none; }
+.il-cycle .cm-lead[hidden], .il-cycle .cm-m[hidden], .il-cycle .cm-r[hidden] { display: none; }
+.il-cycle .cm-lead.dot { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: #000; }
+.il-cycle .cm-lead.dot svg { width: 11px; height: 11px; }
+.il-cycle .cm-lead.art { width: 22px; height: 22px; border-radius: 6px; background: #1c1c1e center / cover no-repeat; }
+.il-cycle .cm[data-k='music'] b { max-width: 140px; }
+/* The unread dot moves to the corner while the island cycles, so it never sits on the words. */
+.sh[data-live='cycle'] .il-unread { top: 6px; right: 9px; width: 6px; height: 6px; }
+/* Pips under the island, one per mode, the current one long. They are on the shell, outside its clip. */
+.il-pips { position: absolute; left: 50%; top: calc(var(--ch) + 6px); transform: translateX(-50%); display: flex; gap: 4px; pointer-events: none; opacity: 0; transition: opacity 250ms ease; }
+.il-pips.on { opacity: 1; }
+.sh[data-open='true'] .il-pips { opacity: 0; transition: opacity 90ms ease; }
+.il-pips i { width: 4px; height: 4px; border-radius: 50%; background: rgba(255, 255, 255, 0.2); transition: background 300ms ease, width 300ms ease; }
+.il-pips i.on { width: 12px; border-radius: 2px; background: rgba(255, 255, 255, 0.7); }
+@media (prefers-reduced-motion: reduce) {
+  .il-cycle .cm, .il-cycle .cm.on { transform: none; transition: opacity 150ms ease; }
+  .il-pips i { transition: none; }
+}

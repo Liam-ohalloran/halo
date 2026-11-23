@@ -1,6 +1,6 @@
 // Tab prefs (cards 23 and 27). Pure, so the rules can be tested. Saved in the settings row's `theme` JSON under `tabs`, so the
 // laptop and the phone read the same list. The top bar shows only the pinned tabs, in the saved order. Every other tab lives
-// in the "•••" More grid. At most 8 tabs can be pinned, Home is always one of them and More is never pinned (it is the grid).
+// in the "•••" More grid. At most 8 tabs can be pinned, Base and Home are always two of them and More is never pinned (it is the grid).
 
 export interface TabPrefs {
   /** Pinned tab ids, in the order they show in the top bar. */
@@ -8,10 +8,10 @@ export interface TabPrefs {
 }
 
 /** What the bar shows until Liam picks his own (card 27). */
-export const DEFAULT_PINNED = ['home', 'week', 'pay', 'study', 'music', 'sixers', 'alerts']
+export const DEFAULT_PINNED = ['base', 'home', 'week', 'pay', 'study', 'music', 'sixers', 'alerts']
 export const MAX_PINNED = 8
-/** Home is the way back, so it can never be unpinned. */
-export const ALWAYS_PINNED = ['home']
+/** Base (card 29) is the first tab and the one Halo opens on, and Home is the way back, so neither can be unpinned. */
+export const ALWAYS_PINNED = ['base', 'home']
 /** More is the "•••" button itself, so it can never be pinned. */
 export const NEVER_PINNED = ['more']
 
@@ -23,7 +23,7 @@ export function normalisePrefs(raw: unknown, known: readonly string[]): TabPrefs
   const src = Array.isArray(r.pinned) ? r.pinned : DEFAULT_PINNED
   const pinned: string[] = []
   for (const id of src) if (typeof id === 'string' && ok.has(id) && !pinned.includes(id)) pinned.push(id)
-  for (const id of ALWAYS_PINNED) if (ok.has(id) && !pinned.includes(id)) pinned.unshift(id)
+  for (const id of [...ALWAYS_PINNED].reverse()) if (ok.has(id) && !pinned.includes(id)) pinned.unshift(id)
   return { pinned: pinned.slice(0, MAX_PINNED) }
 }
 

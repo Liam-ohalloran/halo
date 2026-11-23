@@ -16,8 +16,8 @@ import { chromium } from 'playwright'
 import { pathToFileURL } from 'node:url'
 import { mockHelper } from './helper-mock.mjs'
 
-export const ALL_TABS = ['home', 'music', 'study', 'pay', 'sixers', 'week', 'alerts', 'money', 'marks', 'claude', 'night', 'shelf', 'widgets', 'more', 'controls', 'audio', 'launch']
-export const DEFAULT_TABS = ['home', 'pay', 'study', 'week', 'alerts', 'money', 'marks', 'claude', 'night', 'shelf', 'widgets', 'more', 'music', 'controls', 'audio', 'launch']
+export const ALL_TABS = ['base', 'home', 'music', 'study', 'pay', 'sixers', 'week', 'alerts', 'money', 'marks', 'claude', 'night', 'shelf', 'widgets', 'more', 'controls', 'audio', 'launch']
+export const DEFAULT_TABS = ['base', 'home', 'pay', 'study', 'week', 'alerts', 'money', 'marks', 'claude', 'night', 'shelf', 'widgets', 'more', 'music', 'controls', 'audio', 'launch']
 /** The Week tab has its own fixtures: a normal week, and a busy one with clashes and a crowded EARLY row. */
 export const API_FOR = (tab, state) => (['money', 'marks', 'claude', 'night', 'shelf', 'widgets'].includes(tab) ? (state === 'busy' ? `${tab}many` : state === 'empty' ? `${tab}empty` : tab) : tab === 'week' && state !== 'empty' ? (state === 'busy' ? 'weekbusy' : 'week') : tab === 'alerts' ? (state === 'busy' ? 'alertsmany' : state === 'empty' ? 'alertsempty' : 'alerts') : state)
 
@@ -118,7 +118,7 @@ export async function checkTab(browser, base, tab, state) {
   page.on('pageerror', (e) => errors.push(e.message))
   // Card 24: the helper tabs are checked with a pretend helper on (full) and with it off (empty).
   await mockHelper(page, { up: state !== 'empty' })
-  await page.goto(`${base}?demo=soon&tab=${tab}&open=1&home=${state}&api=${tab === 'launch' && state === 'empty' ? 'fullempty' : API_FOR(tab, state)}&sixers=${state === 'empty' ? 'none' : state === 'busy' ? 'live' : 'final-win'}${tab === 'more' ? '&account=1' : ''}`)
+  await page.goto(`${base}?demo=soon&tab=${tab}&open=1&home=${state}&api=${tab === 'launch' && state === 'empty' ? 'fullempty' : API_FOR(tab, state)}&sixers=${state === 'empty' ? 'none' : state === 'busy' ? 'live' : 'final-win'}${tab === 'base' ? `&base=${state === 'empty' ? 'empty' : 'proto'}` : ''}${tab === 'more' ? '&account=1' : ''}`)
   await page.waitForSelector('.sh[data-open="true"] .sh-body > *')
   await page.waitForTimeout(1600)
   const problems = await page.evaluate(auditInPage)

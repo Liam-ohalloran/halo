@@ -25,7 +25,7 @@ export interface HomeSources {
   battery(): Promise<Battery | null>
   media(): Promise<Media | null>
   art(): Promise<string | null>
-  control(a: 'toggle'): Promise<void>
+  control(a: 'toggle' | 'next' | 'previous'): Promise<void>
 }
 export const liveSources: HomeSources = {
   weather: fetchPerthWeather, battery: getBattery, media: getMedia, art: getArtUrl, control: (a) => mediaControl(a),

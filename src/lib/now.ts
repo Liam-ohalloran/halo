@@ -2,6 +2,8 @@ import type { Shift, StudySession, Test } from '../types'
 import { getNextShift, getNextTest, getShiftsBetween, getStudySessionsBetween, getTestsBetween, perthWeekBounds } from './db'
 import { DEFAULT_TRAVEL_MINUTES, perthDayBounds } from './now-model'
 import { supabaseBackend } from '../supabase'
+import { PREFIX, readThrough } from './offline-cache'
+import { connectivity } from './connectivity'
 
 // Everything the Now panel reads, in one load. The source is swappable so the dev preview can use fixtures.
 
@@ -20,8 +22,7 @@ export interface NowSource {
   onChange(cb: () => void): () => void
 }
 
-export const supabaseNowSource: NowSource = {
-  async load(now) {
+const loadNow = async (now: Date): Promise<NowData> => {
     const day = perthDayBounds(now)
     const week = perthWeekBounds(now)
     const [shift, test, shifts, tests, weekSessions] = await Promise.all([
@@ -36,7 +37,11 @@ export const supabaseNowSource: NowSource = {
       return t >= day.from.getTime() && t < day.to.getTime()
     })
     return { shift, test, today: { shifts, tests, sessions }, weekSessions }
-  },
+}
+
+// Card 29: the last answer is kept, so the Now panel fills at once with the Wi-Fi off.
+export const supabaseNowSource: NowSource = {
+  load: (now) => readThrough(PREFIX + 'now', () => loadNow(now), { online: () => connectivity.offline() === false, report: connectivity.report }),
   onChange: (cb) => supabaseBackend.onShiftsChange(cb),
 }
 

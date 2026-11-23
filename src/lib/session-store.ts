@@ -8,7 +8,7 @@
 
 import type { SupportedStorage } from '@supabase/supabase-js'
 import { isDesktop } from './desktop'
-export { recoverSession, shouldWaitForSession } from './session-recover'
+export { parseStoredSession, recoverSession, shouldWaitForSession } from './session-recover'
 
 interface TauriGlobal { core: { invoke: <T = unknown>(cmd: string, args?: Record<string, unknown>) => Promise<T> } }
 const tauri = (): TauriGlobal | null => (window as unknown as { __TAURI__?: TauriGlobal }).__TAURI__ ?? null

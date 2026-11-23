@@ -8,6 +8,8 @@ import { safeFileName } from './lib/shelf'
 import type { ShelfItem } from './lib/shelf'
 import type { TaskRun } from './lib/claude'
 import { supabase } from './lib/supabase'
+import { withReadCache } from './lib/offline-cache'
+import { connectivity } from './lib/connectivity'
 
 // The client lives in lib/supabase.ts. Re-exported for the older draft views.
 export { supabase }
@@ -20,7 +22,7 @@ function must<T>(res: { data: T | null; error: { message: string } | null }): T 
   return res.data as T
 }
 
-export const supabaseBackend: Backend = {
+const rawBackend: Backend = {
   async nextShift(now) {
     const rows = must(
       await supabase
@@ -327,3 +329,6 @@ export const supabaseBackend: Backend = {
     return () => void supabase.removeChannel(ch)
   },
 }
+
+// Card 29: every read is kept on this laptop, so Halo opens and shows its last data with the Wi-Fi off. Saves go straight through.
+export const supabaseBackend: Backend = withReadCache(rawBackend, undefined, { online: () => connectivity.offline() === false, report: connectivity.report })

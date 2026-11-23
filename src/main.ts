@@ -2,7 +2,8 @@ import './style.css'
 import type { Backend } from './types'
 import { supabase, supabaseBackend } from './supabase'
 import { SESSION_KEY } from './lib/supabase'
-import { hasStoredSession, recoverSession } from './lib/session-store'
+import { parseStoredSession, sessionStorageAdapter } from './lib/session-store'
+import { clearReadCache } from './lib/offline-cache'
 import { passwordSaveError, passwordProblem } from './lib/auth-form'
 import { h, icon, reducedMotion, SPRING, toast } from './ui'
 import { mountNow } from './views/now'
@@ -171,10 +172,13 @@ async function start() {
   // Home is the card 01 island. The old draft tabs stay reachable at ?legacy=1 until cards 06 to 08 replace them.
   if (!params.has('legacy') && !params.has('mock')) {
     // Signed out: sign-in screen. Signed in: the island. The session persists across reloads.
-    // A stored session that cannot be refreshed yet (Windows started Halo before Wi-Fi was up) is not a sign out: wait for
-    // the network instead of showing the sign-in card. A session the server rejected is removed by Supabase and ends this wait.
-    const session = (await recoverSession(() => supabase.auth.getSession(), () => hasStoredSession(SESSION_KEY))) as Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session']
-    const data = { session }
+    // Card 29: a stored session is a signed in session. Halo reads it from the store and opens on it at once, with or without
+    // a network (Windows may start Halo before Wi-Fi is up, or Wi-Fi may be off). Supabase refreshes the token in the
+    // background and Halo reconnects by itself. Only a session the server rejects signs out (Supabase sends SIGNED_OUT).
+    const stored = parseStoredSession(await sessionStorageAdapter.getItem(SESSION_KEY))
+    // With nothing stored there is no refresh to wait for, so this answers at once (it also reads a magic link from the address).
+    const fresh = stored ? null : (await supabase.auth.getSession()).data.session
+    const data = { session: stored ?? fresh ? { user: { email: stored?.email ?? fresh?.user.email ?? '' } } : null }
     const linkError = new URLSearchParams(location.hash.slice(1)).get('error_description')
     const { mountHome } = await import('./components/home')
     const { mountSignIn, mountSignedInNote } = await import('./components/signin')
@@ -194,10 +198,15 @@ async function start() {
     }
     let current = Boolean(data.session)
     render(current, data.session?.user.email ?? '')
-    supabase.auth.onAuthStateChange((_e, session) => {
+    supabase.auth.onAuthStateChange((event, session) => {
+      // A missing session is only a sign out when Supabase says so. At start up, offline, it reports none while the stored one waits for the network.
+      if (!session && event !== 'SIGNED_OUT') return
       const next = Boolean(session)
-      if (next !== current) { current = next; render(next, session?.user.email ?? '') }
+      if (next !== current) { current = next; if (!next) clearReadCache(); render(next, session?.user.email ?? '') }
     })
+    if (stored) void supabase.auth.getSession() // start the refresh now, in the background
+    // The network came back: refresh the session straight away instead of waiting for the next tick.
+    addEventListener('online', () => void supabase.auth.getSession())
     if (location.hash) history.replaceState(null, '', location.pathname + location.search)
     return
   }

@@ -28,3 +28,28 @@ export const litBars = (level: number, bars = 18): number => Math.max(0, Math.mi
 export interface OutputLike { name: string; kind: string; current: boolean }
 export const OUTPUT_COLOURS: Record<string, string> = { headphones: '#0A84FF', speakers: '#BF5AF2', monitor: '#FF9F0A' }
 export const outputSub = (o: OutputLike): string => (o.current ? 'In use' : o.kind === 'headphones' ? 'Headphones' : o.kind === 'monitor' ? 'Screen' : 'Speakers')
+
+// ---- Card 29: push, not poll -------------------------------------------------------------------------------------------
+import type { AppVolume, Volume } from './helper.ts'
+
+export type AudioPatch =
+  | { kind: 'volume'; value: Volume }
+  | { kind: 'mic'; muted: boolean }
+  | { kind: 'mic_level'; level: number }
+  | { kind: 'output' }
+  | { kind: 'apps'; apps: AppVolume[] }
+
+const isObj = (d: unknown): d is Record<string, unknown> => typeof d === 'object' && d !== null
+
+/** What each pushed event says about the Audio tab. `output` only says the output changed: the tab asks for the list. */
+export function audioPatch(name: string, d: unknown): AudioPatch | null {
+  if (!isObj(d)) return null
+  switch (name) {
+    case 'volume': return typeof d.level === 'number' ? { kind: 'volume', value: { level: d.level, muted: !!d.muted } } : null
+    case 'mic': return typeof d.muted === 'boolean' ? { kind: 'mic', muted: d.muted } : null
+    case 'mic_level': return typeof d.level === 'number' ? { kind: 'mic_level', level: Math.max(0, Math.min(1, d.level)) } : null
+    case 'output': return { kind: 'output' }
+    case 'apps': return Array.isArray(d.apps) ? { kind: 'apps', apps: d.apps.filter((a): a is AppVolume => isObj(a) && typeof a.id === 'string' && typeof a.level === 'number') } : null
+    default: return null
+  }
+}

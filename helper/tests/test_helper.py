@@ -167,7 +167,7 @@ def test_collect_extra_respects_schedule_and_async_and_failures():
 
 
 def test_every_island_event_has_a_probe_and_output_kinds():
-    assert {n for n, *_ in h.EXTRA_PROBES} == {"brightness", "mic", "caps", "output", "wifi", "bluetooth", "power", "airplane", "night"}
+    assert {n for n, *_ in h.EXTRA_PROBES} == {"brightness", "mic", "caps", "output", "wifi", "bluetooth", "power", "apps", "airplane", "night"}
     assert h.output_kind("WH-CH720N") == "headphones"
     assert h.output_kind("LG HDR monitor") == "monitor"
     assert h.output_kind("Speakers (Realtek)") == "speakers"

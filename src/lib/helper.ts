@@ -13,7 +13,11 @@ export interface Media { available: boolean; title: string; artist: string; albu
 // token in the Windows Credential Manager, then gives both to the page. Nobody pastes a token there.
 let connection: { url: string; token: string } | null = null
 export function setHelperConnection(c: { url: string; token: string } | null) { connection = c }
-export const helperBase = (): string => connection?.url ?? HELPER_URL
+// Checks and tests can point the page at another helper on this laptop (a second copy, on its own port) with
+// localStorage 'halo.helperUrl'. Only 127.0.0.1 is accepted, and the app's content policy only allows that anyway.
+const OVERRIDE_KEY = 'halo.helperUrl'
+const localOverride = (): string | null => { try { const v = localStorage.getItem(OVERRIDE_KEY); return v && /^http:\/\/127\.0\.0\.1:\d{2,5}$/.test(v) ? v : null } catch { return null } }
+export const helperBase = (): string => connection?.url ?? localOverride() ?? HELPER_URL
 
 export function helperToken(): string | null {
   if (connection) return connection.token
@@ -61,8 +65,10 @@ export async function getVolume(): Promise<Volume | null> {
   const r = await call('/volume')
   return r ? ((await r.json()) as Volume) : null
 }
-export async function setVolume(level: number): Promise<void> {
-  await call('/volume', { method: 'POST', body: JSON.stringify({ level: Math.max(0, Math.min(100, Math.round(level))) }) })
+/** Null when the helper did not answer. Otherwise the level and mute it has now, which settles an optimistic slider (card 29). */
+export async function setVolume(level: number): Promise<Volume | null> {
+  const r = await call('/volume', { method: 'POST', body: JSON.stringify({ level: Math.max(0, Math.min(100, Math.round(level))) }) })
+  try { return r ? ((await r.json()) as Volume) : null } catch { return null }
 }
 
 // ---- Windows notifications (card 26) ----------------------------------------
@@ -143,6 +149,17 @@ export const getStartApps = () => get<{ apps: StartApp[] }>('/launch/apps')
 export const launchUrl = async (url: string): Promise<boolean> => (await post('/launch/url', { url })) !== null
 export const launchStartApp = async (id: string): Promise<boolean> => (await post('/launch/app', { id })) !== null
 
+// Card 29: is the event stream up? Controls and Audio take every change from it, and poll (slowly) only while it is down.
+let streamIsUp = false
+const streamListeners = new Set<(up: boolean) => void>()
+export const streamUp = (): boolean => streamIsUp
+export function onStreamState(cb: (up: boolean) => void): () => void { streamListeners.add(cb); return () => streamListeners.delete(cb) }
+function markStream(up: boolean) {
+  if (up === streamIsUp) return
+  streamIsUp = up
+  streamListeners.forEach((l) => l(up))
+}
+
 // Other parts of the page (the Shelf tab) hear the helper's events too, without opening a second stream.
 type Listener = (name: string, data: unknown) => void
 const listeners = new Set<Listener>()
@@ -189,7 +206,7 @@ export function subscribeEvents(on: HelperEventHandler, onConnection?: (up: bool
   let wait = 2000
   let up = false
   let busy = false
-  const setUp = (v: boolean) => { if (v !== up) { up = v; onConnection?.(v) } }
+  const setUp = (v: boolean) => { if (v !== up) { up = v; markStream(v); onConnection?.(v) } }
 
   async function run() {
     window.clearTimeout(timer)
@@ -224,5 +241,5 @@ export function subscribeEvents(on: HelperEventHandler, onConnection?: (up: bool
   const onVisible = () => { if (document.hidden) ctl?.abort(); else if (!up && !busy) { wait = 2000; void run() } }
   document.addEventListener('visibilitychange', onVisible)
   void run()
-  return () => { stopped = true; window.clearTimeout(timer); ctl?.abort(); document.removeEventListener('visibilitychange', onVisible) }
+  return () => { stopped = true; window.clearTimeout(timer); ctl?.abort(); document.removeEventListener('visibilitychange', onVisible); markStream(false) }
 }

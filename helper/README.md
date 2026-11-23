@@ -49,7 +49,8 @@ curl.exe -i http://127.0.0.1:47800/media   # 401, no token
 | `GET /wifi`, `POST /wifi` | `{"enabled": true}` | `{enabled, connected, ssid}` |
 | `GET /bluetooth`, `POST /bluetooth` | `{"enabled": true}` | `{enabled, connected_device}` |
 | `GET /power-mode`, `POST /power-mode` | `{"mode": "battery\|balanced\|performance"}` | `{mode}` |
-| `GET /events` | | server sent events `media`, `volume`, `battery` (each carries the same JSON as its GET) |
+| `GET /events` | | server sent events: `media`, `volume` (level and mute), `battery`, `brightness`, `mic`, `mic_level`, `wifi`, `bluetooth`, `power`, `output`, `apps`, and more (each carries the same JSON as its GET) |
+| `GET /latency?n=15` | | how long the hot paths take inside the helper: `{target_ms, runs, results: {volume_get: {median_ms, p95_ms, max_ms}, ...}, slow, ok}`. Changes nothing (a set call sends the value that is already there) |
 
 When a feature can't work (no brightness control, no Bluetooth radio), the endpoint returns `503` with `{"detail": "<plain sentence>"}`.
 
@@ -57,7 +58,19 @@ Night light and Focus aren't supported (no reliable public Windows API). They ar
 
 ### `/events`
 
-The browser's `EventSource` can't send the token header, so read `/events` with `fetch()` and a stream reader. The stream sends `media` only when the track, play state or duration changes, or the position jumps (a seek). Halo should advance the position itself between events. A `: keep-alive` comment goes out every second when nothing changed.
+The browser's `EventSource` can't send the token header, so read `/events` with `fetch()` and a stream reader. The stream sends `media` only when the track, play state or duration changes, or the position jumps (a seek). Halo should advance the position itself between events. A `: keep-alive` comment goes out every 5 seconds when nothing changed.
+
+The first pass sends every state, so a page that just connected needs no other request. After that only changes are sent: volume, mute, the mic and its level (`mic_level`, steps of 1/36) and brightness are looked at every 150 ms, the rest (Wi-Fi, Bluetooth, power mode, outputs, the mixer's `apps`, battery, media) every second. Windows notifications are read in their own loop, because reading them takes about a second.
+
+### Speed (card 29)
+
+The hot paths do not start a program and do not rebuild Windows objects on each call (`halo_fast.py`):
+
+- Volume, mute, the mic and the mixer use audio objects made once, on one thread that owns them (`ComLane`). The default device is looked at again once a second, so plugging in headphones is noticed.
+- Brightness goes through one kept WMI connection (about 4 ms to read, 7 ms to set), and the monitor's DDC link on a desktop with no laptop panel.
+- Power mode is `powrprof.dll` (`PowerGetActiveScheme`, `PowerSetActiveScheme`), Wi-Fi is `wlanapi.dll`. No `powercfg` and no `netsh`.
+
+Measured here, medians in milliseconds, before then after: volume read 102 then 0.3, volume set 202 then 0.4, mute 200 then 0.3, mic 17 then 0.1, brightness read 51 then 4, power mode read 42 then 0.3. `GET /latency` measures it on your own laptop, and `HALO_LIVE=1` makes the pytest suite check it against the 50 ms target.
 
 ## Tests
 
@@ -65,7 +78,7 @@ The browser's `EventSource` can't send the token header, so read `/events` with 
 helper\.venv\Scripts\python.exe -m pytest helper\tests
 ```
 
-Covers the token check, CORS and the Private Network Access preflight. The Windows backends need a real laptop, so they are checked by hand.
+Covers the token check, CORS and the Private Network Access preflight, the cached audio objects, brightness, power mode, Wi-Fi, `/latency` and the event stream, all with fakes. The Windows backends need a real laptop: `HALO_LIVE=1 helper\.venv\Scripts\python.exe -m pytest helper\tests -k live -s` times them against the 50 ms target.
 
 ## Notes
 

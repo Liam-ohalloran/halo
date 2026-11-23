@@ -125,6 +125,12 @@ assert.ok(ch && ch[1].level > 15 && ch[1].level < 35, `dragging down lowers Chro
 const ms = await t.page.locator('.audio-pv [data-k="sl"]').boundingBox()
 await t.page.mouse.click(ms.x + ms.width * 0.9, ms.y + ms.height / 2); await sleep(250)
 assert.ok(posts(t.log, '/volume').at(-1)[1].level >= 85)
+// Switching the output: tap the headphones, the helper is told, and the list moves them to the top.
+await t.page.locator('.audio-pv .auO[data-o="o2"]').click(); await sleep(400)
+assert.deepEqual(posts(t.log, '/outputs/default').at(-1)[1], { id: 'o2' })
+assert.match(await t.page.locator('.audio-pv .auO.on b').innerText(), /WH-CH720N/)
+assert.match(await t.page.locator('.audio-pv [data-k="vs"]').innerText(), /WH-CH720N/)
+await win(t.page, '10b-audio-output-switched')
 // Things Windows cannot do say so.
 assert.ok(await t.page.locator('.audio-pv .auEq button:disabled').count() === 4)
 await t.ctx.close()
@@ -133,12 +139,25 @@ assert.ok(await t.page.locator('.audio-pv [data-k="off"]').isVisible())
 await win(t.page, '11-audio-helper-off')
 await t.ctx.close()
 
+// A switch Windows refuses: the old output stays and the page says so.
+{
+  const st = defaultState(); st.switchFails = true
+  t = await open('audio', { state: st })
+  await t.page.locator('.audio-pv .auO[data-o="o3"]').click(); await sleep(500)
+  assert.match(await t.page.locator('.audio-pv .auO.on b').innerText(), /Speakers/, 'the old output is still in use')
+  assert.match(await t.page.locator('.audio-pv .pv-tip').innerText(), /Switch in Windows/)
+  await win(t.page, '11b-audio-switch-refused')
+  await t.ctx.close()
+}
+
 // ================= Launch
 t = await open('launch')
 await t.page.waitForSelector('.launch-pv .app[data-id]')
 assert.equal(await t.page.locator('.launch-pv .app[data-id]').count(), 12)
 assert.equal(await t.page.locator('.launch-pv .site').count(), 5)
 assert.deepEqual(await t.page.locator('.launch-pv .grp').allInnerTexts(), ['SCHOOL', 'WORK', 'BUILD'], 'sites grouped School, Work, Build')
+assert.ok(await t.page.locator('.launch-pv .app .ico img').count() >= 10, 'real icons from the helper')
+assert.ok(await t.page.locator('.launch-pv .site .fav img').count() === 5, 'sites use their favicon')
 await win(t.page, '12-launch')
 await t.page.locator('.launch-pv .app[data-id="la0"]').click(); await sleep(150)
 assert.deepEqual(posts(t.log, '/launch/app').at(-1)[1], { id: 'Spotify.lnk' }, 'an app is opened through the helper')
@@ -180,6 +199,8 @@ assert.ok((await t.page.locator('.launch-pv .site b').allInnerTexts()).includes(
 await t.page.locator('.launch-pv [data-add-open]').click(); await sleep(250)
 await t.page.locator('.launch-pv .pkItem[data-name="Notepad"]').click(); await sleep(400)
 assert.ok((await t.page.locator('.launch-pv .app .nm').allInnerTexts()).includes('Notepad'))
+assert.equal(await t.page.locator('.launch-pv .app[data-ic="Notepad.lnk"] img').count(), 0, 'an app with no icon keeps its letter tile')
+assert.ok(await t.page.locator('.launch-pv .app[data-ic="Notepad.lnk"] .ico b').count())
 await win(t.page, '17-launch-added')
 await t.ctx.close()
 t = await open('launch', { up: false, api: 'fullempty' })
@@ -204,7 +225,7 @@ for (const [key, name] of [['live', '19-sixers-live'], ['final-win', '23-sixers-
     await t.page.locator('.sixers-pv [data-sort="reb"]').click()
     assert.equal(await t.page.locator('.sixers-pv .sxTbl tbody tr:first-child td.nm').innerText(), 'Q. Grimes', 'pressing the same heading again flips the order')
     await t.page.locator('.sixers-pv [data-team="1"]').click()
-    assert.match(await t.page.locator('.sixers-pv .sxTbl tbody tr:first-child td.nm').innerText(), /Brunson/)
+    assert.match(await t.page.locator('.sixers-pv .sxTbl tbody tr:first-child td.nm').innerText(), /Hale/)
     await t.page.locator('.sixers-pv [data-team="0"]').click()
     await t.page.locator('.sixers-pv tr[data-p="1"]').click()
     assert.match(await t.page.locator('.sixers-pv .sxPc h3').innerText(), /Maxey/)

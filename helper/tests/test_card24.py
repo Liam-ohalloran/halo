@@ -71,7 +71,7 @@ def test_new_endpoints_need_the_token_and_say_plainly_when_windows_cannot_do_it(
 def test_status_says_what_is_not_supported():
     with make() as c:
         ns = c.get("/status", headers=HDR).json()["not_supported"]
-        assert {"anc", "equaliser", "switch_output"} <= set(ns)
+        assert {"anc", "equaliser"} <= set(ns) and "switch_output" not in ns
 
 
 def test_only_web_addresses_can_be_opened_by_url(monkeypatch):
@@ -86,3 +86,124 @@ def test_only_web_addresses_can_be_opened_by_url(monkeypatch):
     assert opened == ["https://github.com/x"]
     with make() as c:
         assert c.post("/launch/url", json={"url": "https://x.test"}).status_code == 401
+
+
+# ---- review fixes: output switching, real icons, favicons
+def test_outputs_come_with_ids_current_first_and_say_whether_switching_makes_sense():
+    r = h.shape_outputs([("a", "Speakers (Realtek)"), ("b", "WH-CH720N"), ("c", "LG monitor")], "b")
+    assert [o["name"] for o in r["outputs"]] == ["WH-CH720N", "Speakers (Realtek)", "LG monitor"]
+    assert r["current"] == "WH-CH720N" and r["can_switch"] is True
+    assert [o["kind"] for o in r["outputs"]] == ["headphones", "speakers", "monitor"]
+    assert h.shape_outputs([("a", "Speakers")], "a")["can_switch"] is False
+
+
+def test_switching_the_output_only_accepts_a_listed_device_and_failure_is_a_plain_sentence():
+    done = []
+    devices = [("a", "Speakers"), ("b", "Headphones")]
+    assert h.set_default_output("b", switch=done.append, devices=devices) == {"ok": True}
+    assert done == ["b"]
+    with pytest.raises(h.Unavailable, match="Switch in Windows"):
+        h.set_default_output("zzz", switch=done.append, devices=devices)
+    assert done == ["b"], "an id Windows does not list is never passed on"
+
+    def boom(_):
+        raise OSError("0x80004005")
+
+    with pytest.raises(h.Unavailable, match="Switch in Windows"):
+        h.set_default_output("a", switch=boom, devices=devices)
+
+
+def test_switching_uses_the_console_and_media_roles(monkeypatch):
+    if not h.IS_WINDOWS:
+        pytest.skip("Windows only")
+    from pycaw.constants import ERole  # type: ignore
+    from pycaw.pycaw import AudioUtilities  # type: ignore
+
+    calls = []
+    monkeypatch.setattr(AudioUtilities, "SetDefaultDevice", staticmethod(lambda i, roles=None: calls.append((i, list(roles)))))
+    monkeypatch.setattr(h, "_render_devices", lambda: [("a", "Speakers")])
+    monkeypatch.setattr(h, "list_outputs", lambda: {"current": "Speakers", "outputs": [], "can_switch": False})
+    h.set_default_output("a")
+    assert calls == [("a", [ERole.eConsole, ERole.eMultimedia])]
+
+
+def test_output_endpoints_need_the_token(monkeypatch):
+    with make() as c:
+        assert c.post("/outputs/default", json={"id": "a"}).status_code == 401
+        assert c.post("/outputs/default", json={"id": ""}, headers=HDR).status_code == 422
+        assert c.get("/launch/icon?id=Chrome.lnk").status_code == 401
+        assert c.get("/launch/favicon?url=https://x.test").status_code == 401
+
+
+def test_icons_are_64_px_png_data_urls_and_cached(tmp_path):
+    import base64
+    import io
+
+    from PIL import Image
+
+    big = Image.new("RGBA", (256, 128), (255, 0, 0, 255))
+    url = h.png_data_url(big)
+    assert url.startswith("data:image/png;base64,")
+    out = Image.open(io.BytesIO(base64.b64decode(url.split(",")[1])))
+    assert out.size == (64, 64)
+    calls = []
+    h._icon_mem.clear()
+    assert h.cached_icon("k1", lambda: calls.append(1) or url, cache_dir=str(tmp_path)) == url
+    assert h.cached_icon("k1", lambda: calls.append(1) or "other", cache_dir=str(tmp_path)) == url
+    h._icon_mem.clear()
+    assert h.cached_icon("k1", lambda: calls.append(1) or "other", cache_dir=str(tmp_path)) == url, "still there after the helper restarts (disk)"
+    assert len(calls) == 1
+    h._icon_mem.clear()
+    assert h.cached_icon("miss", lambda: None, cache_dir=str(tmp_path)) is None
+    assert h.cached_icon("miss", lambda: calls.append(2) or "late", cache_dir=str(tmp_path)) is None, "a miss is remembered too"
+
+
+def test_a_real_start_menu_icon_comes_out_as_a_png():
+    if not h.IS_WINDOWS:
+        pytest.skip("Windows only")
+    apps = h.list_start_apps()["apps"]
+    if not apps:
+        pytest.skip("no Start menu apps")
+    h._icon_mem.clear()
+    got = [h.app_icon(a["id"]) for a in apps[:5] if _ok(h.app_icon, a["id"])]
+    assert got and all(g["icon"].startswith("data:image/png;base64,") for g in got)
+
+
+def _ok(fn, *a):
+    try:
+        fn(*a)
+        return True
+    except h.Unavailable:
+        return False
+
+
+def test_favicon_is_found_from_the_page_then_the_site_root_and_never_from_this_laptop():
+    page = '<html><head><link rel="stylesheet" href="x.css"><link rel="shortcut icon" href="/static/f.png"></head></html>'
+    assert h.find_icon_href(page, "https://a.test/") == "https://a.test/static/f.png"
+    assert h.find_icon_href('<link rel="icon" href="//cdn.test/i.ico">', "https://a.test/") == "https://cdn.test/i.ico"
+    assert h.find_icon_href('<link rel="mask-icon" href="/m.svg">', "https://a.test/") is None
+    assert h.find_icon_href("<p>nothing</p>", "https://a.test/") is None
+    assert not h.is_public_host("localhost", resolve=lambda _h: ["127.0.0.1"])
+    assert not h.is_public_host("router", resolve=lambda _h: ["192.168.1.1"])
+    assert not h.is_public_host("meta", resolve=lambda _h: ["169.254.169.254"])
+    assert not h.is_public_host("mixed", resolve=lambda _h: ["8.8.8.8", "10.0.0.1"])
+    assert h.is_public_host("ok", resolve=lambda _h: ["93.184.216.34"])
+    assert not h.is_public_host("gone", resolve=lambda _h: (_ for _ in ()).throw(OSError("dns")))
+
+
+def test_favicon_reads_the_icon_the_site_serves():
+    import io
+
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGBA", (32, 32), (0, 128, 255, 255)).save(buf, format="PNG")
+    served = {"https://a.test/": (b'<link rel="icon" href="/i.png">', "text/html"), "https://a.test/i.png": (buf.getvalue(), "image/png")}
+    fetch = lambda u: served.get(u, (None, None))  # noqa: E731
+    url = h.favicon_for("https://a.test/some/page", fetch=fetch)
+    assert url and url.startswith("data:image/png;base64,")
+    only_root = {"https://b.test/favicon.ico": (buf.getvalue(), "image/png")}
+    assert h.favicon_for("https://b.test", fetch=lambda u: only_root.get(u, (None, None))) is not None, "falls back to /favicon.ico"
+    assert h.favicon_for("https://c.test", fetch=lambda u: (None, None)) is None
+    assert h.favicon_for("ftp://c.test", fetch=fetch) is None
+    assert h.favicon_for("https://d.test", fetch=lambda u: (b"not an image", "image/png")) is None

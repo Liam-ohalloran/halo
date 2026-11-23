@@ -184,6 +184,13 @@ const scoreOf = (c: RawScheduleCompetitor | undefined): number => {
   return Number(typeof s === 'object' && s ? (s.value ?? s.displayValue) : s) || 0
 }
 
+/** The box score, only if it is this game's two teams. A box score for any other game is dropped, so every view shows one game. */
+export function boxForGame(box: RawBoxscore | null | undefined, game: SixersGame): TeamBox[] {
+  const teams = boxPlayers(box)
+  const want = new Set([game.sixers.tri, game.opponent.tri])
+  return teams.length === 2 && teams.every((t) => want.has(t.tri)) && new Set(teams.map((t) => t.tri)).size === 2 ? teams : []
+}
+
 /** The last `n` finished Sixers games, newest first. A game counts as finished when the schedule says so. */
 export function formFromSchedule(schedule: RawSchedule | null | undefined, n = 5): FormGame[] {
   const done: FormGame[] = []
@@ -236,7 +243,7 @@ export function buildResponse(
     maxey: showMaxey ? maxeyFromBox(box) : null,
     next: upcoming,
     fetchedAt: now.toISOString(),
-    box: showMaxey ? boxPlayers(box) : [],
+    box: showMaxey && game ? boxForGame(box, game) : [],
     form: formFromSchedule(schedule),
   }
 }

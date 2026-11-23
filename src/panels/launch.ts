@@ -3,7 +3,7 @@ import '../styles/proto.css'
 import './launch.css'
 import type { Backend } from '../types'
 import { pvRoot, tip, type PvRoot } from '../ui/charts'
-import { getStartApps, helperToken, launchStartApp, launchUrl, type StartApp } from '../lib/helper'
+import { getAppIcon, getFavicon, getStartApps, helperToken, launchStartApp, launchUrl, type StartApp } from '../lib/helper'
 import { APP_SLOTS, initial, moveItem, pickable, search, siteGroups, tileColours, validateItem, type LaunchItem } from '../lib/launch'
 
 // Launch tab (card 24), glass family. The apps and sites Liam keeps one tap away, saved in Supabase so the phone sees the same
@@ -63,15 +63,31 @@ export function LaunchPanel(api: Backend): LaunchPanelHandle {
     $('edit').textContent = editing ? 'Done'
       : 'Edit'
     $('edit').setAttribute('aria-pressed', String(editing))
-    html('apps', slots.map((a) => { const [c1, c2] = tileColours(a.name); return `<div class="app" data-id="${a.id}" role="button" tabindex="0" aria-label="${editing ? `Remove ${esc(a.name)}` : `Open ${esc(a.name)}`}"><span class="ico" style="background:linear-gradient(160deg,${c1},${c2});--g:${c1}"><b>${esc(initial(a.name))}</b>${editing ? '<span class="x" aria-hidden="true">×</span>' : ''}</span><span class="nm">${esc(a.name)}</span></div>` }).join('')
+    html('apps', slots.map((a) => { const [c1, c2] = tileColours(a.name); return `<div class="app" data-id="${a.id}" data-ic="${esc(a.target)}" role="button" tabindex="0" aria-label="${editing ? `Remove ${esc(a.name)}` : `Open ${esc(a.name)}`}"><span class="ico" style="background:linear-gradient(160deg,${c1},${c2});--g:${c1}"><b>${esc(initial(a.name))}</b>${editing ? '<span class="x" aria-hidden="true">×</span>' : ''}</span><span class="nm">${esc(a.name)}</span></div>` }).join('')
       + (apps.length > slots.length ? `<div class="app more"><span class="ico"><b>+${apps.length - slots.length}</b></span><span class="nm">more</span></div>` : '')
       + (query ? '' : `<div class="app add" data-add-open role="button" tabindex="0" aria-label="Add an app or website"><span class="ico">${PLUS}</span><span class="nm">Add</span></div>`))
     const groups = siteGroups(hit)
-    html('sites', groups.map((g) => (g.name ? `<span class="grp">${esc(g.name)}</span>` : '') + g.sites.map((s) => `<a class="site" data-id="${s.id}" role="button" tabindex="0" aria-label="${editing ? `Remove ${esc(s.name)}` : `Open ${esc(s.name)}`}"><span class="fav" style="background:${tileColours(s.name)[0]}">${esc(initial(s.name))}</span><b>${esc(s.name)}</b>${editing ? '<span class="rm" aria-hidden="true">×</span>' : ''}</a>`).join('')).join('') || '<p class="laNoSites">No sites yet.</p>')
+    html('sites', groups.map((g) => (g.name ? `<span class="grp">${esc(g.name)}</span>` : '') + g.sites.map((s) => `<a class="site" data-id="${s.id}" data-site="${esc(s.target)}" role="button" tabindex="0" aria-label="${editing ? `Remove ${esc(s.name)}` : `Open ${esc(s.name)}`}"><span class="fav" style="background:${tileColours(s.name)[0]}">${esc(initial(s.name))}</span><b>${esc(s.name)}</b>${editing ? '<span class="rm" aria-hidden="true">×</span>' : ''}</a>`).join('')).join('') || '<p class="laNoSites">No sites yet.</p>')
+    hydrateIcons()
     const none = $('none')
     const empty = !hit.length
     none.hidden = !empty || (!query && !!items.length)
     none.textContent = query ? `Nothing matches "${query}".` : ''
+  }
+
+  // Real icons from the helper: the app's own icon, and a site's favicon. The letter tile stays if the helper has none (or is off).
+  function putIcon(host: Element | null, url: string | null, sel: string | null) {
+    if (!host || !url || host.querySelector('img')) return
+    const img = document.createElement('img')
+    img.src = url; img.alt = ''; img.decoding = 'async'; img.draggable = false
+    host.classList.add('real')
+    const old = sel ? host.querySelector(sel) : null
+    if (old) old.replaceWith(img); else host.replaceChildren(img)
+  }
+  function hydrateIcons() {
+    if (!helperToken()) return
+    $('apps').querySelectorAll<HTMLElement>('.app[data-ic]').forEach((el) => { void getAppIcon(el.dataset.ic!).then((u) => { if (alive && el.isConnected) putIcon(el.querySelector('.ico'), u, 'b') }) })
+    $('sites').querySelectorAll<HTMLElement>('.site[data-site]').forEach((el) => { void getFavicon(el.dataset.site!).then((u) => { if (alive && el.isConnected) putIcon(el.querySelector('.fav'), u, null) }) })
   }
 
   async function load() {
@@ -182,7 +198,8 @@ export function LaunchPanel(api: Backend): LaunchPanelHandle {
     if (startApps === null) { html('pkList', '<p class="pkNote">Looking at your Start menu…</p>'); return }
     if (!startApps.length) { html('pkList', `<p class="pkNote">${helperToken() ? 'No apps found.' : 'Open Halo on your laptop to pick from your apps.'}</p>`); return }
     const list = pickable(startApps, items, q)
-    html('pkList', list.length ? list.map((a) => { const [c1, c2] = tileColours(a.name); return `<button type="button" class="pkItem" data-app="${esc(a.id)}" data-name="${esc(a.name)}"><span class="ico" style="background:linear-gradient(160deg,${c1},${c2})"><b>${esc(initial(a.name))}</b></span><span>${esc(a.name)}</span></button>` }).join('') : '<p class="pkNote">Nothing else matches.</p>')
+    queueMicrotask(() => $('pkList').querySelectorAll<HTMLElement>('.pkItem[data-ic]').forEach((el) => { void getAppIcon(el.dataset.ic!).then((u) => { if (alive && el.isConnected) putIcon(el.querySelector('.ico'), u, 'b') }) }))
+    html('pkList', list.length ? list.map((a) => { const [c1, c2] = tileColours(a.name); return `<button type="button" class="pkItem" data-app="${esc(a.id)}" data-name="${esc(a.name)}" data-ic="${esc(a.id)}"><span class="ico" style="background:linear-gradient(160deg,${c1},${c2})"><b>${esc(initial(a.name))}</b></span><span>${esc(a.name)}</span></button>` }).join('') : '<p class="pkNote">Nothing else matches.</p>')
   }
   function openPicker() {
     $('pick').hidden = false

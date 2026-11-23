@@ -124,8 +124,20 @@ export const setAppVolume = (id: string, level: number) => post<{ apps: AppVolum
 export interface MicState { muted: boolean; level: number }
 export const getMic = () => get<MicState>('/mic')
 export const setMicMuted = (muted?: boolean) => post<MicState>('/mic/mute', muted === undefined ? undefined : { muted })
-export interface Output { name: string; kind: 'speakers' | 'headphones' | 'monitor'; current: boolean }
-export const getOutputs = () => get<{ current: string; outputs: Output[] }>('/outputs')
+export interface Output { id: string; name: string; kind: 'speakers' | 'headphones' | 'monitor'; current: boolean }
+export const getOutputs = () => get<{ current: string; outputs: Output[]; can_switch?: boolean }>('/outputs')
+/** Make this output the default for apps and media. Null when Windows refused: the page says "Switch in Windows". */
+export const setDefaultOutput = (id: string) => post<{ current: string; outputs: Output[]; can_switch?: boolean }>('/outputs/default', { id })
+
+// Launch icons: an app's own icon and a site's favicon, 64 px PNG data URLs from the helper. Kept for the life of the page, misses too.
+const iconCache = new Map<string, Promise<string | null>>()
+const icon = (key: string, path: string): Promise<string | null> => {
+  let p = iconCache.get(key)
+  if (!p) { p = get<{ icon: string }>(path).then((r) => r?.icon ?? null); iconCache.set(key, p) }
+  return p
+}
+export const getAppIcon = (id: string) => icon(`app:${id}`, `/launch/icon?id=${encodeURIComponent(id)}`)
+export const getFavicon = (url: string) => icon(`site:${url}`, `/launch/favicon?url=${encodeURIComponent(url)}`)
 export interface StartApp { id: string; name: string }
 export const getStartApps = () => get<{ apps: StartApp[] }>('/launch/apps')
 export const launchUrl = async (url: string): Promise<boolean> => (await post('/launch/url', { url })) !== null

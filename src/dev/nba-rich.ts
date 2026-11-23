@@ -1,6 +1,6 @@
 // Dev only: a fuller sample than the fixtures have (card 24): eight Sixers and six of the other team with steals, and five finished
 // games for the Form view. In ESPN's shape, so it runs through the real parser.
-import type { RawBoxscore, RawSchedule } from '../../supabase/functions/nba/parse.ts'
+import { findSixersGame, type RawBoxscore, type RawSchedule, type RawScoreboard } from '../../supabase/functions/nba/parse.ts'
 
 const team = (abbreviation: string, name: string) => ({ abbreviation, name, shortDisplayName: name })
 const comp = (homeAway: 'home' | 'away', t: ReturnType<typeof team>) => ({ homeAway, team: t })
@@ -15,8 +15,8 @@ export function scheduleAhead(ahead: number, now: Date): RawSchedule {
 
 type Row = [string, string, number, number, number, number, number, number, [number, number], [number, number], [number, number]]
 const SIX: Row[] = [['1', 'Tyrese Maxey', 36, 31, 4, 9, 1, 0, [11, 21], [4, 9], [5, 5]], ['2', 'Joel Embiid', 33, 26, 11, 5, 1, 2, [9, 17], [1, 3], [7, 8]], ['3', 'VJ Edgecombe', 34, 24, 6, 4, 2, 1, [9, 15], [3, 6], [3, 4]], ['4', 'Kelly Oubre Jr.', 28, 14, 5, 2, 1, 0, [5, 11], [2, 5], [2, 2]], ['5', 'Kyle Lowry', 22, 9, 3, 7, 0, 0, [3, 7], [2, 4], [1, 1]], ['6', 'Quentin Grimes', 19, 8, 2, 1, 1, 0, [3, 8], [2, 5], [0, 0]], ['7', 'Paul George', 24, 7, 4, 3, 0, 1, [3, 9], [1, 4], [0, 0]], ['8', 'Andre Drummond', 14, 2, 7, 0, 0, 1, [1, 3], [0, 0], [0, 2]]]
-const OPP: Row[] = [['11', 'Jalen Brunson', 37, 29, 3, 8, 1, 0, [10, 22], [3, 8], [6, 7]], ['12', 'Karl-Anthony Towns', 34, 18, 12, 3, 0, 1, [7, 14], [2, 6], [2, 2]], ['13', 'Mikal Bridges', 35, 17, 4, 4, 1, 0, [6, 13], [3, 7], [2, 2]], ['14', 'OG Anunoby', 33, 11, 5, 2, 2, 1, [4, 10], [2, 6], [1, 2]], ['15', 'Josh Hart', 30, 9, 9, 6, 1, 0, [4, 8], [1, 2], [0, 0]], ['16', 'Mitchell Robinson', 20, 6, 8, 0, 1, 2, [3, 4], [0, 0], [0, 3]]]
+const OPP: Row[] = [['11', 'Marcus Hale', 37, 29, 3, 8, 1, 0, [10, 22], [3, 8], [6, 7]], ['12', 'Devon Okafor', 34, 18, 12, 3, 0, 1, [7, 14], [2, 6], [2, 2]], ['13', 'Tyler Reeve', 35, 17, 4, 4, 1, 0, [6, 13], [3, 7], [2, 2]], ['14', 'Isaac Mbeki', 33, 11, 5, 2, 2, 1, [4, 10], [2, 6], [1, 2]], ['15', 'Cole Ramsey', 30, 9, 9, 6, 1, 0, [4, 8], [1, 2], [0, 0]], ['16', 'Andre Whitlock', 20, 6, 8, 0, 1, 2, [3, 4], [0, 0], [0, 3]]]
 const rich = (tri: string, rows: Row[]) => ({ team: { abbreviation: tri }, statistics: [{ labels: ['MIN', 'PTS', 'FG', '3PT', 'FT', 'REB', 'AST', 'TO', 'STL', 'BLK'], athletes: rows.map((r) => ({ athlete: { id: r[0], displayName: r[1] }, stats: [String(r[2]), String(r[3]), r[8].join('-'), r[9].join('-'), r[10].join('-'), String(r[4]), String(r[5]), String(r[7]), String(r[6]), '0'] })) }] })
-/** A fuller box score than the fixtures have: eight Sixers and six of the other team, with steals. */
-export const richBox = (opp: string): RawBoxscore => ({ boxscore: { players: [rich('PHI', SIX), rich(opp, OPP)] } })
+/** A fuller box score than the fixtures have: eight Sixers and six of the other team, with steals. The other team is whoever the scoreboard says the Sixers are playing, so the box and the scoreboard are always the same game. */
+export const richBox = (sb: RawScoreboard): RawBoxscore => { const opp = findSixersGame(sb)?.opponent.tri ?? 'OPP'; return { boxscore: { players: [rich('PHI', SIX), rich(opp, OPP)] } } }
 

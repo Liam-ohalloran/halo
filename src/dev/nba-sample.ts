@@ -16,11 +16,11 @@ export function sample(key: SampleKey, now = new Date()): NbaResponse {
   const sched = scheduleAhead(26 * 3_600_000 + 14 * 60_000 + 33_000, now)
   /* eslint-disable @typescript-eslint/no-explicit-any */
   switch (key) {
-    case 'live': return buildResponse(live as any, richBox('NYK') as any, sched, now)
-    case 'halftime': return buildResponse(halftime as any, richBox('NYK') as any, sched, now)
-    case 'overtime': return buildResponse(ot as any, richBox('NYK') as any, sched, now)
-    case 'final-win': return buildResponse(finalWin as any, richBox('NYK') as any, sched, now)
-    case 'final-loss': return buildResponse(finalLoss as any, richBox('NYK') as any, sched, now)
+    case 'live': return buildResponse(live as any, richBox(live as any) as any, sched, now)
+    case 'halftime': return buildResponse(halftime as any, richBox(halftime as any) as any, sched, now)
+    case 'overtime': return buildResponse(ot as any, richBox(ot as any) as any, sched, now)
+    case 'final-win': return buildResponse(finalWin as any, richBox(finalWin as any) as any, sched, now)
+    case 'final-loss': return buildResponse(finalLoss as any, richBox(finalLoss as any) as any, sched, now)
     case 'next':
     case 'none': return buildResponse(noGame as any, null, sched, now)
   }

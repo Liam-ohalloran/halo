@@ -1,8 +1,8 @@
 import '../styles/tokens.css'
 import '../styles/proto.css'
 import './audio.css'
-import { pvRoot, type PvRoot } from '../ui/charts'
-import { getAppVolumes, getMic, getOutputs, getVolume, helperToken, setAppVolume, setMicMuted, setMuted, setVolume, type AppVolume, type MicState, type Output } from '../lib/helper'
+import { pvRoot, tip, type PvRoot } from '../ui/charts'
+import { getAppVolumes, getMic, getOutputs, getVolume, helperToken, setAppVolume, setDefaultOutput, setMicMuted, setMuted, setVolume, type AppVolume, type MicState, type Output } from '../lib/helper'
 import { OUTPUT_COLOURS, appColour, litBars, mixerApps, outputSub } from '../lib/audio'
 
 // Audio tab (card 24), black island family. A big mute button and the master volume, where the sound is going, the microphone with
@@ -19,6 +19,7 @@ const I = {
   spk: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="3"/><circle cx="12" cy="14" r="3.2" fill="currentColor"/><circle cx="12" cy="7" r="1.4" fill="currentColor"/></svg>',
   mon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><rect x="2.5" y="4" width="19" height="13" rx="2.5"/><path d="M9 21h6M12 17v4"/></svg>',
 }
+const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;')
 const outIcon = (k: string) => (k === 'headphones' ? I.head : k === 'monitor' ? I.mon : I.spk)
 
 const TEMPLATE = `<div class="auG">
@@ -28,7 +29,7 @@ const TEMPLATE = `<div class="auG">
     <div class="auSl" data-k="sl" role="slider" tabindex="0" aria-label="Master volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="tr"></div><div class="fl"></div><div class="kn"></div></div>
   </div>
   <div class="auCol">
-    <div class="blk pop" style="--i:1"><div class="auEqH"><span class="caps">Output</span><span class="caps na">Switch in Windows</span></div><div data-k="outs"></div></div>
+    <div class="blk pop" style="--i:1"><div class="auEqH"><span class="caps">Output</span><span class="caps na" data-k="outHint">Tap to switch</span></div><div data-k="outs"></div></div>
     <div class="blk auMic pop" style="--i:2"><button type="button" class="auB" data-k="micB" aria-label="Mute microphone" aria-pressed="false">${I.mic}</button><div class="auMicT"><span class="caps" data-k="micT">Mic</span><div class="auLv" data-k="lv">${Array.from({ length: 18 }, () => '<i></i>').join('')}</div></div><span class="auPill na" title="Windows has no public way to change noise cancelling">ANC not available yet</span></div>
   </div>
   <div class="auCol">
@@ -80,8 +81,11 @@ export function AudioPanel(): AudioPanelHandle {
     const lit = mic.muted ? 0 : litBars(mic.level)
     $('lv').querySelectorAll('i').forEach((b, i) => b.classList.toggle('on', i < lit))
   }
-  function paintOutputs(outs: Output[]) {
-    html('outs', outs.slice(0, 3).map((o) => `<div class="auO${o.current ? ' on' : ''}" style="--c:${OUTPUT_COLOURS[o.kind] ?? '#BF5AF2'}"><span class="ib">${outIcon(o.kind)}</span><div><b>${o.name.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</b><small>${outputSub(o)}</small></div><i class="ck"></i></div>`).join(''))
+  let canSwitch = false
+  function paintOutputs(outs: Output[], can: boolean) {
+    canSwitch = can
+    text('outHint', can ? 'Tap to switch' : 'Only one output')
+    html('outs', outs.slice(0, 3).map((o) => `<div class="auO${o.current ? ' on' : ''}${can && !o.current ? ' go' : ''}" data-o="${esc(o.id)}"${can ? ' role="button" tabindex="0"' : ''} aria-label="${can && !o.current ? 'Switch to ' : ''}${esc(o.name)}" style="--c:${OUTPUT_COLOURS[o.kind] ?? '#BF5AF2'}"><span class="ib">${outIcon(o.kind)}</span><div><b>${esc(o.name)}</b><small>${outputSub(o)}</small></div><i class="ck"></i></div>`).join(''))
   }
   function paintMixer(apps: AppVolume[]) {
     const { shown: list, more } = mixerApps(apps)
@@ -111,7 +115,7 @@ export function AudioPanel(): AudioPanelHandle {
     $('off').hidden = up
     text('offT', helperToken() ? 'Start Halo helper' : 'Open Halo on your laptop')
     if (vol && !busy.vol) { level = vol.level; muted = vol.muted }
-    if (outs) { outName = outs.current; paintOutputs(outs.outputs) }
+    if (outs && !busy.out) { outName = outs.current; paintOutputs(outs.outputs, !!outs.can_switch) }
     paintMaster()
     if (apps) paintMixer(apps.apps)
   }
@@ -173,6 +177,20 @@ export function AudioPanel(): AudioPanelHandle {
     a.setAttribute('aria-valuenow', String(v))
     void setAppVolume(a.dataset.a!, v)
   })
+  // Switching the output: the row you tap lights up at once, and if Windows says no the old one comes back with a plain sentence.
+  async function switchTo(id: string) {
+    if (!up || !canSwitch) return
+    const row = $('outs').querySelector<HTMLElement>(`[data-o="${CSS.escape(id)}"]`)
+    if (!row || row.classList.contains('on')) return
+    busy.out = Date.now()
+    $('outs').querySelectorAll('.auO').forEach((r) => r.classList.toggle('on', r === row))
+    const r = await setDefaultOutput(id)
+    delete busy.out
+    if (!alive) return
+    if (r) { outName = r.current; paintOutputs(r.outputs, !!r.can_switch); paintMaster() } else { tip(root, 'Switch in Windows. Halo could not change the output.'); delete shown.outs; void slowRefresh() }
+  }
+  $('outs').addEventListener('click', (e) => { const r = (e.target as HTMLElement).closest<HTMLElement>('.auO[data-o]'); if (r) void switchTo(r.dataset.o!) })
+  $('outs').addEventListener('keydown', (e) => { const r = (e.target as HTMLElement).closest<HTMLElement>('.auO[data-o]'); if (r && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); void switchTo(r.dataset.o!) } })
   root.addEventListener('click', (e) => { if ((e.target as HTMLElement).closest('[data-k="retry"]')) void slowRefresh() })
 
   root.onEnter = () => { void slowRefresh(); void fastRefresh() }

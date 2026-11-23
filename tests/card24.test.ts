@@ -15,8 +15,24 @@ const fx = (n: string) => JSON.parse(readFileSync(new URL(`./fixtures/nba/${n}.j
 /** The same sample the dev pages use, built here without the JSON imports Node can't do. */
 const sample = (key: 'final-win' | 'next', now = NOW) => {
   const sched = scheduleAhead(26 * 3_600_000, now)
-  return key === 'next' ? buildResponse(fx('scoreboard-no-game'), null, sched, now) : buildResponse(fx('scoreboard-final-win'), richBox('NYK') as never, sched, now)
+  return key === 'next' ? buildResponse(fx('scoreboard-no-game'), null, sched, now) : buildResponse(fx('scoreboard-final-win'), richBox(fx('scoreboard-final-win')) as never, sched, now)
 }
+
+// ---- Sixers: one game, every view
+test('sixers: the box score is for the same two teams as the scoreboard, in every sample game', () => {
+  for (const name of ['scoreboard-live', 'scoreboard-halftime', 'scoreboard-ot', 'scoreboard-final-win', 'scoreboard-final-loss']) {
+    const sb = fx(name)
+    const r = buildResponse(sb, richBox(sb) as never, scheduleAhead(3_600_000, NOW), NOW)
+    assert.ok(r.game, name)
+    assert.deepEqual(r.box!.map((t) => t.tri).sort(), [r.game!.sixers.tri, r.game!.opponent.tri].sort(), `${name}: box teams match the scoreboard`)
+  }
+})
+
+test('sixers: a box score from a different game is dropped, never mixed in', () => {
+  const sb = fx('scoreboard-final-win')
+  const other = { boxscore: { players: [{ team: { abbreviation: 'PHI' }, statistics: [{ labels: ['MIN', 'PTS'], athletes: [{ athlete: { id: '1', displayName: 'A' }, stats: ['30', '10'] }] }] }, { team: { abbreviation: 'ZZZ' }, statistics: [{ labels: ['MIN', 'PTS'], athletes: [{ athlete: { id: '2', displayName: 'B' }, stats: ['30', '10'] }] }] }] } }
+  assert.deepEqual(buildResponse(sb, other as never, null, NOW).box, [])
+})
 
 // ---- Sixers: parsing and the four views
 test('sixers: a live or final game carries both teams box scores and the last five results', () => {

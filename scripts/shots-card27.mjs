@@ -36,7 +36,7 @@ await page.waitForSelector('.sh[data-open="true"] .sh-body > *')
 await sleep(1500)
 
 // ---------- 1. The bar: only the pinned tabs, then •••
-assert.deepEqual(await bar(page), ['Home', 'Week', 'Pay', 'Study', 'Music', 'Sixers', 'Alerts', 'More tabs'], 'the default bar is the 7 pinned tabs and the More button')
+assert.deepEqual(await bar(page), ['Base', 'Home', 'Week', 'Pay', 'Study', 'Music', 'Sixers', 'Alerts', 'More tabs'], 'the default bar is the 8 pinned tabs (Base first, card 29) and the More button')
 await win(page, '1-bar-default')
 
 // ---------- 2. The ••• grid: every other tab, and Settings
@@ -60,10 +60,10 @@ assert.equal(await page.locator('.sh-more').isHidden(), true, 'the grid closes a
 assert.equal((await page.locator('.sh-more-btn .lb').innerText()).trim(), 'Money')
 assert.ok(await page.locator('.sh-more-btn.on').count(), 'the More button is selected while an unpinned tab is open')
 await win(page, '3-from-grid-money')
-// Arrow keys step on from there to the first pinned tab.
+// Arrow keys step on from there to the first pinned tab, which is Base (card 29).
 await page.keyboard.press('ArrowRight')
 await sleep(300)
-assert.equal(await page.locator('.sh').getAttribute('data-tab'), 'home')
+assert.equal(await page.locator('.sh').getAttribute('data-tab'), 'base')
 
 // ---------- 4. Settings, every section
 await page.locator('.sh-more-btn').click()
@@ -71,13 +71,13 @@ await page.locator('.sh-more [data-id="more"]').click()
 await sleep(600)
 assert.equal(await page.locator('.sh').getAttribute('data-tab'), 'more')
 assert.equal((await page.locator('.sh-more-btn .lb').innerText()).trim(), 'Settings')
-for (const sec of ['look', 'island', 'tabs', 'alerts', 'account']) {
+for (const sec of ['look', 'island', 'cycle', 'tabs', 'alerts', 'account']) {
   await page.locator(`.st-nb[data-sec="${sec}"]`).click()
   await sleep(250)
   await win(page, `4-settings-${sec}`)
 }
 // Nothing in Settings scrolls.
-for (const sec of ['look', 'island', 'tabs', 'alerts', 'account']) {
+for (const sec of ['look', 'island', 'cycle', 'tabs', 'alerts', 'account']) {
   await page.locator(`.st-nb[data-sec="${sec}"]`).click()
   const over = await page.evaluate(() => { const m = document.querySelector('.st-main'); const s = document.querySelector('.st-sec:not([hidden])'); return { main: m.scrollHeight - m.clientHeight, sec: s.scrollHeight - s.clientHeight } })
   assert.ok(over.main <= 1 && over.sec <= 1, `${sec} fits without scrolling (${JSON.stringify(over)})`)
@@ -139,22 +139,26 @@ await page.locator('.st-sw[aria-label="Keep clipboard history"]').click()
 // ---------- 8. Tabs: pin, the limit of 8, unpin, keyboard and drag to reorder
 await page.locator('.st-nb[data-sec="tabs"]').click()
 await sleep(200)
-assert.deepEqual(await chips(page), ['home', 'week', 'pay', 'study', 'music', 'sixers', 'alerts'])
+assert.deepEqual(await chips(page), ['base', 'home', 'week', 'pay', 'study', 'music', 'sixers', 'alerts'])
+assert.equal((await page.locator('.st-n').innerText()).trim(), '8 of 8')
+assert.equal(await page.locator('.st-tile:not(:disabled)').count(), 0, 'with 8 pinned every other tile is switched off')
+await page.locator('.st-chip[data-id="sixers"] .st-x').click()
 assert.equal((await page.locator('.st-n').innerText()).trim(), '7 of 8')
 await page.locator('.st-tile[data-id="money"]').click()
-assert.deepEqual(await bar(page), ['Home', 'Week', 'Pay', 'Study', 'Music', 'Sixers', 'Alerts', 'Money', 'More tabs'], 'pinning shows in the bar at once')
+assert.deepEqual(await bar(page), ['Base', 'Home', 'Week', 'Pay', 'Study', 'Music', 'Alerts', 'Money', 'More tabs'], 'pinning shows in the bar at once')
 assert.equal((await page.locator('.st-n').innerText()).trim(), '8 of 8')
 assert.equal(await page.locator('.st-tile:not(:disabled)').count(), 0, 'with 8 pinned every other tile is switched off')
 await win(page, '8-tabs-eight-pinned')
 await page.locator('.st-chip[data-id="money"] .st-x').click()
-assert.deepEqual(await bar(page), ['Home', 'Week', 'Pay', 'Study', 'Music', 'Sixers', 'Alerts', 'More tabs'])
+assert.deepEqual(await bar(page), ['Base', 'Home', 'Week', 'Pay', 'Study', 'Music', 'Alerts', 'More tabs'])
 assert.equal(await page.locator('.st-chip[data-id="home"] .st-x').count(), 0, 'Home has no unpin button')
+assert.equal(await page.locator('.st-chip[data-id="base"] .st-x').count(), 0, 'Base has no unpin button')
 // Keyboard: focus a chip and move it with the arrow keys.
 await page.locator('.st-chip[data-id="alerts"]').focus()
 await page.keyboard.press('ArrowLeft')
-assert.deepEqual((await chips(page)).slice(-3), ['music', 'alerts', 'sixers'])
+assert.deepEqual((await chips(page)).slice(-3), ['study', 'alerts', 'music'])
 await page.keyboard.press('ArrowRight')
-assert.deepEqual((await chips(page)).slice(-2), ['sixers', 'alerts'])
+assert.deepEqual((await chips(page)).slice(-2), ['music', 'alerts'])
 // Drag: take Alerts and drop it right after Home.
 const from = await page.locator('.st-chip[data-id="alerts"]').boundingBox()
 const to = await page.locator('.st-chip[data-id="home"]').boundingBox()
@@ -165,16 +169,16 @@ await page.mouse.move(to.x + to.width + 24, to.y + to.height / 2, { steps: 10 })
 await win(page, '9-tabs-dragging')
 await page.mouse.up()
 await sleep(200)
-assert.deepEqual((await chips(page)).slice(0, 3), ['home', 'alerts', 'week'], 'dragging Alerts next to Home reorders the bar')
-assert.deepEqual((await bar(page)).slice(0, 3), ['Home', 'Alerts', 'Week'])
+assert.deepEqual((await chips(page)).slice(0, 4), ['base', 'home', 'alerts', 'week'], 'dragging Alerts next to Home reorders the bar')
+assert.deepEqual((await bar(page)).slice(0, 4), ['Base', 'Home', 'Alerts', 'Week'])
 await win(page, '10-tabs-reordered')
-assert.deepEqual((await saved(page, 'halo.tabprefs')).pinned.slice(0, 3), ['home', 'alerts', 'week'])
+assert.deepEqual((await saved(page, 'halo.tabprefs')).pinned.slice(0, 4), ['base', 'home', 'alerts', 'week'])
 
 // ---------- 9. A reload keeps all of it (the mock settings row stands in for Supabase)
 await page.reload()
 await page.waitForSelector('.sh[data-open="true"] .sh-body > *')
 await sleep(900)
-assert.deepEqual((await bar(page)).slice(0, 3), ['Home', 'Alerts', 'Week'], 'the order survives a reload')
+assert.deepEqual((await bar(page)).slice(0, 4), ['Base', 'Home', 'Alerts', 'Week'], 'the order survives a reload')
 await page.close()
 
 // ---------- 10. The phone follows the same list

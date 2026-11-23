@@ -14,10 +14,11 @@
 import { createServer } from 'vite'
 import { chromium } from 'playwright'
 import { pathToFileURL } from 'node:url'
+import { mkdirSync } from 'node:fs'
 import { mockHelper } from './helper-mock.mjs'
 
-export const ALL_TABS = ['home', 'music', 'study', 'pay', 'sixers', 'week', 'alerts', 'money', 'marks', 'claude', 'night', 'shelf', 'widgets', 'more', 'controls', 'audio', 'launch']
-export const DEFAULT_TABS = ['home', 'pay', 'study', 'week', 'alerts', 'money', 'marks', 'claude', 'night', 'shelf', 'widgets', 'more', 'music', 'controls', 'audio', 'launch']
+export const ALL_TABS = ['base', 'home', 'music', 'study', 'pay', 'sixers', 'week', 'alerts', 'money', 'marks', 'claude', 'night', 'shelf', 'widgets', 'more', 'controls', 'audio', 'launch']
+export const DEFAULT_TABS = ['base', 'home', 'pay', 'study', 'week', 'alerts', 'money', 'marks', 'claude', 'night', 'shelf', 'widgets', 'more', 'music', 'controls', 'audio', 'launch']
 /** The Week tab has its own fixtures: a normal week, and a busy one with clashes and a crowded EARLY row. */
 export const API_FOR = (tab, state) => (['money', 'marks', 'claude', 'night', 'shelf', 'widgets'].includes(tab) ? (state === 'busy' ? `${tab}many` : state === 'empty' ? `${tab}empty` : tab) : tab === 'week' && state !== 'empty' ? (state === 'busy' ? 'weekbusy' : 'week') : tab === 'alerts' ? (state === 'busy' ? 'alertsmany' : state === 'empty' ? 'alertsempty' : 'alerts') : state)
 
@@ -118,7 +119,7 @@ export async function checkTab(browser, base, tab, state) {
   page.on('pageerror', (e) => errors.push(e.message))
   // Card 24: the helper tabs are checked with a pretend helper on (full) and with it off (empty).
   await mockHelper(page, { up: state !== 'empty' })
-  await page.goto(`${base}?demo=soon&tab=${tab}&open=1&home=${state}&api=${tab === 'launch' && state === 'empty' ? 'fullempty' : API_FOR(tab, state)}&sixers=${state === 'empty' ? 'none' : state === 'busy' ? 'live' : 'final-win'}${tab === 'more' ? '&account=1' : ''}`)
+  await page.goto(`${base}?demo=soon&tab=${tab}&open=1&home=${state}&api=${tab === 'launch' && state === 'empty' ? 'fullempty' : API_FOR(tab, state)}&sixers=${state === 'empty' ? 'none' : state === 'busy' ? 'live' : 'final-win'}${tab === 'base' ? `&base=${state === 'empty' ? 'empty' : 'proto'}` : ''}${tab === 'more' ? '&account=1' : ''}`)
   await page.waitForSelector('.sh[data-open="true"] .sh-body > *')
   await page.waitForTimeout(1600)
   const problems = await page.evaluate(auditInPage)
@@ -138,6 +139,18 @@ export async function checkTab(browser, base, tab, state) {
     await dp.waitForTimeout(300)
     problems.push(...(await dp.evaluate(auditInPage, '.st-main')).map((p) => `[laptop] ${p}`))
     problems.push(...(await dp.evaluate(settingsFit)).map((p) => `[laptop] ${p}`))
+  }
+  // Card 29: the big clock must stay between the left column (x 136) and the weather card (x 468) at every hour, four digits included.
+  if (tab === 'base') {
+    mkdirSync('screenshots/card-29', { recursive: true })
+    for (const at of ['10:00', '11:09', '12:59', '1:00']) {
+      await page.goto(`${base}?demo=soon&tab=base&open=1&home=${state}&base=${state === 'empty' ? 'empty' : 'proto'}&at=${at}`)
+      await page.waitForSelector('.sh[data-open="true"] .bt')
+      await page.waitForTimeout(1200)
+      const r = await page.evaluate(() => { const p = document.querySelector('.bt').getBoundingClientRect(), c = document.querySelector('.bt-ci').getBoundingClientRect(); return { l: c.left - p.left, r: c.right - p.left, t: document.querySelector('.bt-ci').textContent } })
+      if (r.l < 136 || r.r > 468) problems.push(`[clock ${at}] "${r.t}" spans ${r.l.toFixed(0)} to ${r.r.toFixed(0)}, it must stay inside 136 to 468`)
+      if (state === 'full') await page.locator('.sh-clip').screenshot({ path: `screenshots/card-29/clock-${at.replace(':', '')}.png` })
+    }
   }
   if (tab === 'home') {
     await page.locator('.sh-more-btn').click()

@@ -7,19 +7,19 @@ import { DEFAULT_ORDER } from '../src/styles/tabs.ts'
 test('tab prefs: nothing saved gives the default pinned tabs', () => {
   const p = normalisePrefs(null, DEFAULT_ORDER)
   assert.deepEqual(p.pinned, DEFAULT_PINNED)
-  assert.deepEqual(p.pinned, ['home', 'week', 'pay', 'study', 'music', 'sixers', 'alerts'])
+  assert.deepEqual(p.pinned, ['base', 'home', 'week', 'pay', 'study', 'music', 'sixers', 'alerts'])
   assert.deepEqual(normalisePrefs('nonsense', DEFAULT_ORDER).pinned, DEFAULT_PINNED)
   assert.deepEqual(normalisePrefs({ pinned: 5 }, DEFAULT_ORDER).pinned, DEFAULT_PINNED)
   // A save from before card 27 (an order and a hidden list, no pinned list) starts from the defaults.
   assert.deepEqual(normalisePrefs({ order: [...DEFAULT_ORDER].reverse(), hidden: ['money'] }, DEFAULT_ORDER).pinned, DEFAULT_PINNED)
 })
 
-test('tab prefs: unknown ids and duplicates are dropped, Home is always there, More is never pinned, nine becomes eight', () => {
+test('tab prefs: unknown ids and duplicates are dropped, Base and Home are always there, More is never pinned, nine becomes eight', () => {
   const p = normalisePrefs({ pinned: ['pay', 'ghost', 'pay', 'more', 'music'] }, DEFAULT_ORDER)
-  assert.deepEqual(p.pinned, ['home', 'pay', 'music'], 'Home is put back at the front')
-  const nine = normalisePrefs({ pinned: ['home', 'week', 'pay', 'study', 'music', 'sixers', 'alerts', 'money', 'marks', 'claude'] }, DEFAULT_ORDER)
+  assert.deepEqual(p.pinned, ['base', 'home', 'pay', 'music'], 'Base and Home are put back at the front')
+  const nine = normalisePrefs({ pinned: ['base', 'home', 'week', 'pay', 'study', 'music', 'sixers', 'alerts', 'money', 'marks', 'claude'] }, DEFAULT_ORDER)
   assert.equal(nine.pinned.length, MAX_PINNED)
-  assert.deepEqual(normalisePrefs({ pinned: [] }, DEFAULT_ORDER).pinned, ['home'])
+  assert.deepEqual(normalisePrefs({ pinned: [] }, DEFAULT_ORDER).pinned, ['base', 'home'])
 })
 
 test('tab prefs: pin, unpin and the limit of 8', () => {
@@ -38,13 +38,13 @@ test('tab prefs: pin, unpin and the limit of 8', () => {
 test('tab prefs: drag to a new place, and the arrow keys move one place', () => {
   let p = normalisePrefs(null, DEFAULT_ORDER)
   p = movePinnedTo(p, 'alerts', 1)
-  assert.deepEqual(p.pinned.slice(0, 3), ['home', 'alerts', 'week'])
+  assert.deepEqual(p.pinned.slice(0, 3), ['base', 'alerts', 'home'])
   assert.equal(movePinnedTo(p, 'alerts', 1), p, 'dropping it where it is changes nothing')
   assert.deepEqual(movePinnedTo(p, 'home', 99).pinned.at(-1), 'home', 'dropping past the end puts it last')
   p = moveTab(normalisePrefs(null, DEFAULT_ORDER), 'pay', 1)
-  assert.deepEqual(p.pinned.slice(0, 4), ['home', 'week', 'study', 'pay'])
+  assert.deepEqual(p.pinned.slice(0, 5), ['base', 'home', 'week', 'study', 'pay'])
   const q = normalisePrefs(null, DEFAULT_ORDER)
-  assert.equal(moveTab(q, 'home', -1), q, 'moving past the start does nothing')
+  assert.equal(moveTab(q, 'base', -1), q, 'moving past the start does nothing')
   assert.equal(moveTab(q, 'alerts', 1), q, 'moving past the end does nothing')
   assert.ok(samePrefs(q, { pinned: [...q.pinned] }))
   assert.ok(!samePrefs(q, p))

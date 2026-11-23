@@ -4,7 +4,7 @@
 // colour = the tab colour (active rail icon, accents). rail = the icon colour while the tab is not open.
 // bg, border and glow are the frame: a tinted gradient, a 1 px tinted border and a soft corner glow. Never remove the glow.
 
-export type TabId = 'home' | 'music' | 'study' | 'pay' | 'sixers' | 'week' | 'alerts' | 'money' | 'marks' | 'claude' | 'night' | 'shelf' | 'widgets' | 'more' | 'controls' | 'audio' | 'launch'
+export type TabId = 'base' | 'home' | 'music' | 'study' | 'pay' | 'sixers' | 'week' | 'alerts' | 'money' | 'marks' | 'claude' | 'night' | 'shelf' | 'widgets' | 'more' | 'controls' | 'audio' | 'launch'
 
 export interface TabTheme {
   id: TabId
@@ -36,6 +36,13 @@ const NEUTRAL_BORDER = 'rgba(255,255,255,0.10)'
 const neutral = (a: string, b: string, c: string) => `linear-gradient(165deg, ${a} 0%, ${b} 55%, ${c} 100%)`
 
 export const TAB_THEMES: Record<TabId, TabTheme> = {
+  // Card 29: the Base tab is a photo that fills the island (design/prototype/base-tab.html), so there is no tinted gradient or
+  // corner glow of its own. The ring and the soft blue light under the island are the prototype's. The panel draws the photo.
+  base: {
+    id: 'base', label: 'Base', aria: 'Base', colour: '#9DB8FF', shadow: '#78A0FF', rail: '#9DB8FF',
+    bg: '#0a1430', border: 'rgba(150,180,255,0.75)', pad: [10, 13, 0, 13], text: '#FFFFFF',
+    glow: 'display:none', layers: [],
+  },
   home: {
     id: 'home', label: 'Home', aria: 'Home', colour: '#FFC23D', shadow: '#FF8A1E', rail: '#F2F2F4',
     bg: '#000', border: 'rgba(255,255,255,0.08)', pad: [10, 16, 12, 16], text: '#F5F7FF',
@@ -126,12 +133,12 @@ export const TAB_THEMES: Record<TabId, TabTheme> = {
 }
 
 /** The prototype's tab order (card 23). Liam can hide and reorder them, and the saved order lives in the settings row. */
-export const DEFAULT_ORDER: TabId[] = ['home', 'pay', 'week', 'study', 'music', 'sixers', 'money', 'controls', 'audio', 'launch', 'alerts', 'claude', 'night', 'marks', 'shelf', 'widgets', 'more']
+export const DEFAULT_ORDER: TabId[] = ['base', 'home', 'pay', 'week', 'study', 'music', 'sixers', 'money', 'controls', 'audio', 'launch', 'alerts', 'claude', 'night', 'marks', 'shelf', 'widgets', 'more']
 export const RAIL: TabId[] = DEFAULT_ORDER
 export const TAB_IDS: TabId[] = DEFAULT_ORDER
 
 /** Tabs with a real panel today. Everything else shows "Coming soon" in its own colour. */
-export const BUILT: TabId[] = ['home', 'study', 'pay', 'sixers']
+export const BUILT: TabId[] = ['base', 'home', 'study', 'pay', 'sixers']
 
 export const isTabId = (v: unknown): v is TabId => typeof v === 'string' && (TAB_IDS as string[]).includes(v)
 /** Accepts the old id: the Home tab used to be called Now. */
@@ -139,6 +146,7 @@ export const parseTab = (v: unknown): TabId | null => (v === 'now' ? 'home' : is
 
 /** Rail icons, drawn on a 24 grid exactly as the boards draw them. */
 export const RAIL_ICONS: Record<TabId, string> = {
+  base: '<circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path>',
   home: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.5"></rect><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"></rect><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"></rect><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"></rect>',
   music: '<path d="M9 18V5l11-2v13"></path><circle cx="6.5" cy="18" r="2.5"></circle><circle cx="17.5" cy="16" r="2.5"></circle>',
   study: '<path d="M12 6c-2-1.5-5-2-8-1.5V19c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V4.5C17 4 14 4.5 12 6z"></path><path d="M12 6v14.5"></path>',

@@ -186,6 +186,9 @@
 .sh[data-open='false'][data-size='banner'] {
   transition: width var(--grow) var(--ease-grow), height var(--grow) var(--ease-grow), border-radius var(--grow) var(--ease-grow), border-color 180ms ease, box-shadow 400ms ease;
 }
+.sh[data-open='false'][data-size='cycle'] {
+  transition: width calc(450ms * var(--halo-speed, 1)) cubic-bezier(0.34, 1.4, 0.5, 1), height 380ms var(--ease-shrink), border-radius 380ms var(--ease-shrink), border-color 180ms ease, box-shadow 600ms ease;
+}
 .sh[data-open='false'][data-size='snap'] { transition: none; }
 /* The live layer sits over the pill. Only its own buttons take clicks, so a click anywhere else opens Halo. */
 .sh-live { position: absolute; inset: 0; pointer-events: none; opacity: 1; transition: opacity 160ms ease calc(var(--out) + var(--shrink) - 40ms); }

@@ -6,6 +6,8 @@ import { updateRow, type UpdateState } from '../lib/updates'
 import { DEFAULT_ORDER, RAIL_ICONS, TAB_THEMES, type TabId } from '../styles/tabs'
 import { MAX_PINNED, canPinMore, moreIds, moveTab, movePinnedTo, togglePin, ALWAYS_PINNED, type TabPrefs } from '../lib/tabprefs'
 import { MIN_PASSWORD, passwordProblem } from '../lib/auth-form'
+import { CYCLE_EVERY, CYCLE_KEYS, CYCLE_LABELS, type CycleEvery } from '../lib/island-cycle'
+import { clearPhoto, onPhotoChange, savedPhoto, setPhotoFromFile } from '../lib/base-photo'
 import { HUD_KEYS, HUD_LABELS, LIVE_KEYS, LIVE_LABELS, SOURCE_KEYS, SOURCE_LABELS, type IslandSize, type Speed, type UiStore } from '../lib/ui-settings'
 
 // Settings (cards 15b, 23 and 27): the sixth tab in the bar's "•••" grid. A short list of sections on the left, one section
@@ -34,9 +36,9 @@ export interface SettingsHandle extends HTMLElement {
   destroy(): void
 }
 
-export type SectionId = 'look' | 'island' | 'tabs' | 'alerts' | 'laptop' | 'account'
+export type SectionId = 'look' | 'island' | 'cycle' | 'tabs' | 'alerts' | 'laptop' | 'account'
 const SECTIONS: { id: SectionId; label: string }[] = [
-  { id: 'look', label: 'Look' }, { id: 'island', label: 'Island' }, { id: 'tabs', label: 'Tabs' },
+  { id: 'look', label: 'Look' }, { id: 'island', label: 'Island' }, { id: 'cycle', label: 'Cycle' }, { id: 'tabs', label: 'Tabs' },
   { id: 'alerts', label: 'Alerts' }, { id: 'laptop', label: 'Laptop' }, { id: 'account', label: 'Account' },
 ]
 
@@ -108,18 +110,52 @@ export function SettingsPanel(o: SettingsOptions): SettingsHandle {
   const reg = (c: { el: HTMLElement; sync(): void }): HTMLElement => { syncs.push(c.sync); return c.el }
   const ui = o.ui
 
-  // ---- Look
-  const look = h('section', { class: 'st-sec', 'data-sec': 'look', 'aria-label': 'Look' },
-    reg(segRow<IslandSize>('Island size', [{ v: 'normal', label: 'Normal' }, { v: 'large', label: 'Large' }, { v: 'larger', label: 'Larger' }], () => ui.get().size, (v) => ui.set({ size: v }))),
-    reg(rangeRow('Glow', 0, 150, () => ui.get().glow, (v) => ui.set({ glow: v }))),
-    reg(rangeRow('Blur', 0, 150, () => ui.get().blur, (v) => ui.set({ blur: v }))),
-    reg(segRow<Speed>('Animation speed', [{ v: 'slow', label: 'Slow' }, { v: 'normal', label: 'Normal' }, { v: 'fast', label: 'Fast' }], () => ui.get().speed, (v) => ui.set({ speed: v }))))
-
   // ---- Island: which live states and which pills show
   const col = (title: string, rows: HTMLElement[]) => h('div', { class: 'st-col' }, h('div', { class: 'st-h' }, title), ...rows)
   const island = h('section', { class: 'st-sec two', 'data-sec': 'island', 'aria-label': 'Island' },
     col('Live states', LIVE_KEYS.map((k) => reg(switchRow(LIVE_LABELS[k], () => ui.get().live[k], (v) => ui.set({ live: { ...ui.get().live, [k]: v } }))))),
     col('Pills', HUD_KEYS.map((k) => reg(switchRow(HUD_LABELS[k], () => ui.get().hud[k], (v) => ui.set({ hud: { ...ui.get().hud, [k]: v } }))))))
+
+  // ---- Base (card 29): the photo and the clock behind the mountains
+  const photoBtn = h('button', { type: 'button', class: 'st-btn', onclick: () => pick.click() }, 'Choose photo') as HTMLButtonElement
+  const resetBtn = h('button', { type: 'button', class: 'st-btn', onclick: () => { clearPhoto(); ui.set({ clockBehind: true }); paintPhoto() } }, 'Use the default') as HTMLButtonElement
+  const photoMsg = h('small', { role: 'status' }, '')
+  const photoK = h('span', { class: 'st-k' }, 'Base background', photoMsg)
+  const pick = h('input', { type: 'file', accept: 'image/*', hidden: true, 'aria-label': 'Choose a photo for the Base tab' }) as HTMLInputElement
+  function paintPhoto() {
+    const own = savedPhoto() != null
+    photoMsg.textContent = own ? 'Your photo, kept on this device' : 'The photo that comes with Halo'
+    resetBtn.hidden = !own
+  }
+  pick.addEventListener('change', async () => {
+    const f = pick.files?.[0]
+    pick.value = ''
+    if (!f) return
+    photoMsg.textContent = 'Saving…'
+    const err = await setPhotoFromFile(f)
+    if (err) { photoMsg.textContent = err; return }
+    // The ridge is cut for the photo that ships with Halo, so it is off for your own until you turn it back on.
+    ui.set({ clockBehind: false })
+    paintPhoto()
+  })
+  offs.push(onPhotoChange(paintPhoto))
+  paintPhoto()
+  // ---- Look
+  const look = h('section', { class: 'st-sec', 'data-sec': 'look', 'aria-label': 'Look' },
+    reg(segRow<IslandSize>('Island size', [{ v: 'normal', label: 'Normal' }, { v: 'large', label: 'Large' }, { v: 'larger', label: 'Larger' }], () => ui.get().size, (v) => ui.set({ size: v }))),
+    reg(rangeRow('Glow', 0, 150, () => ui.get().glow, (v) => ui.set({ glow: v }))),
+    reg(rangeRow('Blur', 0, 150, () => ui.get().blur, (v) => ui.set({ blur: v }))),
+    reg(segRow<Speed>('Animation speed', [{ v: 'slow', label: 'Slow' }, { v: 'normal', label: 'Normal' }, { v: 'fast', label: 'Fast' }], () => ui.get().speed, (v) => ui.set({ speed: v }))),
+    // Card 29: the Base tab's photo and its clock
+    h('div', { class: 'st-row' }, photoK, h('div', { class: 'st-btns' }, resetBtn, photoBtn, pick)),
+    reg(switchRow('Clock behind mountains', () => ui.get().clockBehind, (v) => ui.set({ clockBehind: v }), 'Off for a photo the peaks do not fit')))
+
+  // ---- Cycle (card 29): what the closed island shows when nothing live is happening
+  const cycle = h('section', { class: 'st-sec two', 'data-sec': 'cycle', 'aria-label': 'Cycle' },
+    col('Modes', CYCLE_KEYS.map((k) => reg(switchRow(CYCLE_LABELS[k], () => ui.get().cycle[k], (v) => ui.set({ cycle: { ...ui.get().cycle, [k]: v } }))))),
+    col('Timing', [
+      reg(segRow<`${CycleEvery}`>('Every', CYCLE_EVERY.map((n) => ({ v: `${n}` as `${CycleEvery}`, label: `${n} s` })), () => `${ui.get().cycleEvery}` as `${CycleEvery}`, (v) => ui.set({ cycleEvery: Number(v) as CycleEvery }))),
+      h('p', { class: 'st-note' }, 'The closed island moves through these when nothing live is on. Hover pauses it. Live states, pills and banners always come first, then it carries on.')]))
 
   // ---- Tabs: pick up to 8 for the bar and drag them into order
   const pinnedRow = h('div', { class: 'st-chips', role: 'list', 'aria-label': 'Tabs in the bar' })
@@ -288,7 +324,7 @@ export function SettingsPanel(o: SettingsOptions): SettingsHandle {
     h('div', { class: 'st-row' }, h('span', { class: 'st-k' }, 'Account'), h('button', { type: 'button', class: 'st-btn', onclick: () => (o.account?.onSignOut ?? o.onSignOut)() }, 'Sign out')))
 
   // ---- Frame: the section list and the visible section
-  const secs: Record<SectionId, HTMLElement> = { look, island, tabs: tabsSec, alerts, laptop, account }
+  const secs: Record<SectionId, HTMLElement> = { look, island, cycle, tabs: tabsSec, alerts, laptop, account }
   const list = SECTIONS.filter((s) => s.id !== 'laptop' || desk)
   let cur: SectionId = 'look'
   const navBtns = new Map<SectionId, HTMLButtonElement>()

@@ -158,13 +158,15 @@ async function start() {
     const { mockSource, mockClock } = await import('./dev/now-mock')
     const { mountHome } = await import('./components/home')
     const mode = (params.get('demo') || 'full') as Parameters<typeof mockSource>[0]
-    const start = mockClock(mode).getTime()
+    const at = /^(\d{1,2}):(\d{2})$/.exec(params.get('at') ?? '') // dev only: ?at=11:09 sets the preview's Perth clock to that time on Mon 23 Nov
+    const start = at ? Date.UTC(2026, 10, 23, Number(at[1]) - 8, Number(at[2])) : mockClock(mode).getTime()
     const t0 = Date.now()
     const { mockBackend } = await import('./dev/mock')
     const { sample } = await import('./dev/nba-sample')
     const sx = (params.get('sixers') ?? 'none') as Parameters<typeof sample>[0]
     const { homeMock } = await import('./dev/home-mock')
-    mountHome(app, { source: mockSource(mode), api: mockBackend(params.get('api') ?? 'full'), home: homeMock(params.get('home') ?? 'full'), sixers: () => Promise.resolve(sample(sx)), now: () => new Date(start + Date.now() - t0), open: params.has('open'), tab: params.get('tab') ?? undefined,
+    const { baseFixture } = await import('./dev/base-mock')
+    mountHome(app, { source: mockSource(mode), api: mockBackend(params.get('api') ?? 'full'), home: homeMock(params.get('home') ?? 'full'), base: params.has('base') ? baseFixture(params.get('base') || 'proto') : undefined, sixers: () => Promise.resolve(sample(sx)), now: () => new Date(start + Date.now() - t0), open: params.has('open'), tab: params.get('tab') ?? undefined,
       // ?account=1 shows Settings as a signed in user sees it (fixtures only, no real sign in).
       account: params.has('account') ? { email: 'liam@example.com', onSetPassword: async (p: string) => (p === 'fail-me-now' ? 'Could not save that. Try again.' : null) } : undefined })
     return

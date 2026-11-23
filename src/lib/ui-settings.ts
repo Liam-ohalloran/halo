@@ -2,6 +2,8 @@
 // row's `theme` JSON under `ui` (the tab list sits beside it under `tabs`), so the phone matches where it makes sense.
 // Every value is clamped or checked on the way in: whatever came out of the database, the island still gets sane numbers.
 
+import { CYCLE_EVERY, CYCLE_KEYS, DEFAULT_EVERY, type CycleEvery, type CycleKey } from './island-cycle.ts'
+
 export type IslandSize = 'normal' | 'large' | 'larger'
 export type Speed = 'slow' | 'normal' | 'fast'
 
@@ -32,11 +34,16 @@ export interface UiSettings {
   hud: Record<HudKey, boolean>
   sources: Record<SourceKey, boolean>
   clipboard: boolean
+  /** Card 29: which modes the closed island cycles through, and how often it moves on (seconds). */
+  cycle: Record<CycleKey, boolean>
+  cycleEvery: CycleEvery
+  /** Card 29: the Base tab's clock sits behind the mountains. Off for a photo the peaks do not fit. */
+  clockBehind: boolean
 }
 
 const all = <K extends string>(keys: readonly K[], on = true): Record<K, boolean> => Object.fromEntries(keys.map((k) => [k, on])) as Record<K, boolean>
 
-export const DEFAULT_UI: UiSettings = { size: 'normal', blur: 100, glow: 100, speed: 'normal', live: all(LIVE_KEYS), hud: all(HUD_KEYS), sources: all(SOURCE_KEYS), clipboard: true }
+export const DEFAULT_UI: UiSettings = { size: 'normal', blur: 100, glow: 100, speed: 'normal', live: all(LIVE_KEYS), hud: all(HUD_KEYS), sources: all(SOURCE_KEYS), clipboard: true, cycle: all(CYCLE_KEYS), cycleEvery: DEFAULT_EVERY, clockBehind: true }
 
 export const SIZE_SCALE: Record<IslandSize, number> = { normal: 1, large: 1.1, larger: 1.2 }
 /** Multiplier on every animation length: slow is longer, fast is shorter. */
@@ -61,6 +68,9 @@ export function normaliseUi(raw: unknown): UiSettings {
     hud: flags(r.hud, HUD_KEYS),
     sources: flags(r.sources, SOURCE_KEYS),
     clipboard: typeof r.clipboard === 'boolean' ? r.clipboard : true,
+    cycle: flags(r.cycle, CYCLE_KEYS),
+    cycleEvery: (CYCLE_EVERY as readonly number[]).includes(r.cycleEvery as number) ? (r.cycleEvery as CycleEvery) : DEFAULT_EVERY,
+    clockBehind: typeof r.clockBehind === 'boolean' ? r.clockBehind : true,
   }
 }
 

@@ -12,6 +12,9 @@ import { TABS, type TabDef } from './TabBar'
 import { SixersCard, SixersPill, confetti, type PillHandle } from './Sixers'
 import { SIXERS_BLUE, createFeed, sixersWon, teamColour, type NbaResponse } from '../lib/sixers'
 import { HomeTab, liveSources, type HomeSources } from '../panels/homeTab'
+import { BaseTab, type BaseTabHandle } from '../panels/baseTab'
+import { createBaseStore, type BaseSnapshot, type BaseStore } from '../lib/base-data'
+import { buildCycle } from '../lib/island-cycle'
 import { StudyPanel, ICONS_NEEDED as STUDY_ICONS } from '../panels/study'
 import { StudyPill } from '../panels/studyPill'
 import { createStudyTimer } from '../panels/studyTimer'
@@ -77,6 +80,8 @@ export interface HomeOptions {
   sixers?: () => Promise<NbaResponse>
   /** Where the Home tab gets weather, battery and music. Defaults to Open-Meteo and the Halo helper. */
   home?: HomeSources
+  /** Dev previews only: fixed numbers for the Base tab and the island's cycle, so screenshots are repeatable. */
+  base?: Partial<BaseSnapshot>
 }
 
 type TabId = 'now' | 'study' | 'pay' | 'sixers'
@@ -91,10 +96,9 @@ function lastTab(): TabId {
 // Sixers have panels yet. The phone stack keeps the old ids, so these two map between them.
 const SHELL_KEY = 'halo.shellTab'
 const toPanel = (t: ShellTabId): TabId | null => (t === 'home' ? 'now' : t === 'study' || t === 'pay' || t === 'sixers' ? t : null)
+// Card 29: Halo opens on the Base tab. Inside one run it still stays on whichever tab Liam picked last.
 function startTab(o: { tab?: string }): ShellTabId {
-  let stored: string | null = null
-  try { stored = localStorage.getItem(SHELL_KEY) ?? localStorage.getItem(TAB_KEY) } catch { /* private mode */ }
-  return parseTab(o.tab) ?? parseTab(stored) ?? 'home'
+  return parseTab(o.tab) ?? 'base'
 }
 
 /** Amber, the closed island's colour for a shift. */
@@ -179,10 +183,12 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   }
   // The Settings window's switches (card 27), saved in the same row. A copy stays on this device so a reload never flashes the defaults.
   const uiStore = createUiStore((v) => void api.saveUiSettings(v).catch(() => {}))
+  // Card 29: the Base tab and the island's cycle read the same weather, battery, music, shift, pay and test, fetched once.
+  const baseStore: BaseStore | null = phone ? null : createBaseStore({ api, sources: o.home ?? liveSources, clock, fixture: o.base })
   const sh = phone ? null : Shell({
     active: activeTab, now: clock, open: embed || !!o.open, auto: !embed, prefs: tabPrefs,
     onChange: (id) => showShellTab(id, true),
-    onToggle: (isOpen) => { applyTint(); syncHomeActive(); if (!isOpen) queueMicrotask(syncBase) },
+    onToggle: (isOpen) => { applyTint(); syncHomeActive(); syncBaseLevel(); if (!isOpen) queueMicrotask(syncBase) },
   })
   const embedRoot = embed ? EmbedShell() : null
   const isl: IslandHandle = sh ? shellIsland(sh) : Island({
@@ -236,10 +242,14 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     for (const [k, val] of Object.entries(cssVars(v))) document.documentElement.style.setProperty(k, val)
     sh?.setScale(SIZE_SCALE[v.size])
     live?.setOff(liveOff(v))
+    live?.setCycleEvery(v.cycleEvery)
+    syncCycle(clock())
+    syncBaseLevel()
     setClipboardOn(v.clipboard)
   }
   uiStore.subscribe(applyUi)
   applyUi()
+  const unsubBase = baseStore?.subscribe(() => syncCycle(clock()))
   const studyPill = StudyPill(timer)
   const payListeners = new Set<() => void>()
   let payPanel: ReturnType<typeof PayPanel> | null = null
@@ -276,6 +286,19 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   function syncHomeActive() {
     const visible = !document.hidden && (phone ? activeId === 'now' : activeTab === 'home' && !!sh?.isOpen)
     homeTab.setActive(visible)
+  }
+  // Card 29: who is looking decides how often the Base data is polled. The Base tab on screen is fast, a closed island that cycles
+  // is slow, and anything else (another tab, a hidden page, nothing to cycle) is not polled at all.
+  function syncBaseLevel() {
+    if (!baseStore || !sh) return
+    const cycling = Object.values(uiStore.get().cycle).some(Boolean)
+    baseStore.level(document.hidden ? 'off' : sh.isOpen ? (activeTab === 'base' ? 'tab' : 'off') : cycling ? 'cycle' : 'off')
+  }
+  /** Work out the modes the closed island cycles through from what the store knows, and hand them to it. */
+  function syncCycle(now: Date) {
+    if (!live || !baseStore) return
+    const s = baseStore.get()
+    live.setCycle(buildCycle({ weather: s.weather, battery: s.battery, media: s.media, art: s.art, shift: s.shift, pay: s.pay, test: s.test }, now, uiStore.get().cycle, getTravelMinutes()))
   }
   // The island's height springs to the active tab's content height (HALO.md 3.5, tab switch).
   const ro = new ResizeObserver(() => relayout())
@@ -408,7 +431,9 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   let controlsPanel: ReturnType<typeof ControlsPanel> | null = null
   let audioPanel: ReturnType<typeof AudioPanel> | null = null
   let launchPanel: ReturnType<typeof LaunchPanel> | null = null
+  let baseTab: BaseTabHandle | null = null
   panelFor = (id) => {
+    if (id === 'base' && baseStore) return (baseTab ??= BaseTab({ store: baseStore, ui: uiStore, clock }))
     if (id === 'money') return (moneyPanel ??= MoneyPanel(api, clock))
     if (id === 'marks') return (marksPanel ??= MarksPanel(api, clock))
     if (id === 'night') return (nightPanel ??= NightPanel(api, nightMode, clock))
@@ -435,6 +460,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     if (p) activeId = p
     try { localStorage.setItem(SHELL_KEY, id) } catch { /* private mode */ }
     if (!fromShell) sh!.setActive(id)
+    syncBaseLevel()
     ro.disconnect()
     const el = panelFor(id)
     host.show(el)
@@ -594,6 +620,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     stopEvents = subscribeEvents((name, d) => {
       if (name === 'media') {
         const m = d as Media
+        baseStore?.setMedia(m.available ? m : null)
         const on = !!m.available && !!m.title && m.playing
         const cur = live!.data.music
         live!.update({ music: on ? { title: m.title, art: cur && artFor === `${m.title}|${m.artist}` ? cur.art : null, playing: true } : null })
@@ -631,6 +658,8 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   let refreshTimer = 0
   function tick() {
     const now = clock()
+    baseTab?.tick(now)
+    syncCycle(now)
     if (data) {
       const endsAt = data.shift ? new Date(data.shift.ends_at).getTime() : Infinity
       // The shift finished, or midnight passed in Perth: today's rows and the "next" shift have moved on.
@@ -660,7 +689,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
       tabSubs.forEach((f) => f())
     }).catch(() => {})
   }
-  const onVisible = () => { syncHomeActive(); if (document.hidden) stop(); else { start(); void refresh(); void alertsStore?.load(); void loadPrefs() } }
+  const onVisible = () => { syncHomeActive(); syncBaseLevel(); if (document.hidden) stop(); else { start(); void refresh(); void alertsStore?.load(); void loadPrefs() } }
   const onOnline = () => void refresh()
   // Card 29: the "Offline" pill. Halo works without the network, this just says so.
   const stopOffline = connectivity.subscribe((off) => sh?.setOffline(off))
@@ -669,7 +698,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   document.addEventListener('pointerdown', onOutside)
   document.addEventListener('visibilitychange', onVisible)
   addEventListener('online', onOnline)
-  const unsub = source.onChange(() => { void refresh(); payListeners.forEach((f) => f()); weekListeners.forEach((f) => f()) })
+  const unsub = source.onChange(() => { void refresh(); baseStore?.refresh(); payListeners.forEach((f) => f()); weekListeners.forEach((f) => f()) })
 
   render()
   void refresh()
@@ -678,9 +707,11 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   if (o.open && !phone && !sh) requestAnimationFrame(() => requestAnimationFrame(() => isl.open()))
   applyPhonePrefs(cachedPrefs)
   void loadPrefs()
+  syncBaseLevel()
+  syncCycle(clock())
 
   return () => {
-    stop(); stopOffline(); ro.disconnect(); unsub(); unsubTimer(); stopEvents?.(); live?.destroy(); if (artUrl) URL.revokeObjectURL(artUrl); payPanel?.destroy(); alertsPanel?.destroy(); moneyPanel?.destroy(); marksPanel?.destroy(); claudePanel?.destroy(); nightPanel?.destroy(); unsubNight(); shelfPanel?.destroy(); widgetsPanel?.destroy(); unsubAlerts?.(); banners?.destroy(); detachScroll?.(); detachDesktop?.(); settings?.destroy(); musicPanel?.destroy(); controlsPanel?.destroy(); audioPanel?.destroy(); launchPanel?.destroy(); sixersPanel?.destroy(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
+    stop(); stopOffline(); ro.disconnect(); unsub(); unsubTimer(); unsubBase?.(); baseTab?.destroy(); baseStore?.destroy(); stopEvents?.(); live?.destroy(); if (artUrl) URL.revokeObjectURL(artUrl); payPanel?.destroy(); alertsPanel?.destroy(); moneyPanel?.destroy(); marksPanel?.destroy(); claudePanel?.destroy(); nightPanel?.destroy(); unsubNight(); shelfPanel?.destroy(); widgetsPanel?.destroy(); unsubAlerts?.(); banners?.destroy(); detachScroll?.(); detachDesktop?.(); settings?.destroy(); musicPanel?.destroy(); controlsPanel?.destroy(); audioPanel?.destroy(); launchPanel?.destroy(); sixersPanel?.destroy(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
     document.removeEventListener('pointerdown', onOutside)
     document.removeEventListener('visibilitychange', onVisible)
     removeEventListener('online', onOnline)

@@ -1,0 +1,135 @@
+/* Base tab (card 29). Ported from design/prototype/base-tab.html: same sizes, colours, radii, weights and spacing. The prototype's
+   class names are prefixed bt-. Inter 400, 500 and 600 only (Liam finds 200 and 300 too thin). */
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/inter-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/inter-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/inter-latin-600-normal.woff2') format('woff2'); }
+
+/* ---- The island frame while Base is open: the prototype's blue ring and soft light, and its bigger corners ---- */
+.sh[data-tab='base'][data-open='true'] {
+  --cr: 34px; border-radius: 0 0 34px 34px;
+  box-shadow: 0 0 0 0.5px rgba(150, 180, 255, 0.75),
+    0 0 26px -4px color-mix(in srgb, #78A0FF min(100%, calc(70% * var(--glow-strength, 1))), transparent),
+    0 30px 70px -30px color-mix(in srgb, #5078FF min(100%, calc(60% * var(--glow-strength, 1))), transparent);
+}
+/* The photo runs under the top bar, so the body fills the whole island and the bar floats over it. */
+.sh[data-tab='base'] .sh-body { position: absolute; left: -1px; top: 0; width: 600px; height: 290px; margin: 0; z-index: 0; }
+.sh[data-tab='base'] .sh-head { z-index: 8; height: 28px; align-items: flex-start; }
+.sh[data-tab='base'] .sh-body .h-panel { left: 0; right: auto; top: 0; }
+
+/* The top bar in the prototype's glass: tab icons in one pill, the open tab a white pill with its name, the greeting on the right. */
+.sh[data-tab='base'] .sh-rail { gap: 1px; padding: 3px; background: linear-gradient(160deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05));
+  backdrop-filter: blur(calc(18px * var(--halo-blur, 1))) saturate(1.5); -webkit-backdrop-filter: blur(calc(18px * var(--halo-blur, 1))) saturate(1.5);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 12px 30px -16px rgba(0, 0, 0, 0.7); }
+.sh[data-tab='base'] .sh-sel { background: rgba(255, 255, 255, 0.9); }
+.sh[data-tab='base'] .sh-tab { width: 26px; min-width: 0; padding: 0; color: rgba(255, 255, 255, 0.75); font-size: 10.5px; font-weight: 600; font-family: 'Inter', var(--font), system-ui, sans-serif; }
+.sh[data-tab='base'] .sh-tab svg, .sh[data-tab='base'] .sh-more-btn svg { width: 12px; height: 12px; }
+.sh[data-tab='base'] .sh-tab:hover { color: #fff; }
+.sh[data-tab='base'] .sh-tab.on, .sh[data-tab='base'] .sh-tab.on:hover { width: auto; padding: 0 10px 0 8px; gap: 5px; color: #0b1020; }
+.sh[data-tab='base'] .sh-time { padding: 6px 12px; border-radius: 999px; font-family: 'Inter', var(--font), system-ui, sans-serif; font-size: 10.5px; font-weight: 400; line-height: normal; color: rgba(255, 255, 255, 0.9);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05));
+  backdrop-filter: blur(calc(18px * var(--halo-blur, 1))) saturate(1.5); -webkit-backdrop-filter: blur(calc(18px * var(--halo-blur, 1))) saturate(1.5);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 12px 30px -16px rgba(0, 0, 0, 0.7); }
+.sh[data-tab='base'] .sh-more { top: 44px; }
+
+/* ---- The panel: 600 x 290 ---- */
+.bt { position: absolute; width: 100%; height: 100%; overflow: hidden; isolation: isolate; background: #0a1430; color: #fff;
+  font-family: 'Inter', var(--font), system-ui, sans-serif; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased;
+  /* the shell sets its own size, weight and line height, the prototype uses the browser's */
+  font-size: 16px; font-weight: 400; line-height: normal; letter-spacing: normal; }
+.bt *, .bt *::before, .bt *::after { box-sizing: border-box; }
+.bt .num { font-variant-numeric: tabular-nums; }
+.bt-photo, .bt-front { position: absolute; inset: 0; background: var(--bt-photo) 50% 15% / cover no-repeat; }
+.bt-front { clip-path: polygon(0.00% 30.82%, 0.85% 31.70%, 2.55% 30.56%, 5.10% 35.66%, 6.81% 38.30%, 9.78% 43.58%, 12.76% 44.46%, 16.16% 45.52%, 19.99% 46.66%, 23.82% 47.10%, 27.22% 41.82%, 29.77% 44.46%, 32.33% 47.10%, 35.30% 49.30%, 37.01% 47.98%, 39.98% 43.58%, 42.54% 41.38%, 45.09% 43.58%, 47.21% 45.78%, 50.19% 40.50%, 53.17% 44.46%, 56.57% 50.62%, 59.55% 55.90%, 61.68% 59.86%, 63.80% 58.10%, 66.35% 55.90%, 68.91% 47.10%, 72.31% 41.82%, 76.14% 38.30%, 78.69% 37.86%, 82.94% 38.30%, 85.07% 33.90%, 88.47% 29.06%, 93.58% 19.82%, 97.83% 13.22%, 100.00% 11.90%, 100% 100%, 0% 100%); z-index: 3; }
+/* "Clock behind mountains" off (Settings): the peaks stop covering the digits, for a photo the ridge does not fit. */
+.bt[data-front='off'] .bt-front { display: none; }
+.bt-shade { position: absolute; inset: 0; z-index: 4; pointer-events: none; background: linear-gradient(180deg, rgba(4, 8, 20, 0.35), transparent 28%, transparent 62%, rgba(2, 4, 10, 0.55)); }
+
+/* The clock sits between the sky and the front mountains. */
+.bt-clock { position: absolute; z-index: 2; left: 0; right: 0; top: 40px; text-align: center; font-weight: 400; font-size: 146px; line-height: 1; letter-spacing: -0.05em;
+  color: rgba(225, 234, 255, 0.9); text-shadow: 0 0 50px rgba(160, 190, 255, 0.35); }
+.bt-c { position: relative; top: -10px; margin: 0 -2px; opacity: 0.85; }
+.bt-date { position: absolute; z-index: 5; left: 0; right: 0; top: 30px; text-align: center; font-size: 12.5px; font-weight: 600; color: rgba(255, 255, 255, 0.9); text-shadow: 0 1px 10px rgba(0, 0, 0, 0.5); }
+/* With a long top bar the date drops below it. */
+.bt-date { transition: top 250ms ease; }
+.bt[data-low] .bt-date { top: 41px; }
+.bt-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+/* Glass: very light fill, heavy blur, hairline edge, soft top highlight. */
+.bt-g { position: absolute; z-index: 6; border-radius: 20px; background: linear-gradient(160deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05));
+  backdrop-filter: blur(calc(18px * var(--halo-blur, 1))) saturate(1.5); -webkit-backdrop-filter: blur(calc(18px * var(--halo-blur, 1))) saturate(1.5);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 12px 30px -16px rgba(0, 0, 0, 0.7); }
+.bt-lbl { font-size: 9.5px; font-weight: 500; color: rgba(255, 255, 255, 0.68); white-space: nowrap; }
+
+/* Left column, iPad lock screen style: no cards. */
+.bt-left { position: absolute; z-index: 6; left: 20px; top: 50px; width: 116px; display: flex; flex-direction: column; gap: 9px; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45); }
+.bt-ringw { display: flex; align-items: center; gap: 9px; }
+.bt-ringw svg { width: 38px; height: 38px; flex: none; }
+.bt-arc { transition: stroke-dashoffset 600ms cubic-bezier(0.34, 1.2, 0.5, 1); }
+.bt-t1 { font-size: 13px; font-weight: 600; white-space: nowrap; }
+.bt-sunc .bt-curve { display: block; width: 104px; height: 24px; overflow: visible; margin-top: 2px; }
+.bt-sunc .bt-t1 { display: flex; align-items: baseline; gap: 4px; }
+.bt-sunc .bt-t1 small { font-size: 9px; font-weight: 500; color: rgba(255, 255, 255, 0.7); }
+.bt-sbig { font-size: 17px; font-weight: 500; margin-top: 2px; }
+.bt-sunc .bt-t1 svg { align-self: center; }
+
+/* Weather */
+.bt-wx { right: 16px; top: 46px; width: 116px; padding: 12px 13px; }
+.bt-wx .bt-wi { width: 30px; height: 30px; display: block; }
+.bt-deg { font-size: 32px; font-weight: 400; letter-spacing: -0.02em; line-height: 1; margin-top: 6px; }
+.bt-cond { font-size: 10.5px; font-weight: 400; color: rgba(255, 255, 255, 0.85); margin-top: 3px; white-space: nowrap; min-height: 1.2em; }
+.bt-loc { display: flex; align-items: center; gap: 4px; font-size: 9px; color: rgba(255, 255, 255, 0.65); margin-top: 8px; padding-top: 7px; border-top: 1px solid rgba(255, 255, 255, 0.14); }
+.bt-loc svg { width: 9px; height: 9px; }
+
+/* Now playing */
+.bt-np { left: 50%; transform: translateX(-50%); bottom: 12px; width: 236px; padding: 9px 12px 8px; }
+.bt-top { display: flex; align-items: center; gap: 9px; }
+.bt-art { width: 34px; height: 34px; border-radius: 8px; flex: none; background: linear-gradient(135deg, #ff4fb0, #6b3dff 70%) center / cover no-repeat; box-shadow: 0 6px 14px -6px rgba(255, 79, 176, 0.8); }
+.bt-art.none { background: linear-gradient(135deg, #3a3f55, #1d2236 70%); box-shadow: 0 6px 14px -6px rgba(0, 0, 0, 0.6); }
+.bt-tx { flex: 1; min-width: 0; }
+.bt-tx b { display: block; font-size: 11.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bt-tx span { display: block; font-size: 9px; color: rgba(255, 255, 255, 0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bt-sp { width: 14px; height: 14px; flex: none; opacity: 0.8; }
+.bt-pr { display: flex; align-items: center; gap: 6px; margin-top: 7px; font-size: 8px; color: rgba(255, 255, 255, 0.55); }
+.bt-pr div { flex: 1; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.22); position: relative; }
+.bt-pr div i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 2px; background: #fff; transition: width 1s linear; }
+.bt-ctl { display: flex; justify-content: center; gap: 13px; margin-top: 4px; }
+.bt-cb { appearance: none; border: 0; background: transparent; padding: 0; margin: 0; width: 28px; height: 15px; display: grid; place-items: center; cursor: pointer; position: relative; border-radius: 6px; transition: transform 160ms cubic-bezier(0.34, 1.5, 0.5, 1), opacity 150ms ease; }
+.bt-cb::before { content: ''; position: absolute; inset: -6px -2px; }
+.bt-cb svg { width: 15px; height: 15px; display: block; }
+.bt-cb:hover { opacity: 0.8; }
+.bt-cb:active { transform: scale(0.88); }
+.bt-cb:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+.bt-cb:disabled { opacity: 0.35; cursor: default; }
+.bt-cb:disabled:active { transform: none; }
+
+/* Next shift */
+.bt-sh { left: 16px; bottom: 12px; width: 150px; padding: 10px 13px; }
+.bt-big { font-size: 20px; font-weight: 500; letter-spacing: -0.01em; margin-top: 3px; white-space: nowrap; }
+.bt-big small { font-size: 11px; font-weight: 400; color: rgba(255, 255, 255, 0.7); margin-left: 2px; }
+.bt-acc { width: 18px; height: 2px; border-radius: 1px; background: #ff9a4a; margin: 6px 0 5px; }
+.bt-sub { font-size: 9px; color: rgba(255, 255, 255, 0.65); white-space: nowrap; }
+
+/* Pay, last 7 days */
+.bt-pay { right: 16px; bottom: 12px; width: 150px; padding: 10px 13px; }
+.bt-row { display: flex; justify-content: space-between; align-items: baseline; }
+.bt-pay .bt-big { margin-top: 2px; min-height: 1.2em; }
+.bt-bars { display: flex; align-items: flex-end; justify-content: space-between; height: 20px; margin-top: 6px; padding: 0 2px; }
+.bt-bars i { width: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.35); min-height: 2px; transition: height 500ms cubic-bezier(0.34, 1.3, 0.5, 1); }
+.bt-bars i.on { background: #ff9a4a; box-shadow: 0 0 8px rgba(255, 154, 74, 0.8); }
+.bt-days { display: flex; justify-content: space-between; font-size: 7px; color: rgba(255, 255, 255, 0.45); margin-top: 3px; }
+.bt-days span { width: 7px; text-align: center; }
+
+/* Loading: a slow shimmer across a card until its first data arrives (HALO.md 3.6). */
+.bt-g[data-loading='1']::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%) -150% 0 / 200% 100% no-repeat; animation: bt-shim 1.6s ease-in-out infinite; }
+@keyframes bt-shim { to { background-position: 250% 0; } }
+
+/* The entrance: the cards rise in, one after the other, when the tab is switched to. */
+.bt-in .bt-g, .bt-in .bt-left { animation: bt-rise 520ms cubic-bezier(0.34, 1.3, 0.5, 1) both; }
+.bt-in .bt-wx { animation-delay: 40ms; } .bt-in .bt-left { animation-delay: 0ms; } .bt-in .bt-sh { animation-delay: 80ms; } .bt-in .bt-np { animation-delay: 120ms; } .bt-in .bt-pay { animation-delay: 160ms; }
+@keyframes bt-rise { from { opacity: 0; translate: 0 8px; } to { opacity: 1; translate: 0 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .bt-in .bt-g, .bt-in .bt-left { animation: none; }
+  .bt-arc, .bt-bars i, .bt-pr div i { transition: none; }
+  .bt-g[data-loading='1']::after { animation: none; }
+}

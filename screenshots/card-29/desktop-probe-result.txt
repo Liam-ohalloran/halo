@@ -1,0 +1,18 @@
+scripts/desktop-probe.ps1 against the real Halo desktop app (npm run desktop:dev build of this branch), Windows 11, screen 1920 x 1200 at 150%:
+
+ok   never takes focus (no activate)
+ok   always on top
+ok   click through while the pointer is away
+ok   centred on the screen
+ok   at the top edge
+ok   window is made once at the full open size plus the 24 px glow margin
+ok   the ear margin beside the island is click through
+ok   the island takes the mouse while the pointer is on it
+ok   hover opens the island without resizing the window
+ok   moving away closes it and the window stays the same size
+ok   still top centre after closing
+ok   the empty space under the closed island is click through
+ok   click through again once closed
+ok   hides while a full screen app is in front
+ok   comes back after the full screen app closes
+desktop probe: all checks passed

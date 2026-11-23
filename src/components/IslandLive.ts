@@ -2,11 +2,13 @@ import '../styles/shell.css'
 import '../styles/island-live.css'
 import { h } from './dom'
 import type { ShellHandle } from './Shell'
-import { HUD_LOOK, LOOK, mmss, pickDisplay, pickLive, type LiveKind } from '../lib/island-live'
+import { HUD_LOOK, LOOK, mmss, pickDisplay, pickLive, type LiveKind, type Look } from '../lib/island-live'
 import { BANNER, type BannerModel } from '../lib/banner'
 import type { HudModel } from '../lib/hud'
 import { hudIconMarkup } from './hud-icons'
 import { slow } from '../lib/motion'
+import { CYCLE_H, CYCLE_KEYS, CYCLE_R, everyMs, DEFAULT_EVERY, nextKey, settleKey, type CycleEvery, type CycleItem, type CycleKey } from '../lib/island-cycle'
+import { MOON_SVG, SUN_SVG } from '../lib/base'
 
 // Card 17: the closed island, one live thing at a time. This draws it into the shell's live layer.
 //  - Each state is a view that is built once and then patched in place, so a ticking timer or a sliding volume bar
@@ -45,7 +47,16 @@ export interface IslandLiveHandle {
   /** Show a HUD pill. A pill with the same key as the one on screen updates in place. */
   hud(m: HudModel): void
   /** What the closed island shows right now. */
-  readonly shown: 'banner' | 'hud' | LiveKind
+  readonly shown: 'banner' | 'hud' | 'cycle' | LiveKind
+  /**
+   * Card 29: the modes the closed island cycles through when no live state, HUD pill or banner is on. An empty list switches the
+   * cycle off and the island rests as before. Patched in place: the same items again change nothing.
+   */
+  setCycle(items: CycleItem[]): void
+  /** Seconds between modes (4, 6 or 10). */
+  setCycleEvery(sec: CycleEvery | number): void
+  /** The mode on show, or null when the island is not cycling. */
+  readonly cycleKey: CycleKey | null
   /** Show a notification banner, or null to let it settle back (card 18). */
   banner(m: BannerModel | null): void
   /** What a tap on the banner (`open`) or its button (`action`) does. Set by Banners. */
@@ -190,6 +201,43 @@ function chargeView(): View {
   return { el, patch: (d: NonNullable<LiveData['charge']>) => set(q(el, '.il-pct'), `${d.pct}%`) }
 }
 
+// ---- The cycle (card 29) ----------------------------------------------------------------------------------------
+
+const LEAD_ICONS: Record<string, string> = {
+  bolt: '<path d="M13 2 4 14h7l-1 8 9-12h-7z" fill="currentColor"/>',
+  bat: '<rect x="2" y="7" width="17" height="10" rx="3" fill="none" stroke="currentColor" stroke-width="2.6"/><rect x="4.5" y="9.5" width="9" height="5" rx="1" fill="currentColor"/>',
+  cash: '<path d="M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>',
+  cal: '<rect x="3" y="5" width="18" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M3 10h18" stroke="currentColor" stroke-width="2.6"/>',
+}
+/** One element per mode, built once. `patchItem` only touches what changed, so a ticking clock never flashes. */
+function cycleView() {
+  const el = mk('cycle', CYCLE_KEYS.map((k) => `<div class="cm" data-k="${k}" aria-hidden="true"><span class="cm-lead"><svg viewBox="0 0 24 24" aria-hidden="true"></svg></span><b class="cm-t num"></b><span class="cm-m"></span><span class="cm-r num"><svg class="cm-ri" viewBox="0 0 32 32" aria-hidden="true"></svg><em></em></span></div>`).join(''))
+  const parts = new Map<CycleKey, HTMLElement>(CYCLE_KEYS.map((k) => [k, q<HTMLElement>(el, `.cm[data-k="${k}"]`)]))
+  function patchItem(it: CycleItem) {
+    const m = parts.get(it.key)!
+    const lead = q<HTMLElement>(m, '.cm-lead')
+    const dot = it.lead !== 'none' && it.lead !== 'art'
+    lead.hidden = it.lead === 'none'
+    lead.className = `cm-lead${dot ? ' dot' : it.lead === 'art' ? ' art' : ''}`
+    if (dot) { lead.style.background = it.colour; const svg = q(lead, 'svg'); const mk2 = LEAD_ICONS[it.lead]; if (svg.innerHTML !== mk2) svg.innerHTML = mk2 }
+    else { lead.style.background = ''; const bg = it.lead === 'art' && it.art ? `url("${it.art}")` : ''; if (lead.style.backgroundImage !== bg) lead.style.backgroundImage = bg }
+    set(q(m, '.cm-t'), it.title)
+    const mid = q<HTMLElement>(m, '.cm-m')
+    mid.hidden = !it.mid
+    set(mid, it.mid ?? '')
+    const ri = q<SVGElement>(m, '.cm-ri')
+    const icon = it.rightIcon === 'sun' ? SUN_SVG : it.rightIcon === 'moon' ? MOON_SVG : ''
+    if (ri.innerHTML !== icon) ri.innerHTML = icon
+    ri.style.display = icon ? '' : 'none'
+    set(q(m, '.cm-r em'), it.right)
+    q<HTMLElement>(m, '.cm-r').hidden = !it.right && !icon
+  }
+  function show(key: CycleKey | null) {
+    for (const [k, m] of parts) { const on = k === key; m.classList.toggle('on', on); m.setAttribute('aria-hidden', String(!on)) }
+  }
+  return { el, patchItem, show, patch: () => {} } as View & { patchItem(i: CycleItem): void; show(k: CycleKey | null): void }
+}
+
 // ---- HUD pills --------------------------------------------------------------
 
 function hudBody(m: HudModel): string {
@@ -231,9 +279,13 @@ export function IslandLive(sh: ShellHandle, o: IslandLiveOptions = {}): IslandLi
   const ring = h('div', { class: 'il-ring', 'aria-hidden': 'true' })
   const hudEl = h('div', { class: 'il-view il-hud', 'data-k': 'hud' })
   const dot = h('span', { class: 'il-unread', 'aria-hidden': 'true' })
+  const cycle = cycleView()
   const views: Record<string, View> = {
-    leave: leaveView(), game: gameView(), timer: timerView((a) => o.onTimer?.(a)), shift: shiftView(), music: musicView(), charge: chargeView(), banner: bannerView((w) => bannerCb(w)),
+    leave: leaveView(), game: gameView(), timer: timerView((a) => o.onTimer?.(a)), shift: shiftView(), music: musicView(), charge: chargeView(), banner: bannerView((w) => bannerCb(w)), cycle,
   }
+  // Small pips under the island show where the cycle is. They sit on the shell, outside its clip, like the charging bar.
+  const pips = h('div', { class: 'il-pips', 'aria-hidden': 'true' })
+  sh.el.append(pips)
   const chg = h('div', { class: 'il-chg', 'aria-hidden': 'true' })
   chg.innerHTML = `<span class="il-bolt">${BOLT}</span><div class="hTr bat"><i></i></div><span class="il-full num"></span>`
   layer.append(ring, ...Object.values(views).map((v) => v.el), hudEl, dot)
@@ -245,7 +297,14 @@ export function IslandLive(sh: ShellHandle, o: IslandLiveOptions = {}): IslandLi
   let hudDrawn: HudModel | null = null
   let hudTimer = 0
   let chargeTimer = 0
-  let shown: 'banner' | 'hud' | LiveKind | '' = ''
+  let shown: 'banner' | 'hud' | 'cycle' | LiveKind | '' = ''
+  // Card 29: the cycle. `items` are the modes with something to show, `key` the one on show.
+  let items: CycleItem[] = []
+  let ckey: CycleKey | null = null
+  let everyMsNow = DEFAULT_EVERY * 1000
+  let cycleTimer = 0
+  let hovered = false
+  let pipKey = ''
   let sizeKey = ''
   let alive = true
 
@@ -272,27 +331,71 @@ export function IslandLive(sh: ShellHandle, o: IslandLiveOptions = {}): IslandLi
     }
   }
 
+  /** One pip per mode, the current one long. Rebuilt only when the list of modes changes. */
+  function paintPips() {
+    const k = items.map((x) => x.key).join()
+    if (k !== pipKey) { pipKey = k; pips.replaceChildren(...items.map(() => h('i'))) }
+    ;[...pips.children].forEach((p, i) => p.classList.toggle('on', items[i]?.key === ckey))
+  }
+  /**
+   * The cycle moves on every few seconds, but only while it is on show, the pointer is not over it, the window is closed and the
+   * page is visible. Hovering pauses it (hover for 300 ms opens the window anyway). It never restarts on its own, so a clock tick
+   * that calls render() does not push the next mode back.
+   */
+  const canRun = () => alive && !hovered && !sh.isOpen && !document.hidden && items.length > 1
+  function syncCycleTimer(cycling: boolean) {
+    if (!cycling || !canRun()) { if (cycleTimer) { window.clearTimeout(cycleTimer); cycleTimer = 0 } return }
+    if (cycleTimer) return
+    cycleTimer = window.setTimeout(() => {
+      cycleTimer = 0
+      ckey = nextKey(items, ckey)
+      render()
+    }, everyMsNow)
+  }
+  const restart = () => { window.clearTimeout(cycleTimer); cycleTimer = 0; render() }
+  const onEnter = (e: PointerEvent) => { if (e.pointerType === 'touch') return; hovered = true; restart() }
+  const onLeave = () => { hovered = false; restart() }
+  const onVis = () => restart()
+  sh.el.addEventListener('pointerenter', onEnter)
+  sh.el.addEventListener('pointerleave', onLeave)
+  document.addEventListener('visibilitychange', onVis)
+  // Opening the window stops the cycle, closing it starts it again from a full interval.
+  const watchOpen = new MutationObserver(() => restart())
+  watchOpen.observe(sh.el, { attributes: true, attributeFilter: ['data-open'] })
+
   function render() {
     if (!alive) return
     const on = (k: LiveKind) => !off.has(k)
     const kind = pickLive({ leave: !!data.leave && on('leave'), game: !!data.game && on('game'), timer: !!data.timer && on('timer'), shift: !!data.shift && on('shift'), music: !!data.music && on('music'), charge: !!data.charge && on('charge'), unread: data.unread })
-    const disp = pickDisplay(kind, !!hud, !!data.banner)
+    let disp: 'banner' | 'hud' | 'cycle' | LiveKind = pickDisplay(kind, !!hud, !!data.banner)
+    // Card 29: nothing live, no pill and no banner, so the island cycles instead of resting blank. Anything live wins at once
+    // and the cycle starts again from a full interval when it is over.
+    if ((disp === 'idle' || disp === 'unread') && items.length) disp = 'cycle'
+    let cycleLook: Look | null = null
+    if (disp === 'cycle') {
+      ckey = settleKey(items, ckey)
+      const cur = items.find((x) => x.key === ckey)!
+      for (const it of items) cycle.patchItem(it)
+      cycle.show(ckey)
+      paintPips()
+      cycleLook = { w: cur.w, h: CYCLE_H, r: CYCLE_R, colour: cur.colour, ring: false }
+    }
     if (disp === 'banner' && data.banner) (views.banner.patch as (x: unknown) => void)(data.banner)
     else if (disp === 'hud' && hud) showHud(hud)
-    else if (disp !== 'hud') {
+    else if (disp !== 'hud' && disp !== 'cycle') {
       const v = views[disp]
       const d = data[disp as keyof LiveData]
       if (v && d) (v.patch as (x: unknown) => void)(d)
     }
     // Sizes and colours only move when what is shown changes.
-    const look = disp === 'banner' && data.banner ? { ...BANNER, colour: data.banner.colour, ring: false }
-      : disp === 'hud' && hud ? { ...(hud.wide ? HUD_LOOK.wide : HUD_LOOK.narrow), colour: hud.colour, ring: false } : LOOK[kind]
+    const look = cycleLook ?? (disp === 'banner' && data.banner ? { ...BANNER, colour: data.banner.colour, ring: false }
+      : disp === 'hud' && hud ? { ...(hud.wide ? HUD_LOOK.wide : HUD_LOOK.narrow), colour: hud.colour, ring: false } : LOOK[kind])
     const colour = disp === 'hud' || disp === 'banner' ? look.colour : kind === 'timer' && data.timer ? data.timer.colour : look.colour
     const key = `${disp}|${look.w}`
     if (key !== sizeKey) {
       const first = sizeKey === ''
       sizeKey = key
-      sh.setSize(look, first ? 'snap' : disp === 'banner' ? 'banner' : disp === 'hud' || shown === 'hud' ? 'hud' : 'live')
+      sh.setSize(look, first ? 'snap' : disp === 'banner' ? 'banner' : disp === 'hud' || shown === 'hud' ? 'hud' : disp === 'cycle' && shown === 'cycle' ? 'cycle' : 'live')
     }
     if (disp !== shown) {
       shown = disp
@@ -300,7 +403,6 @@ export function IslandLive(sh: ShellHandle, o: IslandLiveOptions = {}): IslandLi
       sh.el.dataset.ring = look.ring ? '1' : '0'
       for (const [k, v] of Object.entries(views)) { const on = k === disp; v.el.classList.toggle('on', on); v.el.toggleAttribute('inert', !on) }
       hudEl.classList.toggle('on', disp === 'hud'); hudEl.toggleAttribute('inert', disp !== 'hud')
-      dot.classList.toggle('on', disp === 'unread')
       chg.classList.toggle('on', disp === 'charge')
       if (disp === 'charge' && data.charge) {
         const fill = q<HTMLElement>(chg, '.hTr i')
@@ -309,6 +411,9 @@ export function IslandLive(sh: ShellHandle, o: IslandLiveOptions = {}): IslandLi
         window.setTimeout(() => { if (shown === 'charge') fill.style.width = `${pct}%` }, slow(300))
       } else q<HTMLElement>(chg, '.hTr i').style.width = '0'
     }
+    dot.classList.toggle('on', disp === 'unread' || (disp === 'cycle' && data.unread > 0))
+    pips.classList.toggle('on', disp === 'cycle' && items.length > 1)
+    syncCycleTimer(disp === 'cycle')
     sh.setKey(colour)
     sh.el.style.setProperty('--lc', colour)
     if (disp === 'charge' && data.charge) set(q(chg, '.il-full'), data.charge.toFull ?? 'Charging')
@@ -335,8 +440,18 @@ export function IslandLive(sh: ShellHandle, o: IslandLiveOptions = {}): IslandLi
       hudTimer = window.setTimeout(endHud, slow(m.hold))
       render()
     },
-    get shown() { return (shown || 'idle') as 'banner' | 'hud' | LiveKind },
+    get shown() { return (shown || 'idle') as 'banner' | 'hud' | 'cycle' | LiveKind },
+    setCycle(next) {
+      // The same modes with the same words change nothing, so the clock's once a second call is free.
+      if (JSON.stringify(next) === JSON.stringify(items)) return
+      const wasOn = items.length > 0
+      items = next
+      if (!wasOn || !next.length) { window.clearTimeout(cycleTimer); cycleTimer = 0 }
+      render()
+    },
+    setCycleEvery(sec) { const ms = everyMs(sec); if (ms === everyMsNow) return; everyMsNow = ms; window.clearTimeout(cycleTimer); cycleTimer = 0; render() },
+    get cycleKey() { return shown === 'cycle' ? ckey : null },
     get data() { return data },
-    destroy() { alive = false; window.clearTimeout(hudTimer); window.clearTimeout(chargeTimer); chg.remove(); layer.replaceChildren() },
+    destroy() { alive = false; window.clearTimeout(hudTimer); window.clearTimeout(chargeTimer); window.clearTimeout(cycleTimer); watchOpen.disconnect(); sh.el.removeEventListener('pointerenter', onEnter); sh.el.removeEventListener('pointerleave', onLeave); document.removeEventListener('visibilitychange', onVis); chg.remove(); pips.remove(); layer.replaceChildren() },
   }
 }

@@ -531,6 +531,29 @@ Halo stops living inside NotchPixel and becomes its own app, with **nothing Notc
 
 ---
 
+
+## Card 29 · Base tab and the cycling closed island
+**Model:** Sonnet · **Size:** medium · **Needs:** 27 · **Source:** `design/prototype/base-tab.html` (open it in Chrome) · **REVIEW WITH OPUS**
+
+**Goal:** a calm centrepiece first tab, and an island that always shows something.
+
+**Build:**
+1. **Base tab,** first in the tab order and the default when Halo opens. Copy `design/prototype/base-tab.html` exactly:
+   - Background: Liam's photo `public/base/night.jpg` (ship a 1400 px wide version, under 200 KB). It fills the island.
+   - Huge clock (Inter 400, about 146 px) sitting **behind** the mountains: a second copy of the photo on top, clipped with the ridge polygon from the prototype, so the peaks cover the bottom of the digits. The date sits above the clock, the greeting pill top right.
+   - No card on the left: battery ring (from the helper) and a sunrise or sunset curve with today's real Perth times (compute them, don't hardcode).
+   - Frosted glass cards exactly as the prototype (light white fill, blur 18 px, hairline edge, top highlight): Perth weather (Open-Meteo, moon at night, sun by day), next shift with the small orange line, now playing (Spotify through the helper, real art, controls work), last 7 days pay as thin bars with today orange.
+   - Weights from the prototype (no 200 or 300 weights, Liam finds them too thin).
+   - Settings: "Base background" lets Liam pick his own photo (stored on the device), and Settings keeps a "Clock behind mountains" switch that turns the clip off for photos it doesn't fit.
+2. **The closed island is never blank.** When no live state (card 17) is on, it cycles every 6 s through compact modes, each with its own glow colour and width, cross-fading with the spring: time + weather, next shift countdown, now playing, battery, pay last 7 days, next test or event. Small pips under it show the position. Skip modes with nothing to show. Hover pauses the cycle. Live states, HUD pills and banners always win and the cycle resumes after. Settings: choose which modes cycle and the interval (4, 6, 10 s).
+
+**Done when**
+- [ ] Base tab matches the prototype side by side, screenshots at night and day
+- [ ] Clock behind the peaks lines up, overflow check passes
+- [ ] Recording of the closed island cycling, then a HUD pill interrupting and the cycle resuming
+
+---
+
 ## Backlog (Opus writes these cards later, don't start them)
 - Claude edge function + Ask Claude, snip to Claude, explain selection, clipboard actions, draft in your voice
 - Morning hello, morning briefing, Sunday recap, monthly wrap

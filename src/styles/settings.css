@@ -1,8 +1,8 @@
 /* Settings (card 27): compact grid family. #1c1c1e tiles, 1 px border, gold selection. Content area is 564 x 226 and never scrolls:
    a list of sections on the left, one section at a time on the right. */
 .st { height: 100%; display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 14px; min-height: 0; }
-.st-nav { display: flex; flex-direction: column; gap: 4px; padding: 4px 0; }
-.st-nb { appearance: none; border: 0; font: inherit; font-size: var(--fs-13); font-weight: 600; text-align: left; cursor: pointer; height: 32px; padding: 0 12px; border-radius: 12px; color: rgba(245, 245, 247, 0.6); background: transparent; transition: background 150ms ease, color 150ms ease, transform 120ms ease; }
+.st-nav { display: flex; flex-direction: column; gap: 3px; padding: 2px 0; }
+.st-nb { appearance: none; border: 0; font: inherit; font-size: var(--fs-13); font-weight: 600; text-align: left; cursor: pointer; height: 28px; padding: 0 12px; border-radius: 12px; color: rgba(245, 245, 247, 0.6); background: transparent; transition: background 150ms ease, color 150ms ease, transform 120ms ease; }
 .st-nb:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
 .st-nb:active { transform: scale(0.97); }
 .st-nb.on { background: #F5F7FF; color: #000; }
@@ -74,3 +74,8 @@
 .st-msg { font-size: 11px; font-weight: 500; color: rgba(245, 245, 247, 0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .st-msg.err { color: #FF8A80; }
 .st-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* Card 29: Base and Cycle sections */
+.st-btns { display: flex; align-items: center; gap: 6px; }
+.st-btn[hidden] { display: none; }
+.st-sec[data-sec='look'] { gap: 4px; }

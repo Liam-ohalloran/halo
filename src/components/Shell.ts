@@ -1,6 +1,7 @@
 import '../styles/shell.css'
 import { h } from './dom'
 import { clockPm } from '../lib/night'
+import { greeting } from '../lib/base'
 import { moreIds, normalisePrefs, pinnedIds, type TabPrefs } from '../lib/tabprefs'
 import { DEFAULT_ORDER, RAIL_ICONS, TAB_THEMES, type TabId, type TabTheme } from '../styles/tabs'
 
@@ -77,10 +78,11 @@ export interface ShellHandle {
   /** The closed island's live layer (card 17). It sits over the pill and only its buttons take clicks. */
   live: HTMLElement
   /**
-   * Size of the closed island (card 17). `live` animates 380 ms, `hud` 420 ms with a spring, `banner` 520 ms with the open spring (card 18), `snap` doesn't animate.
+   * Size of the closed island (card 17). `live` animates 380 ms, `hud` 420 ms with a spring, `banner` 520 ms with the open spring (card 18),
+   * `cycle` 450 ms with a soft spring (card 29), `snap` doesn't animate.
    * It only moves the closed island: opening still grows to 600 x 290.
    */
-  setSize(s: { w: number; h: number; r: number }, how?: 'live' | 'hud' | 'banner' | 'snap'): void
+  setSize(s: { w: number; h: number; r: number }, how?: 'live' | 'hud' | 'banner' | 'cycle' | 'snap'): void
   /** Card 27: make every closed size bigger by this much (1 is as designed). */
   setScale(n: number): void
 }
@@ -239,7 +241,8 @@ export function Shell(o: ShellOptions): ShellHandle {
   }
 
   function refreshMeta() {
-    const next = clockPm(clock())
+    // Card 29: the Base tab's top right pill is the greeting, every other tab shows the time.
+    const next = active === 'base' ? greeting(clock()) : clockPm(clock())
     if (time.textContent !== next) time.textContent = next
   }
 
@@ -356,7 +359,7 @@ export function Shell(o: ShellOptions): ShellHandle {
     el.dataset.collapsed = s
   }
   setCollapsed('resting')
-  const setSize = (s: { w: number; h: number; r: number }, how: 'live' | 'hud' | 'banner' | 'snap' = 'live') => {
+  const setSize = (s: { w: number; h: number; r: number }, how: 'live' | 'hud' | 'banner' | 'cycle' | 'snap' = 'live') => {
     base = { ...s }
     paintSize()
     if (isOpen) return

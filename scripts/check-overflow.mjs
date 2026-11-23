@@ -115,7 +115,7 @@ export async function checkTab(browser, base, tab, state) {
   const page = await ctx.newPage()
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
-  await page.goto(`${base}?demo=soon&tab=${tab}&open=1&home=${state}&api=${API_FOR(tab, state)}&sixers=${state === 'empty' ? 'none' : 'final-win'}`)
+  await page.goto(`${base}?demo=soon&tab=${tab}&open=1&home=${state}&api=${API_FOR(tab, state)}&sixers=${state === 'empty' ? 'none' : 'final-win'}${tab === 'more' ? '&account=1' : ''}`)
   await page.waitForSelector('.sh[data-open="true"] .sh-body > *')
   await page.waitForTimeout(1600)
   const problems = await page.evaluate(auditInPage)
@@ -129,7 +129,7 @@ export async function checkTab(browser, base, tab, state) {
     }
     // The Laptop section only exists inside the desktop app (?desktop=1).
     const dp = await ctx.newPage()
-    await dp.goto(`${base}?demo=soon&tab=more&open=1&desktop=1&api=more`)
+    await dp.goto(`${base}?demo=soon&tab=more&open=1&desktop=1&api=more&account=1`)
     await dp.waitForSelector('.sh[data-open="true"] .st')
     await dp.locator('.st-nb[data-sec="laptop"]').click()
     await dp.waitForTimeout(300)
@@ -151,6 +151,12 @@ async function main() {
   const server = await createServer({ server: { port: 5251, strictPort: true }, logLevel: 'error' })
   await server.listen()
   const browser = await chromium.launch()
+  // A cold dev server optimises its dependencies on the first page load, which can take over a minute on a slow disk.
+  // Do that once here with a long timeout so the first real check does not hit the 30 second default.
+  const warm = await browser.newPage()
+  await warm.goto('http://localhost:5251/halo/?demo=soon&tab=home&open=1', { timeout: 240000 })
+  await warm.waitForSelector('.sh[data-open="true"] .sh-body > *', { timeout: 120000 })
+  await warm.close()
   let failed = 0
   for (const tab of tabs) {
     for (const state of tab === 'week' || ['alerts', 'money', 'marks', 'claude', 'night', 'shelf', 'widgets'].includes(tab) ? ['full', 'busy', 'empty'] : ['full', 'empty']) {

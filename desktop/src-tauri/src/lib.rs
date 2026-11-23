@@ -293,6 +293,91 @@ fn pause_for_hour(app: AppHandle) {
     toggle_pause(&app);
 }
 
+// ---- Sign-in session in the Windows Credential Manager
+// The page keeps Supabase's session here instead of in web storage, so it survives restarts, rebuilds, updates and a
+// changed dev port. One credential holds at most 2560 bytes, a session is longer, so a value is split into parts.
+
+const SECRET_SERVICE: &str = "Halo";
+const SECRET_PART: usize = 800; // characters per credential (UTF-16 doubles it, well under the 2560 byte limit)
+
+/// Only Supabase's own session keys are stored. The page cannot use these commands to read other credentials.
+fn secret_key_ok(key: &str) -> bool {
+    key.starts_with("sb-") && key.len() <= 120 && key.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.')
+}
+
+fn split_parts(value: &str) -> Vec<String> {
+    let chars: Vec<char> = value.chars().collect();
+    chars.chunks(SECRET_PART).map(|c| c.iter().collect()).collect()
+}
+
+fn secret_entry(key: &str, part: &str) -> Result<keyring::Entry, String> {
+    keyring::Entry::new(SECRET_SERVICE, &format!("session:{key}:{part}")).map_err(|e| e.to_string())
+}
+
+fn secret_count(key: &str) -> usize {
+    secret_entry(key, "n").ok().and_then(|e| e.get_password().ok()).and_then(|n| n.parse().ok()).unwrap_or(0)
+}
+
+fn secret_clear(key: &str) {
+    for i in 0..secret_count(key) {
+        if let Ok(e) = secret_entry(key, &i.to_string()) {
+            let _ = e.delete_credential();
+        }
+    }
+    if let Ok(e) = secret_entry(key, "n") {
+        let _ = e.delete_credential();
+    }
+}
+
+/// The stored value, or None when nothing is stored (or a part is missing, which counts as nothing).
+#[tauri::command]
+async fn secret_get(key: String) -> Result<Option<String>, String> {
+    if !secret_key_ok(&key) {
+        return Err("not allowed".into());
+    }
+    let n = secret_count(&key);
+    if n == 0 {
+        return Ok(None);
+    }
+    let mut out = String::new();
+    for i in 0..n {
+        match secret_entry(&key, &i.to_string())?.get_password() {
+            Ok(p) => out.push_str(&p),
+            Err(_) => return Ok(None),
+        }
+    }
+    Ok(Some(out))
+}
+
+#[tauri::command]
+async fn secret_set(key: String, value: String) -> Result<(), String> {
+    if !secret_key_ok(&key) {
+        return Err("not allowed".into());
+    }
+    let old = secret_count(&key);
+    let parts = split_parts(&value);
+    for (i, p) in parts.iter().enumerate() {
+        secret_entry(&key, &i.to_string())?.set_password(p).map_err(|e| e.to_string())?;
+    }
+    // The count is written last, so a half written value is never read as a session.
+    secret_entry(&key, "n")?.set_password(&parts.len().to_string()).map_err(|e| e.to_string())?;
+    for i in parts.len()..old {
+        if let Ok(e) = secret_entry(&key, &i.to_string()) {
+            let _ = e.delete_credential();
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn secret_delete(key: String) -> Result<(), String> {
+    if !secret_key_ok(&key) {
+        return Err("not allowed".into());
+    }
+    secret_clear(&key);
+    Ok(())
+}
+
 /// The page asks for a halo:// link that arrived while it was loading. Returns it once.
 #[tauri::command]
 fn take_auth_url(app: AppHandle) -> Option<String> {
@@ -482,7 +567,7 @@ pub fn run() {
                 .build(),
         )
         .invoke_handler(tauri::generate_handler![
-            set_island, set_regions, set_focusable, get_state, set_style, set_monitor, set_autostart, set_hotkey, pause_for_hour, take_auth_url, helper::helper_info, quit
+            set_island, set_regions, set_focusable, get_state, set_style, set_monitor, set_autostart, set_hotkey, pause_for_hour, take_auth_url, secret_get, secret_set, secret_delete, helper::helper_info, quit
         ])
         .manage(helper::HelperState::default())
         .setup(|app| {
@@ -555,4 +640,49 @@ pub fn run() {
                 helper::stop(app);
             }
         });
+}
+
+#[cfg(test)]
+mod secret_tests {
+    use super::*;
+
+    #[test]
+    fn a_session_is_split_into_parts_that_join_back() {
+        let v: String = (0..3500).map(|i| char::from(b'a' + (i % 26) as u8)).collect();
+        let parts = split_parts(&v);
+        assert_eq!(parts.len(), 5);
+        assert!(parts.iter().all(|p| p.chars().count() <= SECRET_PART));
+        assert_eq!(parts.concat(), v);
+    }
+
+    #[test]
+    fn short_and_empty_values() {
+        assert_eq!(split_parts("abc"), vec!["abc".to_string()]);
+        assert!(split_parts("").is_empty());
+    }
+
+    #[test]
+    fn only_supabase_session_keys_are_allowed() {
+        assert!(secret_key_ok("sb-brqrszaljxeduelpuyty-auth-token"));
+        assert!(secret_key_ok("sb-brqrszaljxeduelpuyty-auth-token-code-verifier"));
+        assert!(!secret_key_ok("helper-pairing-token"));
+        assert!(!secret_key_ok("sb-../x"));
+        assert!(!secret_key_ok(""));
+    }
+
+    /// Real round trip through the Windows Credential Manager with a value longer than one credential can hold.
+    #[cfg(windows)]
+    #[test]
+    fn a_long_session_survives_the_credential_manager() {
+        let key = "sb-halo-test-roundtrip".to_string();
+        let v: String = (0..4200).map(|i| char::from(b'A' + (i % 26) as u8)).collect();
+        tauri::async_runtime::block_on(async {
+            secret_set(key.clone(), v.clone()).await.unwrap();
+            assert_eq!(secret_get(key.clone()).await.unwrap(), Some(v.clone()));
+            secret_set(key.clone(), "short".into()).await.unwrap();
+            assert_eq!(secret_get(key.clone()).await.unwrap(), Some("short".to_string()));
+            secret_delete(key.clone()).await.unwrap();
+            assert_eq!(secret_get(key).await.unwrap(), None);
+        });
+    }
 }

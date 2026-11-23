@@ -64,3 +64,12 @@
 .st-tile:active:not(:disabled) { transform: scale(0.95); }
 .st-tile:disabled { opacity: 0.4; cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) { .st-sw::after, .st-seg-b, .st-chip, .st-tile, .st-nb { transition-duration: 1ms; } }
+
+/* Set a sign-in code (password) */
+.st-pwform { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.st-pw { box-sizing: border-box; width: 150px; min-width: 0; height: 26px; padding: 0 10px; border: 0; border-radius: 999px; background: rgba(255, 255, 255, 0.1); color: #F5F7FF; font: 600 12px 'Inter Tight', system-ui, sans-serif; }
+.st-pw::placeholder { color: rgba(245, 245, 247, 0.5); }
+.st-pw:focus-visible { outline: 2px solid #D8C28C; outline-offset: 2px; }
+.st-msg { font-size: 11px; font-weight: 500; color: rgba(245, 245, 247, 0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-msg.err { color: #FF8A80; }
+.st-btn:disabled { opacity: 0.5; cursor: default; }

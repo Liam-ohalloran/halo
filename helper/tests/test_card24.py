@@ -72,3 +72,17 @@ def test_status_says_what_is_not_supported():
     with make() as c:
         ns = c.get("/status", headers=HDR).json()["not_supported"]
         assert {"anc", "equaliser", "switch_output"} <= set(ns)
+
+
+def test_only_web_addresses_can_be_opened_by_url(monkeypatch):
+    opened = []
+    import webbrowser
+
+    monkeypatch.setattr(webbrowser, "open", lambda u: opened.append(u))
+    assert h.launch_url("https://github.com/x") == {"ok": True}
+    for bad in ("file:///C:/Windows/System32/cmd.exe", "javascript:alert(1)", "calc.exe", "https://", "ftp://x.test"):
+        with pytest.raises(h.Unavailable):
+            h.launch_url(bad)
+    assert opened == ["https://github.com/x"]
+    with make() as c:
+        assert c.post("/launch/url", json={"url": "https://x.test"}).status_code == 401

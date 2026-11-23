@@ -1,0 +1,44 @@
+/* Controls tab (card 24), compact grid with the colour pass. #1c1c1e tiles, 1 px border, the tile's own colour when on. */
+.controls-pv .ctG { display: grid; grid-template-columns: 62px 62px repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)) 44px; gap: 7px; height: 100%; transition: opacity .3s, filter .3s; }
+.controls-pv.is-off .ctG { opacity: .4; filter: saturate(.4); pointer-events: none; }
+.controls-pv .ctS { position: relative; grid-row: span 2; border-radius: 18px; background: #1c1c1e; box-shadow: inset 0 0 0 1px rgba(255,255,255,.07); overflow: hidden; cursor: ns-resize; touch-action: none; }
+.controls-pv .ctS .fl { position: absolute; left: 0; right: 0; bottom: 0; height: 0; transition: height calc(700ms * var(--halo-speed, 1)) var(--spring); }
+.controls-pv .ctS.drag .fl { transition: none; }
+.controls-pv .ctS[data-s="bri"] .fl { background: linear-gradient(0deg, #FF8A1E, #FFD60A); box-shadow: 0 0 24px rgba(255,200,40,.5); }
+.controls-pv .ctS[data-s="vol"] .fl { background: linear-gradient(0deg, #BF5AF2, #FF2FA3); box-shadow: 0 0 24px rgba(255,47,163,.5); }
+.controls-pv .ctS .pc { position: absolute; top: 10px; left: 0; right: 0; text-align: center; font-size: 13px; font-weight: 700; color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,.5); }
+.controls-pv .ctS .ic { position: absolute; bottom: 12px; left: 50%; width: 22px; height: 22px; margin-left: -11px; color: #fff; filter: drop-shadow(0 1px 4px rgba(0,0,0,.4)); }
+.controls-pv .ctT { position: relative; appearance: none; border: 0; text-align: left; color: inherit; font: inherit; min-width: 0; border-radius: 16px; padding: 9px 11px; background: #1c1c1e; box-shadow: inset 0 0 0 1px rgba(255,255,255,.07); cursor: pointer; transition: transform .35s var(--spring), background .35s, box-shadow .35s; }
+.controls-pv .ctT:active:not(.na) { transform: scale(.96); }
+.controls-pv .ctT .ib { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: #3a3a3e; color: var(--c); transition: background .25s, box-shadow .25s; }
+.controls-pv .ctT .ib svg { width: 14px; height: 14px; }
+.controls-pv .ctT b { display: block; font-size: 13px; font-weight: 700; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.controls-pv .ctT span:not(.ib):not(.caps) { display: block; font-size: 11px; color: #a4a4ac; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.controls-pv .ctT.on { background: linear-gradient(160deg, color-mix(in srgb, var(--c) 55%, #1c1c1e), color-mix(in srgb, var(--c) 18%, #1c1c1e)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 60%, transparent), 0 10px 24px -12px var(--c); }
+.controls-pv .ctT.on .ib { background: #fff; color: var(--c); box-shadow: 0 0 14px -2px rgba(255,255,255,.6); }
+.controls-pv .ctT.on span:not(.ib):not(.caps) { color: #fff; opacity: .9; }
+.controls-pv .ctT.na { cursor: default; }
+.controls-pv .ctT.na:not(.on) { opacity: .6; }
+.controls-pv .ctBat { background: linear-gradient(160deg, #0d3b1c, #14301f); box-shadow: inset 0 0 0 1px rgba(48,209,88,.35); cursor: default; }
+.controls-pv .ctBat .caps { color: #7dffa0; display: block; }
+.controls-pv .ctBat .v { font-size: 21px; font-weight: 700; margin-top: 2px; color: #30D158; }
+.controls-pv .ctBat .cells { display: flex; gap: 2px; margin-top: 5px; }
+.controls-pv .ctBat .cells i { flex: 1; height: 8px; border-radius: 2px; background: #3a3a3e; }
+.controls-pv .ctBat .cells i.on { background: #30D158; }
+.controls-pv .ctBat span:not(.caps) { display: block; margin-top: 4px; font-size: 11px; color: #b6f5c6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.controls-pv .ctPM { grid-column: span 3; position: relative; display: grid; grid-template-columns: repeat(3, 1fr); padding: 4px; border-radius: 14px; background: #1c1c1e; box-shadow: inset 0 0 0 1px rgba(255,255,255,.07); }
+.controls-pv .ctPM .k { position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc((100% - 8px) / 3); border-radius: 10px; background: var(--pmc, #0A84FF); box-shadow: 0 0 16px -2px var(--pmc, #0A84FF); transition: transform calc(450ms * var(--halo-speed, 1)) var(--spring), background .3s, box-shadow .3s, opacity .2s; }
+.controls-pv .ctPM button { position: relative; z-index: 1; border: 0; background: none; color: #a4a4ac; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.controls-pv .ctPM button.on { color: #fff; }
+.controls-pv .ctOut { grid-column: span 2; display: flex; align-items: center; gap: 9px; padding: 0 12px 0 8px; border-radius: 14px; min-width: 0; background: linear-gradient(120deg, #0b3d7a, #1c1c1e 75%); box-shadow: inset 0 0 0 1px rgba(10,132,255,.4); }
+.controls-pv .ctOut .ib { flex: none; width: 28px; height: 28px; border-radius: 9px; background: #0A84FF; display: grid; place-items: center; }
+.controls-pv .ctOut .ib svg { width: 15px; height: 15px; }
+.controls-pv .ctOut > div { min-width: 0; }
+.controls-pv .ctOut b { display: block; font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.controls-pv .ctOut span:not(.ib) { display: block; font-size: 11px; color: #a4a4ac; }
+.controls-pv .ctOff { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 22px; border-radius: 20px; text-align: center; background: rgba(20,20,24,.92); box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), 0 14px 40px rgba(0,0,0,.6); }
+.controls-pv .ctOff[hidden] { display: none; }
+.controls-pv .ctOff b { font-size: 15px; font-weight: 700; }
+.controls-pv .ctOff span { font-size: 13px; color: #a4a4ac; }
+.controls-pv .ctOff button { margin-top: 6px; appearance: none; border: 0; height: 28px; padding: 0 14px; border-radius: 999px; font-size: 13px; font-weight: 700; cursor: pointer; color: #000; background: #fff; }
+@media (prefers-reduced-motion: reduce) { .controls-pv .ctS .fl, .controls-pv .ctT, .controls-pv .ctPM .k { transition: none; } }

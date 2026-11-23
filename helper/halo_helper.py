@@ -497,6 +497,10 @@ class LaunchBody(BaseModel):
     id: str = Field(min_length=1, max_length=300)
 
 
+class UrlBody(BaseModel):
+    url: str = Field(min_length=1, max_length=2000)
+
+
 class PowerBody(BaseModel):
     mode: str = Field(pattern="^(battery|balanced|performance)$")
 
@@ -759,6 +763,19 @@ def resolve_start_app(app_id: str, roots: list) -> str:
     raise Unavailable("That app is not in the Start menu any more.")
 
 
+def launch_url(url: str) -> dict:
+    """Open a web address in the default browser. Only http and https, so nothing else can be started this way."""
+    from urllib.parse import urlparse
+
+    u = urlparse(url)
+    if u.scheme not in ("http", "https") or not u.netloc:
+        raise Unavailable("Halo only opens web addresses that start with http or https.")
+    import webbrowser
+
+    webbrowser.open(url)
+    return {"ok": True}
+
+
 def launch_app(app_id: str) -> dict:
     if not IS_WINDOWS:
         raise Unavailable("Opening apps only works on Windows.")
@@ -917,6 +934,10 @@ def create_app(token: str, media: Optional[Media] = None, poll_seconds: float = 
     @app.post("/launch/app")
     async def launch_app_post(body: LaunchBody):
         return await _guard(launch_app, body.id)
+
+    @app.post("/launch/url")
+    async def launch_url_post(body: UrlBody):
+        return await _guard(launch_url, body.url)
 
     @app.get("/battery")
     async def battery_get():

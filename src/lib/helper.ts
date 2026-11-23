@@ -97,6 +97,40 @@ export async function copyClipboardItem(id: string): Promise<boolean> {
   return (await call(`/clipboard/${encodeURIComponent(id)}/copy`, { method: 'POST' })) !== null
 }
 
+// ---- Card 24: Music, Controls, Audio and Launch ------------------------------
+const get = async <T>(path: string): Promise<T | null> => { const r = await call(path); try { return r ? ((await r.json()) as T) : null } catch { return null } }
+const post = async <T>(path: string, body?: unknown): Promise<T | null> => { const r = await call(path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) }); try { return r ? ((await r.json()) as T) : null } catch { return null } }
+
+/** The helper is there and the page has its token. False on the phone, or with the helper off. */
+export async function helperUp(): Promise<boolean> { return (await get<{ ok: boolean }>('/status'))?.ok === true }
+
+export const seekMedia = (seconds: number) => post('/media/seek', { seconds })
+export const setMuted = (muted?: boolean) => post<Volume>('/mute', muted === undefined ? undefined : { muted })
+export const getBrightness = () => get<{ level: number }>('/brightness')
+export const setBrightness = (level: number) => post<{ level: number }>('/brightness', { level: Math.round(level) })
+export interface Wifi { enabled: boolean; connected: boolean; ssid: string | null }
+export interface Bluetooth { enabled: boolean; connected_device: string | null }
+export const getWifi = () => get<Wifi>('/wifi')
+export const setWifi = (enabled: boolean) => post<Wifi>('/wifi', { enabled })
+export const getBluetooth = () => get<Bluetooth>('/bluetooth')
+export const setBluetooth = (enabled: boolean) => post<Bluetooth>('/bluetooth', { enabled })
+export type PowerMode = 'battery' | 'balanced' | 'performance'
+export const getPowerMode = () => get<{ mode: PowerMode }>('/power-mode')
+export const setPowerMode = (mode: PowerMode) => post<{ mode: PowerMode }>('/power-mode', { mode })
+
+export interface AppVolume { id: string; name: string; level: number; muted: boolean }
+export const getAppVolumes = () => get<{ apps: AppVolume[] }>('/apps/volume')
+export const setAppVolume = (id: string, level: number) => post<{ apps: AppVolume[] }>(`/apps/volume/${encodeURIComponent(id)}`, { level: Math.round(level) })
+export interface MicState { muted: boolean; level: number }
+export const getMic = () => get<MicState>('/mic')
+export const setMicMuted = (muted?: boolean) => post<MicState>('/mic/mute', muted === undefined ? undefined : { muted })
+export interface Output { name: string; kind: 'speakers' | 'headphones' | 'monitor'; current: boolean }
+export const getOutputs = () => get<{ current: string; outputs: Output[] }>('/outputs')
+export interface StartApp { id: string; name: string }
+export const getStartApps = () => get<{ apps: StartApp[] }>('/launch/apps')
+export const launchUrl = async (url: string): Promise<boolean> => (await post('/launch/url', { url })) !== null
+export const launchStartApp = async (id: string): Promise<boolean> => (await post('/launch/app', { id })) !== null
+
 // Other parts of the page (the Shelf tab) hear the helper's events too, without opening a second stream.
 type Listener = (name: string, data: unknown) => void
 const listeners = new Set<Listener>()

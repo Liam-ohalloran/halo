@@ -35,6 +35,10 @@ import { isEmbed } from '../lib/embed'
 import { attachDesktop, isDesktop } from '../lib/desktop'
 import { EmbedShell } from './EmbedShell'
 import { Shell, type ShellHandle } from './Shell'
+import { MusicPanel } from '../panels/music'
+import { ControlsPanel } from '../panels/controls'
+import { AudioPanel } from '../panels/audio'
+import { LaunchPanel } from '../panels/launch'
 import { SettingsPanel, type Account } from './Settings'
 import { parseTab, type TabId as ShellTabId } from '../styles/tabs'
 import type { Backend } from '../types'
@@ -395,6 +399,10 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   let nightPanel: ReturnType<typeof NightPanel> | null = null
   let shelfPanel: ReturnType<typeof ShelfPanel> | null = null
   let widgetsPanel: ReturnType<typeof WidgetsPanel> | null = null
+  let musicPanel: ReturnType<typeof MusicPanel> | null = null
+  let controlsPanel: ReturnType<typeof ControlsPanel> | null = null
+  let audioPanel: ReturnType<typeof AudioPanel> | null = null
+  let launchPanel: ReturnType<typeof LaunchPanel> | null = null
   panelFor = (id) => {
     if (id === 'money') return (moneyPanel ??= MoneyPanel(api, clock))
     if (id === 'marks') return (marksPanel ??= MarksPanel(api, clock))
@@ -403,6 +411,10 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     if (id === 'shelf') return (shelfPanel ??= ShelfPanel(api))
     if (id === 'widgets') return (widgetsPanel ??= WidgetsPanel(api, o.home ?? liveSources, clock))
     if (id === 'alerts' && alertsStore) return (alertsPanel ??= AlertsPanel(alertsStore, clock))
+    if (id === 'music') return (musicPanel ??= MusicPanel())
+    if (id === 'controls') return (controlsPanel ??= ControlsPanel())
+    if (id === 'audio') return (audioPanel ??= AudioPanel())
+    if (id === 'launch') return (launchPanel ??= LaunchPanel(api))
     if (id === 'week') return (weekPanel ??= WeekPanel(api, (cb) => { weekListeners.add(cb); return () => weekListeners.delete(cb) }, clock))
     const p = toPanel(id)
     if (p) return getPanel(p)
@@ -659,7 +671,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   void loadPrefs()
 
   return () => {
-    stop(); ro.disconnect(); unsub(); unsubTimer(); stopEvents?.(); live?.destroy(); if (artUrl) URL.revokeObjectURL(artUrl); payPanel?.destroy(); alertsPanel?.destroy(); moneyPanel?.destroy(); marksPanel?.destroy(); claudePanel?.destroy(); nightPanel?.destroy(); unsubNight(); shelfPanel?.destroy(); widgetsPanel?.destroy(); unsubAlerts?.(); banners?.destroy(); detachScroll?.(); detachDesktop?.(); settings?.destroy(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
+    stop(); ro.disconnect(); unsub(); unsubTimer(); stopEvents?.(); live?.destroy(); if (artUrl) URL.revokeObjectURL(artUrl); payPanel?.destroy(); alertsPanel?.destroy(); moneyPanel?.destroy(); marksPanel?.destroy(); claudePanel?.destroy(); nightPanel?.destroy(); unsubNight(); shelfPanel?.destroy(); widgetsPanel?.destroy(); unsubAlerts?.(); banners?.destroy(); detachScroll?.(); detachDesktop?.(); settings?.destroy(); musicPanel?.destroy(); controlsPanel?.destroy(); audioPanel?.destroy(); launchPanel?.destroy(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
     document.removeEventListener('pointerdown', onOutside)
     document.removeEventListener('visibilitychange', onVisible)
     removeEventListener('online', onOnline)

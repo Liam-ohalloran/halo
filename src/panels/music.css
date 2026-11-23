@@ -1,0 +1,39 @@
+/* Music tab (card 24), glass family. The blurred cover and two accent colours (--a1, --a2) from it fill the window. */
+.music-pv { --a1: #ff2fa3; --a2: #8b5cff; }
+.music-pv .muBg { position: absolute; inset: 0; border-radius: 22px; overflow: hidden; background: #0a0a10; }
+.music-pv .muBg i { position: absolute; inset: -40px; background-size: cover; background-position: center; filter: blur(calc(34px * var(--halo-blur, 1))) saturate(1.5); opacity: .8; transform: scale(1.2); transition: background-image .4s; }
+.music-pv.no-art .muBg i { background: radial-gradient(60% 80% at 20% 30%, var(--a1), transparent 70%), radial-gradient(60% 80% at 80% 80%, var(--a2), transparent 70%); opacity: .55; }
+.music-pv .muBg::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6,6,10,.3), rgba(6,6,10,.62)); }
+.music-pv .muG { position: relative; height: 100%; display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 18px; align-items: center; padding: 6px 14px; }
+.music-pv .muG[hidden], .music-pv .muState[hidden] { display: none; }
+.music-pv .muArt { position: relative; width: 150px; height: 150px; border-radius: 24px; background: #1c1c1e center / cover; box-shadow: 0 18px 36px -12px var(--a1), inset 0 0 0 1px rgba(255,255,255,.2); transition: transform .5s var(--spring), box-shadow .4s; }
+.music-pv.paused .muArt { transform: scale(.94); }
+.music-pv .muArt .src { position: absolute; right: -6px; bottom: -6px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: #000; box-shadow: 0 0 0 2px rgba(255,255,255,.18); color: #fff; }
+.music-pv .muInfo { min-width: 0; display: flex; flex-direction: column; gap: 9px; }
+.music-pv .muInfo .caps { display: block; color: rgba(255,255,255,.8); font-size: 9px; }
+.music-pv h2 { margin: 4px 0 0; font-size: 21px; font-weight: 700; line-height: 1.1; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.music-pv .muInfo p { margin: 3px 0 0; font-size: 15px; font-weight: 500; color: rgba(255,255,255,.72); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.music-pv .muWave svg { display: block; width: 100%; height: 18px; cursor: pointer; overflow: visible; }
+.music-pv .muWave .tm { display: flex; justify-content: space-between; margin-top: 3px; font-size: 11px; font-weight: 600; color: rgba(255,255,255,.7); }
+.music-pv .muCtl { display: flex; align-items: center; gap: 8px; }
+.music-pv .muCtl button { appearance: none; border: 0; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; color: #fff; background: rgba(255,255,255,.14); box-shadow: inset 0 0 0 1px rgba(255,255,255,.2); transition: transform .35s var(--spring), background .2s; }
+.music-pv .muCtl button svg { width: 18px; height: 18px; }
+.music-pv .muCtl button:hover { background: rgba(255,255,255,.24); }
+.music-pv .muCtl button:active { transform: scale(.92); }
+.music-pv .muCtl button.big { width: 48px; height: 48px; background: #fff; color: #000; box-shadow: 0 8px 22px -6px var(--a1); }
+.music-pv .muCtl button.big svg { width: 22px; height: 22px; }
+.music-pv .muVol { margin-left: auto; display: flex; align-items: center; gap: 7px; color: rgba(255,255,255,.8); }
+.music-pv .muVol svg { width: 16px; height: 16px; flex: none; }
+.music-pv .muVol b { width: 26px; text-align: right; font-size: 11px; font-weight: 600; }
+.music-pv .muVol input { -webkit-appearance: none; appearance: none; width: 84px; height: 20px; background: transparent; cursor: pointer; --p: 50%; }
+.music-pv .muVol input::-webkit-slider-runnable-track { height: 5px; border-radius: 999px; background: linear-gradient(90deg, #fff var(--p), rgba(255,255,255,.25) var(--p)); }
+.music-pv .muVol input::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -4.5px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.5); }
+.music-pv .muState { position: relative; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; padding: 0 40px; }
+.music-pv .muState .ico { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,.12); box-shadow: inset 0 0 0 1px rgba(255,255,255,.2); }
+.music-pv .muState .ico svg { width: 20px; height: 20px; }
+.music-pv .muState b { font-size: 17px; font-weight: 700; }
+.music-pv .muState span:not(.ico) { font-size: 13px; color: rgba(255,255,255,.7); }
+.music-pv .muState button { margin-top: 6px; appearance: none; border: 0; height: 30px; padding: 0 16px; border-radius: 999px; font-size: 13px; font-weight: 700; cursor: pointer; color: #000; background: #fff; transition: transform .3s var(--spring); }
+.music-pv .muState button:active { transform: scale(.95); }
+.music-pv .muState button[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { .music-pv .muArt, .music-pv .muCtl button { transition: none; } }

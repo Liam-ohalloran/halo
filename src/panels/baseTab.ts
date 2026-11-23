@@ -50,7 +50,7 @@ export function BaseTab(o: BaseTabOptions): BaseTabHandle {
   el.setAttribute('aria-label', 'Base')
   el.innerHTML = `
     <div class="bt-photo" aria-hidden="true"></div>
-    <div class="bt-clock num" aria-hidden="true" data-audit-skip><span class="bt-h"></span><span class="bt-c">:</span><span class="bt-m"></span></div>
+    <div class="bt-clock num" aria-hidden="true" data-audit-skip><span class="bt-ci"><span class="bt-h"></span><span class="bt-c">:</span><span class="bt-m"></span></span></div>
     <div class="bt-front" aria-hidden="true"></div>
     <div class="bt-shade" aria-hidden="true"></div>
     <div class="bt-date"><span></span></div>
@@ -141,9 +141,25 @@ export function BaseTab(o: BaseTabOptions): BaseTabHandle {
 
   // ---- Time. The clock, date and sun move on the minute.
   let timeKey = ''
+  // The clock is 146 px for three digits. Four digits (10:00 to 12:59) are wider, so the size is measured and scaled down until the
+  // text fits between the left column and the weather card. The top stays put, so the peaks still cover the bottom of the digits.
+  const clockBox = $<HTMLElement>('.bt-clock')
+  const clockInner = $<HTMLElement>('.bt-ci')
+  const CLOCK_PX = 146, CLOCK_ROOM = 320
+  let sizedFor = ''
+  function fitClock(digits: string) {
+    if (sizedFor === digits) return
+    clockBox.style.fontSize = `${CLOCK_PX}px`
+    const w = clockInner.getBoundingClientRect().width
+    if (!w) return // not laid out yet, tried again on the next tick
+    sizedFor = digits
+    const px = w > CLOCK_ROOM ? Math.floor((CLOCK_PX * CLOCK_ROOM) / w) : CLOCK_PX
+    if (px !== CLOCK_PX) clockBox.style.fontSize = `${px}px`
+  }
   function paintTime(now: Date) {
     const c = clockParts(now)
     set(hEl, c.h); set(mEl, c.m)
+    fitClock(`${c.h}${c.m}`.length === 4 && c.h.length === 2 ? '4' : '3')
     set(dateEl, dateLine(now))
     set(srEl, `${c.h}:${c.m}`)
     const key = `${c.h}:${c.m}`

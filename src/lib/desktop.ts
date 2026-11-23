@@ -1,11 +1,11 @@
 // Card 25: the bridge between the web code and the Halo desktop app (Tauri). Only active when the page is loaded with
 // ?desktop=1 (the app does this). In a normal browser every call here does nothing.
 //
-// The web code owns the size of the island. It tells the app through `halo.desktop.setSize()`, and the app resizes its
-// window to match, so the window never covers more than the island (plus a little room while it moves).
+// The window is made once, at startup, big enough for the open island plus the glow margin, and is never resized again.
+// The web code only tells the app which parts of it take the mouse (`set_regions`); the rest is click through.
 
 import { setHelperConnection } from './helper'
-import { CLOSE_SETTLE_MS, growOnly, layoutFor, openWindow, px, regionsIn, SETTLE_MS, shellTarget, stackBox, MOVE_MARGIN, type Box, type DesktopStyle, type IslandShape, type Layout } from './desktop-size'
+import { px, regionsFor, shellTarget, stackBox, windowSize, type DesktopStyle, type IslandShape, type Layout } from './desktop-size'
 
 interface TauriGlobal {
   core: { invoke: <T = unknown>(cmd: string, args?: Record<string, unknown>) => Promise<T> }
@@ -40,7 +40,7 @@ export interface DesktopState {
 }
 
 export interface DesktopBridge {
-  /** Tell the app the island's size in px. The window follows. `r` is the bottom corner radius. */
+  /** Tell the app the island's size in px. Only the click through regions follow, the window stays as it is. `r` is the bottom corner radius. */
   setSize(w: number, h: number, r?: number): void
   /** Let the window take keyboard focus (open island, sign-in) or not (a closed island never steals focus). */
   setFocusable(on: boolean): void
@@ -56,24 +56,26 @@ const call = (cmd: string, args?: Record<string, unknown>): Promise<unknown> => 
 
 let style: DesktopStyle = 'notch'
 let layout: Layout = { island: { w: 200, h: 34, r: 17 }, stack: null }
-let applied: Box = { w: 0, h: 0 }
-let settleT = 0
+let regionsKey = ''
 
-function send(win: Box, regions: unknown) {
-  applied = win
+/** Make the window, once: its full size for the whole life of the app, with the regions for the current shape. */
+function sendWindow(regions: unknown) {
+  const win = windowSize()
+  regionsKey = JSON.stringify(regions)
   void call('set_island', { winW: win.w, winH: win.h, regions })
+}
+
+/** Only ever the click through regions. Never the window. */
+function setRegions(regions: unknown) {
+  const k = JSON.stringify(regions)
+  if (k === regionsKey) return
+  regionsKey = k
+  void call('set_regions', { regions })
 }
 
 function apply(l: Layout) {
   layout = l
-  const exact = layoutFor(l, style)
-  // Grow now (with room for the spring), shrink once the island has been still for a moment.
-  const moving = layoutFor(l, style, MOVE_MARGIN)
-  const win = growOnly(applied, moving.win)
-  if (win.w !== applied.w || win.h !== applied.h) send(win, moving.regions)
-  else void call('set_regions', { regions: exact.regions })
-  clearTimeout(settleT)
-  settleT = window.setTimeout(() => send(exact.win, exact.regions), SETTLE_MS)
+  setRegions(regionsFor(l, style))
 }
 
 export const bridge: DesktopBridge = {
@@ -113,49 +115,18 @@ export function attachDesktop(sh: ShellLike): () => void {
     return shellTarget(el.dataset.open === 'true', v('--cw', 200), v('--ch', 34), v('--cr', 17))
   }
   let lastOpen = el.dataset.open === 'true'
-  let regionsKey = ''
-  const setRegions = (regions: unknown) => {
-    const k = JSON.stringify(regions)
-    if (k === regionsKey) return
-    regionsKey = k
-    void call('set_regions', { regions })
-  }
   const fit = () => {
     const open = el.dataset.open === 'true'
     if (open !== lastOpen) { lastOpen = open; bridge.setFocusable(open) }
-    if (open) {
-      // Open: the window is its full size and stays that size, however the island moves inside it. Only on opening does
-      // it grow (once, before the animation), and the regions say where the mouse is caught.
-      clearTimeout(settleT)
-      const w = openWindow(style)
-      if (applied.w !== w.win.w || applied.h !== w.win.h) { regionsKey = JSON.stringify(w.regions); send(w.win, w.regions) }
-      else setRegions(w.regions)
-      return
-    }
-    const nst = el.querySelector('.nst')
+    // Open or closed the window is the same. The regions follow the island's end shape at once, so a closing island
+    // lets the mouse through where it used to be while it is still shrinking.
+    const nst = open ? null : el.querySelector('.nst')
     const count = nst && nst.classList.contains('on') ? Number((nst as HTMLElement).style.getPropertyValue('--n') || 0) : 0
-    const l = { island: island(), stack: stackBox(count, !!nst?.classList.contains('fan')), charge: el.dataset.live === 'charge' }
-    if (closing) {
-      // Just closed: the island is shrinking inside the big window. Leave the window alone until that has finished, then
-      // take it down to the closed size. Meanwhile the regions already follow the closed shape.
-      setRegions(regionsIn(applied, l, style))
-      clearTimeout(settleT)
-      settleT = window.setTimeout(() => { closing = false; layout = l; const exact = layoutFor(l, style); regionsKey = JSON.stringify(exact.regions); send(exact.win, exact.regions) }, CLOSE_SETTLE_MS)
-      return
-    }
-    layout = l
-    apply(l)
+    apply({ island: island(), stack: stackBox(count, !!nst?.classList.contains('fan')), charge: el.dataset.live === 'charge' })
   }
-  let closing = false
   // Watch the island itself, and its stack of alert pills, for a change of state or size. Not what is inside the open
   // panels: a tab switch changes hundreds of styles in there and none of them is the window's business.
-  const mo = new MutationObserver((list) => {
-    const open = el.dataset.open === 'true'
-    if (lastOpen && !open) closing = true
-    else if (open) closing = false
-    void list
-    fit()
-  })
+  const mo = new MutationObserver(fit)
   const watchAttrs = { attributes: true, attributeFilter: ['data-open', 'data-collapsed', 'data-size', 'data-live', 'style', 'class'] }
   mo.observe(el, watchAttrs)
   let nstSeen: Element | null = null
@@ -172,9 +143,11 @@ export function attachDesktop(sh: ShellLike): () => void {
   const applyStyle = (s: DesktopStyle) => {
     style = s
     document.documentElement.dataset.deskStyle = s
-    applied = { w: 0, h: 0 } // force a send
+    regionsKey = '' // the shape moved (8 px gap in Island style), so say so. The window stays as it is.
     fit()
   }
+  // The one and only time the window is sized: now, at startup, before anything shows.
+  sendWindow(regionsFor(layout, style))
   bridge.setFocusable(lastOpen) // a closed island never takes the keyboard (sign-in had it)
   void bridge.state().then((st) => { if (st) applyStyle(st.style); else fit() })
 
@@ -205,7 +178,7 @@ export function attachDesktop(sh: ShellLike): () => void {
 /** A fixed size for screens that are not the island (the sign-in card). Takes keyboard focus. */
 export function sizeForScreen(w: number, h: number) {
   installBridge()
-  applied = { w, h }
+  regionsKey = ''
   void call('set_island', { winW: w, winH: h, regions: [{ x: 0, y: 0, w, h, rt: 0, rb: 26 }] })
   bridge.setFocusable(true)
 }

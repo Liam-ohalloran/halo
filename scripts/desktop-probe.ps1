@@ -41,7 +41,7 @@ Check ($f.topmost) 'always on top'
 Check ($f.through) 'click through while the pointer is away'
 Check ([math]::Abs((($r.L + $r.R) / 2) - $screen.Width / 2) -le 2) 'centred on the screen'
 Check ($r.T -eq 0 -or $r.T -le 12) 'at the top edge'
-Check ($h0 -le 60 * $scale -and $w0 -le 460 * $scale) 'window is only as big as the closed island (at most 460 x 60 css px)'
+Check ($w0 -ge (600 + 2 * 24) * $scale -and $h0 -ge (290 + 24) * $scale) 'window is made once at the full open size plus the 24 px glow margin'
 Shot 'closed'
 
 # A point in the window but outside the island shape (the ear margin) must still be click through.
@@ -55,14 +55,17 @@ Check (-not (Flags).through) 'the island takes the mouse while the pointer is on
 Start-Sleep -Milliseconds 1800
 $r = Rect; $wo = $r.R - $r.L; $ho = $r.B - $r.T
 Write-Host "open window: $wo x $ho"
-Check ($wo -ge 600 * $scale -and $ho -ge 290 * $scale) 'hover opens the window to 600 x 290'
-Check ($wo -le 700 * $scale -and $ho -le 340 * $scale) 'open window is not much bigger than the island'
+Check ($wo -eq $w0 -and $ho -eq $h0) 'hover opens the island without resizing the window'
 Shot 'open'
 
-# Leaving closes it again and the window shrinks back
+# Leaving closes it again. The window does not change size (that was the closing glitch).
 MovePointer 200 700; Start-Sleep -Milliseconds 3200
 $r = Rect
-Check ((($r.R - $r.L) -le 460 * $scale) -and (($r.B - $r.T) -le 60 * $scale)) 'moving away closes it and the window shrinks back'
+Check ((($r.R - $r.L) -eq $w0) -and (($r.B - $r.T) -eq $h0)) 'moving away closes it and the window stays the same size'
+Check ($r.T -le 12 -and [math]::Abs((($r.L + $r.R) / 2) - $screen.Width / 2) -le 2) 'still top centre after closing'
+# Everything outside the island is click through, even the bottom of the big window.
+MovePointer $cx ($r.B - 4); Start-Sleep -Milliseconds 400
+Check ((Flags).through) 'the empty space under the closed island is click through'
 Check ((Flags).through) 'click through again once closed'
 Shot 'closed-again'
 

@@ -21,6 +21,12 @@ export const isWinNote = (d: unknown): d is WinNote => {
   return !!n && typeof n.id === 'string' && typeof n.type === 'string' && typeof n.title === 'string' && typeof n.body === 'string'
 }
 
+/** Phone Link's toasts come from the phone, everything else from a Windows app (card 27 lets each be switched off). */
+export const noteSource = (d: unknown): 'phone' | 'windows' => {
+  const n = d as Partial<WinNote> | null
+  return /phone link|your phone|link to windows/i.test(`${n?.app ?? ''} ${n?.body ?? ''}`) ? 'phone' : 'windows'
+}
+
 export function toAlertRow(n: WinNote, now: Date = new Date()): AlertRow {
   return { id: n.id, type: n.type, title: n.title.slice(0, 80), body: n.body.slice(0, 160), action_label: null, action_url: null, created_at: now.toISOString(), read_at: null }
 }

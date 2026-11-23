@@ -37,6 +37,9 @@ export interface DesktopState {
   monitors: string[]
   paused: boolean
   autostart: boolean
+  /** The shortcut that opens and closes the island, and the ones that can be chosen (card 27). Older builds of the app have neither. */
+  hotkey?: string
+  hotkeys?: string[]
 }
 
 export interface DesktopBridge {
@@ -48,6 +51,7 @@ export interface DesktopBridge {
   setStyle(style: DesktopStyle): void
   setMonitor(name: string | null): void
   setAutostart(on: boolean): void
+  setHotkey(label: string): void
   pauseForAnHour(): void
   quit(): void
 }
@@ -85,6 +89,7 @@ export const bridge: DesktopBridge = {
   setStyle: (s) => void call('set_style', { style: s }),
   setMonitor: (name) => void call('set_monitor', { name }),
   setAutostart: (on) => void call('set_autostart', { on }),
+  setHotkey: (label) => void call('set_hotkey', { label }),
   pauseForAnHour: () => void call('pause_for_hour'),
   quit: () => void call('quit'),
 }

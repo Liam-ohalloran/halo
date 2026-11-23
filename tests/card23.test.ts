@@ -1,54 +1,62 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { PINNED, mergeTheme, moveTab, normalisePrefs, samePrefs, themeTabs, toggleHidden, visibleIds } from '../src/lib/tabprefs.ts'
+import { ALWAYS_PINNED, DEFAULT_PINNED, MAX_PINNED, NEVER_PINNED, canPinMore, mergeTheme, moreIds, movePinnedTo, moveTab, normalisePrefs, samePrefs, themeTabs, togglePin } from '../src/lib/tabprefs.ts'
 import { SLEEP_H, clock12, clockPm, createNightMode, eveningOf, isMuted, planNight, tickCards, untilLabel } from '../src/lib/night.ts'
 import { DEFAULT_ORDER } from '../src/styles/tabs.ts'
 
-test('tab prefs: nothing saved gives the default order with nothing hidden', () => {
+test('tab prefs: nothing saved gives the default pinned tabs', () => {
   const p = normalisePrefs(null, DEFAULT_ORDER)
-  assert.deepEqual(p.order, DEFAULT_ORDER)
-  assert.deepEqual(p.hidden, [])
-  assert.deepEqual(normalisePrefs('nonsense', DEFAULT_ORDER).order, DEFAULT_ORDER)
-  assert.deepEqual(normalisePrefs({ order: 5, hidden: 'x' }, DEFAULT_ORDER), { order: DEFAULT_ORDER, hidden: [] })
+  assert.deepEqual(p.pinned, DEFAULT_PINNED)
+  assert.deepEqual(p.pinned, ['home', 'week', 'pay', 'study', 'music', 'sixers', 'alerts'])
+  assert.deepEqual(normalisePrefs('nonsense', DEFAULT_ORDER).pinned, DEFAULT_PINNED)
+  assert.deepEqual(normalisePrefs({ pinned: 5 }, DEFAULT_ORDER).pinned, DEFAULT_PINNED)
+  // A save from before card 27 (an order and a hidden list, no pinned list) starts from the defaults.
+  assert.deepEqual(normalisePrefs({ order: [...DEFAULT_ORDER].reverse(), hidden: ['money'] }, DEFAULT_ORDER).pinned, DEFAULT_PINNED)
 })
 
-test('tab prefs: unknown ids are dropped, duplicates collapse, pinned tabs cannot be hidden', () => {
-  const p = normalisePrefs({ order: ['pay', 'ghost', 'pay', 'home'], hidden: ['ghost', 'home', 'more', 'money', 'money'] }, DEFAULT_ORDER)
-  assert.equal(p.order.filter((x) => x === 'pay').length, 1)
-  assert.ok(!p.order.includes('ghost'))
-  assert.equal(p.order.length, DEFAULT_ORDER.length, 'every tab is still there')
-  assert.deepEqual(p.hidden, ['money'])
+test('tab prefs: unknown ids and duplicates are dropped, Home is always there, More is never pinned, nine becomes eight', () => {
+  const p = normalisePrefs({ pinned: ['pay', 'ghost', 'pay', 'more', 'music'] }, DEFAULT_ORDER)
+  assert.deepEqual(p.pinned, ['home', 'pay', 'music'], 'Home is put back at the front')
+  const nine = normalisePrefs({ pinned: ['home', 'week', 'pay', 'study', 'music', 'sixers', 'alerts', 'money', 'marks', 'claude'] }, DEFAULT_ORDER)
+  assert.equal(nine.pinned.length, MAX_PINNED)
+  assert.deepEqual(normalisePrefs({ pinned: [] }, DEFAULT_ORDER).pinned, ['home'])
 })
 
-test('tab prefs: a tab added later slots in after its default neighbour', () => {
-  // An old save from before Night existed.
-  const old = DEFAULT_ORDER.filter((x) => x !== 'night')
-  const p = normalisePrefs({ order: old }, DEFAULT_ORDER)
-  assert.equal(p.order.indexOf('night'), p.order.indexOf('claude') + 1)
-  const reversed = normalisePrefs({ order: [...DEFAULT_ORDER].reverse() }, DEFAULT_ORDER)
-  assert.deepEqual(reversed.order, [...DEFAULT_ORDER].reverse(), 'a complete saved order is kept exactly')
-})
-
-test('tab prefs: move, hide and show', () => {
+test('tab prefs: pin, unpin and the limit of 8', () => {
   let p = normalisePrefs(null, DEFAULT_ORDER)
-  p = moveTab(p, 'pay', 1)
-  assert.deepEqual(p.order.slice(0, 3), ['home', 'week', 'pay'])
-  assert.equal(moveTab(p, 'home', -1), p, 'moving past the start does nothing')
-  assert.equal(moveTab(p, 'more', 1), p, 'moving past the end does nothing')
-  p = toggleHidden(p, 'money')
-  assert.ok(!visibleIds(p).includes('money'))
-  p = toggleHidden(p, 'money')
-  assert.ok(visibleIds(p).includes('money'))
-  for (const id of PINNED) assert.equal(toggleHidden(p, id), p)
-  assert.ok(samePrefs(p, { order: [...p.order], hidden: [] }))
+  assert.deepEqual(moreIds(p, DEFAULT_ORDER), ['money', 'controls', 'claude', 'night', 'marks', 'shelf', 'widgets'], 'everything else, in the default order, and More is the button so it is left out')
+  p = togglePin(p, 'money')
+  assert.equal(p.pinned.length, 8)
+  assert.ok(!canPinMore(p))
+  assert.equal(togglePin(p, 'marks'), p, 'a ninth cannot be pinned')
+  p = togglePin(p, 'pay')
+  assert.ok(!p.pinned.includes('pay') && canPinMore(p))
+  for (const id of ALWAYS_PINNED) assert.equal(togglePin(p, id), p, 'Home stays')
+  for (const id of NEVER_PINNED) assert.equal(togglePin(p, id), p, 'More never goes in')
+})
+
+test('tab prefs: drag to a new place, and the arrow keys move one place', () => {
+  let p = normalisePrefs(null, DEFAULT_ORDER)
+  p = movePinnedTo(p, 'alerts', 1)
+  assert.deepEqual(p.pinned.slice(0, 3), ['home', 'alerts', 'week'])
+  assert.equal(movePinnedTo(p, 'alerts', 1), p, 'dropping it where it is changes nothing')
+  assert.deepEqual(movePinnedTo(p, 'home', 99).pinned.at(-1), 'home', 'dropping past the end puts it last')
+  p = moveTab(normalisePrefs(null, DEFAULT_ORDER), 'pay', 1)
+  assert.deepEqual(p.pinned.slice(0, 4), ['home', 'week', 'study', 'pay'])
+  const q = normalisePrefs(null, DEFAULT_ORDER)
+  assert.equal(moveTab(q, 'home', -1), q, 'moving past the start does nothing')
+  assert.equal(moveTab(q, 'alerts', 1), q, 'moving past the end does nothing')
+  assert.ok(samePrefs(q, { pinned: [...q.pinned] }))
+  assert.ok(!samePrefs(q, p))
 })
 
 test('tab prefs: saved inside the settings theme without losing its other keys, and read back the same', () => {
-  const p = moveTab(toggleHidden(normalisePrefs(null, DEFAULT_ORDER), 'marks'), 'pay', 1)
-  const theme = mergeTheme({ accent: '#FFB547', tabs: 'old' }, p)
+  const p = movePinnedTo(togglePin(normalisePrefs(null, DEFAULT_ORDER), 'marks'), 'marks', 1)
+  const theme = mergeTheme({ accent: '#FFB547', tabs: 'old', ui: { glow: 50 } }, p)
   assert.equal(theme.accent, '#FFB547')
+  assert.deepEqual(theme.ui, { glow: 50 }, 'the Settings switches sit beside the tabs and are kept')
   assert.deepEqual(normalisePrefs(themeTabs(theme), DEFAULT_ORDER), p, 'a second device reads the same order')
-  assert.deepEqual(mergeTheme(null, p).tabs, { order: p.order, hidden: p.hidden })
+  assert.deepEqual(mergeTheme(null, p).tabs, { pinned: p.pinned })
   assert.equal(themeTabs(null), null)
   assert.equal(themeTabs({}), null)
 })

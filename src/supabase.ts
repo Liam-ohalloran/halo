@@ -2,6 +2,7 @@ import type { AlertRow, Backend, Settings, Shift, StudySession, Test } from './t
 import { DEFAULT_SETTINGS } from './types'
 import { DEFAULT_COUNTDOWNS } from './lib/widgets'
 import { mergeTheme, themeTabs } from './lib/tabprefs'
+import { mergeUi, themeUi } from './lib/ui-settings'
 import { safeFileName } from './lib/shelf'
 import type { ShelfItem } from './lib/shelf'
 import type { TaskRun } from './lib/claude'
@@ -212,6 +213,19 @@ export const supabaseBackend: Backend = {
     // Read the theme first so any other key in it is kept, then write the tab prefs back into it.
     const cur = must(await supabase.from('settings').select('theme').maybeSingle()) as { theme?: unknown } | null
     const res = await supabase.from('settings').upsert({ owner_id: uid, theme: mergeTheme(cur?.theme, p), updated_at: new Date().toISOString() })
+    if (res.error) throw new Error(res.error.message)
+  },
+
+  async uiSettings() {
+    const row = must(await supabase.from('settings').select('theme').maybeSingle()) as { theme?: unknown } | null
+    return themeUi(row?.theme)
+  },
+  async saveUiSettings(s) {
+    const { data: u } = await supabase.auth.getUser()
+    const uid = u.user?.id
+    if (!uid) throw new Error('Not signed in')
+    const cur = must(await supabase.from('settings').select('theme').maybeSingle()) as { theme?: unknown } | null
+    const res = await supabase.from('settings').upsert({ owner_id: uid, theme: mergeUi(cur?.theme, s), updated_at: new Date().toISOString() })
     if (res.error) throw new Error(res.error.message)
   },
 

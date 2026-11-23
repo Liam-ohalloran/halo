@@ -187,6 +187,23 @@ def test_clipboard_endpoints_need_the_token_and_list_clear_and_copy_again(monkey
         assert c.get("/clipboard", headers={"X-Halo-Token": "tok"}).json()["items"] == []
 
 
+def test_clipboard_history_can_be_switched_off_and_forgets_what_it_held():
+    seq = {"n": 1}
+    hist = x.ClipboardHistory(read=lambda: {"kind": "text", "text": f"copy {seq['n']}"}, sequence=lambda: seq["n"])
+    assert hist.poll().text == "copy 1"
+    with make(hist) as c:
+        hdr = {"X-Halo-Token": "tok"}
+        assert c.post("/clipboard/enabled", json={"on": False}).status_code == 401
+        assert c.post("/clipboard/enabled", json={"on": False}, headers=hdr).json() == {"enabled": False}
+        assert c.get("/clipboard", headers=hdr).json()["items"] == [], "switching it off clears what was kept"
+        seq["n"] = 2
+        assert hist.poll() is None, "while it is off nothing is kept"
+        assert c.post("/clipboard/enabled", json={"on": True}, headers=hdr).json() == {"enabled": True}
+        seq["n"] = 3
+        assert hist.poll().text == "copy 3", "and the copy made while it was off never comes back"
+        assert [i["text"] for i in c.get("/clipboard", headers=hdr).json()["items"]] == ["copy 3"]
+
+
 def test_notification_access_endpoints():
     with make() as c:
         assert c.get("/notifications/access").status_code == 401

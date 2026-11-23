@@ -16,15 +16,15 @@ import { chromium } from 'playwright'
 import { pathToFileURL } from 'node:url'
 
 export const ALL_TABS = ['home', 'music', 'study', 'pay', 'sixers', 'week', 'alerts', 'money', 'marks', 'claude', 'night', 'shelf', 'widgets', 'more', 'controls']
-export const DEFAULT_TABS = ['home', 'pay', 'study', 'week', 'alerts', 'money', 'marks', 'claude', 'night', 'shelf', 'widgets']
+export const DEFAULT_TABS = ['home', 'pay', 'study', 'week', 'alerts', 'money', 'marks', 'claude', 'night', 'shelf', 'widgets', 'more']
 /** The Week tab has its own fixtures: a normal week, and a busy one with clashes and a crowded EARLY row. */
 export const API_FOR = (tab, state) => (['money', 'marks', 'claude', 'night', 'shelf', 'widgets'].includes(tab) ? (state === 'busy' ? `${tab}many` : state === 'empty' ? `${tab}empty` : tab) : tab === 'week' && state !== 'empty' ? (state === 'busy' ? 'weekbusy' : 'week') : tab === 'alerts' ? (state === 'busy' ? 'alertsmany' : state === 'empty' ? 'alertsempty' : 'alerts') : state)
 
 /** Runs inside the page. Returns a list of problems. */
-export function auditInPage() {
-  const root = document.querySelector('.sh-body')
+export function auditInPage(rootSelector = '.sh-body') {
+  const root = document.querySelector(rootSelector)
   const problems = []
-  if (!root) return ['no .sh-body: the window is not open']
+  if (!root) return [`no ${rootSelector}: the window is not open`]
   const label = (el) => {
     const cls = typeof el.className === 'string' ? el.className.trim().split(/\s+/).slice(0, 2).join('.') : ''
     return `${el.tagName.toLowerCase()}${cls ? '.' + cls : ''} "${(el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 28)}"`
@@ -96,6 +96,20 @@ export function auditInPage() {
   return problems
 }
 
+/** Nothing in Settings scrolls: the section must fit its box. Runs inside the page. */
+export function settingsFit() {
+  const out = []
+  const m = document.querySelector('.st-main')
+  const s = document.querySelector('.st-sec:not([hidden])')
+  if (m && m.scrollHeight - m.clientHeight > 1) out.push(`scrolls: the section is ${m.scrollHeight}px in a ${m.clientHeight}px box`)
+  if (s && s.scrollHeight - s.clientHeight > 1) out.push(`scrolls: ${s.dataset.sec} is ${s.scrollHeight}px in ${s.clientHeight}px`)
+  for (const el of document.querySelectorAll('.st-sec:not([hidden]) *')) {
+    const b = el.getBoundingClientRect(), r = m.getBoundingClientRect()
+    if (b.width && (b.bottom > r.bottom + 1 || b.right > r.right + 1)) { out.push(`sticks out of the section: ${el.className} "${(el.textContent || '').trim().slice(0, 24)}"`); break }
+  }
+  return out
+}
+
 export async function checkTab(browser, base, tab, state) {
   const ctx = await browser.newContext({ viewport: { width: 760, height: 400 }, colorScheme: 'dark', reducedMotion: 'reduce' })
   const page = await ctx.newPage()
@@ -105,6 +119,28 @@ export async function checkTab(browser, base, tab, state) {
   await page.waitForSelector('.sh[data-open="true"] .sh-body > *')
   await page.waitForTimeout(1600)
   const problems = await page.evaluate(auditInPage)
+  // Card 27: Settings shows one section at a time, so every section is checked. So is the "•••" grid under the top bar.
+  if (tab === 'more') {
+    for (const sec of await page.locator('.st-nb').evaluateAll((bs) => bs.map((b) => b.dataset.sec))) {
+      await page.locator(`.st-nb[data-sec="${sec}"]`).click()
+      await page.waitForTimeout(150)
+      problems.push(...(await page.evaluate(auditInPage, '.st-main')).map((p) => `[${sec}] ${p}`))
+      problems.push(...(await page.evaluate(settingsFit)).map((p) => `[${sec}] ${p}`))
+    }
+    // The Laptop section only exists inside the desktop app (?desktop=1).
+    const dp = await ctx.newPage()
+    await dp.goto(`${base}?demo=soon&tab=more&open=1&desktop=1&api=more`)
+    await dp.waitForSelector('.sh[data-open="true"] .st')
+    await dp.locator('.st-nb[data-sec="laptop"]').click()
+    await dp.waitForTimeout(300)
+    problems.push(...(await dp.evaluate(auditInPage, '.st-main')).map((p) => `[laptop] ${p}`))
+    problems.push(...(await dp.evaluate(settingsFit)).map((p) => `[laptop] ${p}`))
+  }
+  if (tab === 'home') {
+    await page.locator('.sh-more-btn').click()
+    await page.waitForTimeout(350)
+    problems.push(...(await page.evaluate(auditInPage, '.sh-more')).map((p) => `[more grid] ${p}`))
+  }
   await ctx.close()
   return [...errors.map((e) => `page error: ${e}`), ...problems]
 }

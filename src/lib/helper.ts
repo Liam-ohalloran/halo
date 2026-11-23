@@ -79,7 +79,16 @@ export async function requestNotificationAccess(): Promise<string | null> {
 
 // ---- Clipboard history (card 26) --------------------------------------------
 export interface ClipItem { id: string; kind: 'text' | 'image'; text?: string; chars?: number; w?: number; h?: number; thumb?: string; at: number }
+let clipboardOn = true
+/** Card 27: switch the clipboard history on or off. Off, the helper stops keeping copies and forgets the ones it has. */
+export function setClipboardOn(on: boolean): void {
+  if (on === clipboardOn) return
+  clipboardOn = on
+  void call('/clipboard/enabled', { method: 'POST', body: JSON.stringify({ on }) })
+}
+export const clipboardEnabled = (): boolean => clipboardOn
 export async function getClipboard(): Promise<{ revision: number; items: ClipItem[] } | null> {
+  if (!clipboardOn) return null
   const r = await call('/clipboard')
   return r ? ((await r.json()) as { revision: number; items: ClipItem[] }) : null
 }

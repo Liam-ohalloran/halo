@@ -34,11 +34,40 @@ struct Config {
     monitor: Option<String>,
     /// The first run turns launch at startup on. After that the switch is Liam's.
     autostart_set: bool,
+    /// The shortcut Liam picked in Settings (card 27), by its label. None means the first free one.
+    #[serde(default)]
+    hotkey: Option<String>,
 }
 impl Default for Config {
     fn default() -> Self {
-        Config { style: "notch".into(), monitor: None, autostart_set: false }
+        Config { style: "notch".into(), monitor: None, autostart_set: false, hotkey: None }
     }
+}
+
+/// The shortcuts Halo can use to open and close the island, best first. Ctrl+Alt+Space is the first choice. If another app
+/// already owns one (on Liam's laptop two others do), the next free one is used, and Settings lets Liam try another.
+fn hotkey_table() -> [(Shortcut, &'static str); 4] {
+    [
+        (Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::Space), "Ctrl+Alt+Space"),
+        (Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::KeyH), "Ctrl+Alt+H"),
+        (Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT | Modifiers::SHIFT), Code::KeyH), "Ctrl+Alt+Shift+H"),
+        (Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::F9), "Ctrl+Alt+F9"),
+    ]
+}
+
+/// Drop every Halo shortcut and register the wanted one, or else the first that is free. Returns the label that ended up live.
+fn register_hotkey(app: &AppHandle, wanted: Option<&str>) -> Option<&'static str> {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+    let gs = app.global_shortcut();
+    let _ = gs.unregister_all();
+    let table = hotkey_table();
+    let first = wanted.and_then(|w| table.iter().find(|(_, n)| *n == w));
+    for (k, n) in first.into_iter().chain(table.iter()) {
+        if gs.register(*k).is_ok() {
+            return Some(*n);
+        }
+    }
+    None
 }
 
 struct Runtime {
@@ -60,6 +89,8 @@ struct AppState {
     rt: Mutex<Runtime>,
     /// A halo:// sign-in link that arrived before the page was ready to listen (Halo was started by the link).
     auth_url: Mutex<Option<String>>,
+    /// The label of the shortcut that is registered right now, if any shortcut could be.
+    hotkey: Mutex<Option<String>>,
 }
 
 fn config_path(app: &AppHandle) -> Option<std::path::PathBuf> {
@@ -195,13 +226,17 @@ struct DesktopState {
     monitors: Vec<String>,
     paused: bool,
     autostart: bool,
+    /// The shortcut that is live now (card 27), and the ones Settings can switch between.
+    hotkey: Option<String>,
+    hotkeys: Vec<String>,
 }
 
 fn snapshot(app: &AppHandle) -> DesktopState {
     let state = app.state::<AppState>();
     let cfg = state.cfg.lock().unwrap().clone();
     let paused = is_paused(&state.rt.lock().unwrap());
-    DesktopState { style: cfg.style, monitor: cfg.monitor, monitors: monitor_names(app), paused, autostart: app.autolaunch().is_enabled().unwrap_or(false) }
+    let hotkey = state.hotkey.lock().unwrap().clone();
+    DesktopState { style: cfg.style, monitor: cfg.monitor, monitors: monitor_names(app), paused, autostart: app.autolaunch().is_enabled().unwrap_or(false), hotkey, hotkeys: hotkey_table().iter().map(|(_, n)| n.to_string()).collect() }
 }
 
 #[tauri::command]
@@ -239,6 +274,18 @@ fn set_autostart(app: AppHandle, on: bool) {
     let al = app.autolaunch();
     let _ = if on { al.enable() } else { al.disable() };
     rebuild_tray(&app);
+}
+
+/// Card 27: pick the shortcut that opens and closes the island. Falls back to a free one when the pick is taken, and says which is live.
+#[tauri::command]
+fn set_hotkey(app: AppHandle, label: String) -> Option<String> {
+    let live = register_hotkey(&app, Some(&label)).map(|n| n.to_string());
+    *app.state::<AppState>().hotkey.lock().unwrap() = live.clone();
+    if let Some(tray) = app.tray_by_id("halo") {
+        let _ = tray.set_tooltip(Some(match &live { Some(n) => format!("Halo ({n})"), None => "Halo".to_string() }));
+    }
+    update_config(&app, |c| c.hotkey = live.clone());
+    live
 }
 
 #[tauri::command]
@@ -418,9 +465,6 @@ fn watch(app: AppHandle) {
 }
 
 pub fn run() {
-    // Ctrl+Alt+Space is the hotkey. If another app already owns it (on Liam's laptop two others do), the next one that is
-    // free is used instead, and the tray tooltip says which.
-    let hotkeys: [(Shortcut, &str); 4] = [(Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::Space), "Ctrl+Alt+Space"), (Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::KeyH), "Ctrl+Alt+H"), (Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT | Modifiers::SHIFT), Code::KeyH), "Ctrl+Alt+Shift+H"), (Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::F9), "Ctrl+Alt+F9")];
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             let _ = app.emit("halo-open", ());
@@ -438,10 +482,10 @@ pub fn run() {
                 .build(),
         )
         .invoke_handler(tauri::generate_handler![
-            set_island, set_regions, set_focusable, get_state, set_style, set_monitor, set_autostart, pause_for_hour, take_auth_url, helper::helper_info, quit
+            set_island, set_regions, set_focusable, get_state, set_style, set_monitor, set_autostart, set_hotkey, pause_for_hour, take_auth_url, helper::helper_info, quit
         ])
         .manage(helper::HelperState::default())
-        .setup(move |app| {
+        .setup(|app| {
             let handle = app.handle().clone();
             let cfg = load_config(&handle);
             app.manage(AppState {
@@ -459,6 +503,7 @@ pub fn run() {
                     placed: None,
                 }),
                 auth_url: Mutex::new(None),
+                hotkey: Mutex::new(None),
             });
 
             // halo:// links (the magic link email). The installer registers the scheme. A dev run registers it here.
@@ -486,7 +531,8 @@ pub fn run() {
                 save_config(&handle, &c);
                 *app.state::<AppState>().cfg.lock().unwrap() = c;
             }
-            let hotkey_label = hotkeys.iter().find(|(k, _)| app.global_shortcut_register(*k)).map(|(_, n)| *n);
+            let hotkey_label = register_hotkey(&handle, cfg.hotkey.as_deref());
+            *app.state::<AppState>().hotkey.lock().unwrap() = hotkey_label.map(|n| n.to_string());
 
             let menu = build_menu(&handle)?;
             let mut tray = TrayIconBuilder::with_id("halo").tooltip(match hotkey_label { Some(n) => format!("Halo ({n})"), None => "Halo".to_string() }).menu(&menu).on_menu_event(|app, e| on_menu(app, e.id().as_ref()));
@@ -509,21 +555,4 @@ pub fn run() {
                 helper::stop(app);
             }
         });
-}
-
-/// Register a shortcut. False when another app already owns it.
-trait RegisterShortcut {
-    fn global_shortcut_register(&self, s: Shortcut) -> bool;
-}
-impl RegisterShortcut for tauri::App {
-    fn global_shortcut_register(&self, s: Shortcut) -> bool {
-        use tauri_plugin_global_shortcut::GlobalShortcutExt;
-        match self.global_shortcut().register(s) {
-            Ok(()) => true,
-            Err(e) => {
-                eprintln!("Halo hotkey {s:?} was not registered: {e}");
-                false
-            }
-        }
-    }
 }

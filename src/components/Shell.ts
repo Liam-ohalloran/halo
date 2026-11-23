@@ -1,7 +1,7 @@
 import '../styles/shell.css'
 import { h } from './dom'
 import { clockPm } from '../lib/night'
-import { moveTab, normalisePrefs, toggleHidden, visibleIds, PINNED, type TabPrefs } from '../lib/tabprefs'
+import { moreIds, normalisePrefs, pinnedIds, type TabPrefs } from '../lib/tabprefs'
 import { DEFAULT_ORDER, RAIL_ICONS, TAB_THEMES, type TabId, type TabTheme } from '../styles/tabs'
 
 // Shell (cards 15 and 15b): the island IS the window. One element pinned top centre, flat top edge on the top of the
@@ -10,7 +10,8 @@ import { DEFAULT_ORDER, RAIL_ICONS, TAB_THEMES, type TabId, type TabTheme } from
 // Escape, or moving away for 1 s shrinks it back. The content fades in only after the size settles and fades out
 // first when closing (shell.css has the timings).
 // Header (card 23): the prototype's top bar. One glass pill of tab icons, the open tab grows into a white pill with its label,
-// the time on the right. Arrow keys step through the tabs. A long press on the bar, or the pencil, edits the order and hides tabs.
+// the time on the right. Arrow keys step through the tabs. Card 27: the bar shows only the pinned tabs, and the rest sit under the
+// "•••" button as a small grid (Settings is in it too). Which tabs are pinned, and their order, is set in Settings.
 // Under it the tab's panel.
 // Switching tabs crossfades the frame and the panel in 180 ms. Tabs that are not built yet say "Coming soon".
 
@@ -44,8 +45,6 @@ export interface ShellOptions {
   onToggle?: (open: boolean) => void
   /** Saved tab order and hidden tabs (from the settings row). */
   prefs?: unknown
-  /** Fired when Liam hides, shows or moves a tab, so it can be saved. */
-  onPrefs?: (p: TabPrefs) => void
 }
 export interface ShellHandle {
   el: HTMLElement
@@ -67,12 +66,12 @@ export interface ShellHandle {
   setKey(hex: string): void
   /** Unread alerts. Above zero, the resting island shows a small gold dot (card 20, card 17 restyles it). */
   setUnread(n: number): void
-  /** Apply a saved order and hidden list, for example when the settings row arrives. */
+  /** Apply the pinned tabs, for example when Settings changes them or the settings row arrives. */
   setPrefs(p: unknown): void
   readonly prefs: TabPrefs
-  /** Edit mode: pick tabs to hide and move them. */
-  edit(on: boolean): void
-  readonly editing: boolean
+  /** The "•••" grid of the tabs that are not pinned. */
+  openMore(on: boolean): void
+  readonly moreOpen: boolean
   /** The closed island's live layer (card 17). It sits over the pill and only its buttons take clicks. */
   live: HTMLElement
   /**
@@ -80,6 +79,8 @@ export interface ShellHandle {
    * It only moves the closed island: opening still grows to 600 x 290.
    */
   setSize(s: { w: number; h: number; r: number }, how?: 'live' | 'hud' | 'banner' | 'snap'): void
+  /** Card 27: make every closed size bigger by this much (1 is as designed). */
+  setScale(n: number): void
 }
 
 const style = (el: HTMLElement, css: string) => { el.setAttribute('style', css); return el }
@@ -113,32 +114,37 @@ export function Shell(o: ShellOptions): ShellHandle {
     skins.set(t.id, skin)
   }
 
-  // ---- Header: the top bar
-  const PEN = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>'
+  // ---- Header: the top bar. Pinned tabs, then the "•••" More button.
   const sel = h('i', { class: 'sh-sel', 'aria-hidden': 'true' })
   const rail = h('nav', { class: 'sh-rail', role: 'tablist', 'aria-label': 'Halo sections', 'aria-orientation': 'horizontal' }, sel)
   const time = h('span', { class: 'sh-time' })
-  const pen = h('button', { type: 'button', class: 'sh-pen', 'aria-label': 'Edit tabs', title: 'Edit tabs', onclick: () => edit(!editing) })
-  pen.innerHTML = PEN
   const buttons = new Map<TabId, HTMLButtonElement>()
   for (const id of DEFAULT_ORDER) {
+    if (id === 'more') continue
     const t = TAB_THEMES[id]
     const b = h('button', { type: 'button', class: 'sh-tab', role: 'tab', id: `sh-tab-${id}`, 'aria-label': t.aria, title: t.label, 'aria-controls': 'sh-body', onclick: () => setActive(id, true) }, h('span', { class: 'lb' }, t.label))
     b.prepend(railIcon(id, false))
     buttons.set(id, b)
   }
+  // The More button. It is a tab in the bar too: when the open tab is not pinned, the white pill sits on it and says which tab it is.
+  const moreLb = h('span', { class: 'lb' }, 'More')
+  const moreBtn = h('button', { type: 'button', class: 'sh-tab sh-more-btn', role: 'tab', id: 'sh-tab-more', 'aria-label': 'More tabs', title: 'More tabs', 'aria-haspopup': 'true', 'aria-expanded': 'false', 'aria-controls': 'sh-more', onclick: () => openMore(!moreOpen) }, moreLb) as HTMLButtonElement
+  moreBtn.prepend(railIcon('more', false))
   let prefs: TabPrefs = normalisePrefs(o.prefs, DEFAULT_ORDER)
-  const shown = (): TabId[] => visibleIds(prefs) as TabId[]
+  const shown = (): TabId[] => pinnedIds(prefs) as TabId[]
+  /** The button that stands for a tab in the bar: its own, or More when it is not pinned. */
+  const holder = (id: TabId): HTMLButtonElement => (shown().includes(id) ? buttons.get(id)! : moreBtn)
   function placeSel() {
-    const b = buttons.get(active)
-    if (!b || !b.isConnected || !b.offsetWidth) return
+    const b = holder(active)
+    if (!b.isConnected || !b.offsetWidth) return
     sel.style.left = `${b.offsetLeft}px`
     sel.style.width = `${b.offsetWidth}px`
   }
-  /** Put the visible tabs in the bar in order. The tab buttons are kept, only moved or taken out. */
+  /** Put the pinned tabs in the bar in order, then More. The tab buttons are kept, only moved or taken out. */
   function layoutBar() {
-    for (const id of DEFAULT_ORDER) if (!shown().includes(id)) buttons.get(id)!.remove()
+    for (const id of buttons.keys()) if (!shown().includes(id)) buttons.get(id)!.remove()
     for (const id of shown()) rail.append(buttons.get(id)!)
+    rail.append(moreBtn)
     requestAnimationFrame(placeSel)
   }
   rail.addEventListener('keydown', (e) => {
@@ -149,7 +155,7 @@ export function Shell(o: ShellOptions): ShellHandle {
     setActive(to, true)
     buttons.get(to)!.focus()
   })
-  const header = h('header', { class: 'sh-head' }, h('div', { class: 'sh-seg' }, rail), h('div', { class: 'sh-rt' }, time, pen))
+  const header = h('header', { class: 'sh-head' }, h('div', { class: 'sh-seg' }, rail), h('div', { class: 'sh-rt' }, time))
 
   // ---- Body: switching tabs swaps panels. Nothing fades and nothing is rebuilt (HALO.md: no flash on interaction).
   // A panel is built the first time its tab is shown and then stays mounted. The one that is not showing is only hidden
@@ -168,9 +174,9 @@ export function Shell(o: ShellOptions): ShellHandle {
   }
 
   skinsEl.append(...skins.values())
-  const editEl = h('div', { class: 'sh-edit', role: 'dialog', 'aria-label': 'Edit tabs' })
-  editEl.hidden = true
-  inner.append(header, host, editEl)
+  const moreEl = h('div', { class: 'sh-more', id: 'sh-more', role: 'menu', 'aria-label': 'More tabs' })
+  moreEl.hidden = true
+  inner.append(header, host, moreEl)
   const dot = h('span', { class: 'sh-dot', 'aria-hidden': 'true' })
   clip.append(skinsEl, pill, live, dot, inner)
   // The border glow (desktop app only, see desktop.css): a ring on the island's edge and a soft glow outside it.
@@ -205,16 +211,27 @@ export function Shell(o: ShellOptions): ShellHandle {
       if (on && !skin.classList.contains('is-on')) skin.style.zIndex = String(++skinZ)
       skin.classList.toggle('is-on', on)
     }
+    syncBar()
+    host.setAttribute('aria-labelledby', `sh-tab-${shown().includes(t.id) ? t.id : 'more'}`)
+  }
+  /** Which button in the bar is selected. The More button takes it when the open tab is not pinned. */
+  function syncBar() {
     for (const [id, b] of buttons) {
-      const on = id === t.id
+      const on = id === active
       b.classList.toggle('on', on)
       b.setAttribute('aria-selected', String(on))
       b.tabIndex = on ? 0 : -1
       if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current')
       b.querySelector('svg')!.replaceWith(railIcon(id, on))
     }
+    const inMore = !shown().includes(active)
+    moreBtn.classList.toggle('on', inMore)
+    moreBtn.setAttribute('aria-selected', String(inMore))
+    moreBtn.tabIndex = inMore || !shown().includes(active) ? 0 : -1
+    if (inMore) moreBtn.setAttribute('aria-current', 'page'); else moreBtn.removeAttribute('aria-current')
+    moreLb.textContent = inMore ? TAB_THEMES[active].label : 'More'
+    moreBtn.title = inMore ? TAB_THEMES[active].label : 'More tabs'
     requestAnimationFrame(placeSel)
-    host.setAttribute('aria-labelledby', `sh-tab-${t.id}`)
   }
 
   function refreshMeta() {
@@ -231,65 +248,45 @@ export function Shell(o: ShellOptions): ShellHandle {
     if (emit) o.onChange?.(id, from)
   }
 
-  // ---- Edit mode (card 23): hide, show and move tabs. Saved through onPrefs, so the phone picks it up too.
-  let editing = false
-  const eye = (off: boolean) => off
-    ? '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><path d="M4 4l16 16"/></svg>'
-    : '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><circle cx="12" cy="12" r="2.6"/></svg>'
-  const chev = (d: 'l' | 'r') => `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d === 'l' ? 'M15 5l-7 7 7 7' : 'M9 5l7 7-7 7'}"/></svg>`
-  function paintEdit(focus?: string) {
-    editEl.innerHTML = `<div class="ehd"><div><b>Edit tabs</b><span>Hide a tab or move it. Saved on all your devices.</span></div><button type="button" class="ebtn" data-e="reset">Reset</button><button type="button" class="ebtn go" data-e="done">Done</button></div>
-      <div class="egrid">${prefs.order.map((id, i) => {
-        const t = TAB_THEMES[id as TabId]
-        const off = prefs.hidden.includes(id)
-        const pinned = PINNED.includes(id)
-        return `<div class="ec${off ? ' off' : ''}" data-id="${id}"><div class="et"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${RAIL_ICONS[id as TabId]}</svg><b>${t.label}</b></div>
-          <div class="ea"><button type="button" data-a="l" aria-label="Move ${t.label} earlier"${i === 0 ? ' disabled' : ''}>${chev('l')}</button><button type="button" data-a="eye" aria-pressed="${!off}" aria-label="${off ? 'Show' : 'Hide'} ${t.label}"${pinned ? ' disabled title="Always shown"' : ''}>${eye(off)}</button><button type="button" data-a="r" aria-label="Move ${t.label} later"${i === prefs.order.length - 1 ? ' disabled' : ''}>${chev('r')}</button></div></div>`
-      }).join('')}</div>`
-    if (focus) editEl.querySelector<HTMLElement>(focus)?.focus({ preventScroll: true })
+  // ---- The "•••" grid (card 27): every tab that is not pinned, and Settings. Picking one opens it and closes the grid.
+  let moreOpen = false
+  function paintMore() {
+    const ids = [...moreIds(prefs, DEFAULT_ORDER), 'more'] as TabId[]
+    moreEl.replaceChildren(...ids.map((id) => {
+      const t = TAB_THEMES[id]
+      const b = h('button', { type: 'button', class: `sh-mt${id === active ? ' on' : ''}`, role: 'menuitem', 'data-id': id, 'aria-label': id === 'more' ? 'Settings' : t.aria, onclick: () => { openMore(false); setActive(id, true) } }, h('span', { class: 'mt-l' }, t.label))
+      b.prepend(railIcon(id, id === active))
+      b.style.setProperty('--tab', t.colour)
+      return b
+    }))
   }
-  function commit(next: TabPrefs, focus?: string) {
-    prefs = next
-    layoutBar()
-    if (!shown().includes(active)) setActive('home', true)
-    o.onPrefs?.(prefs)
-    paintEdit(focus)
+  function openMore(on: boolean) {
+    if (on === moreOpen) return
+    moreOpen = on
+    moreEl.hidden = !on
+    moreBtn.setAttribute('aria-expanded', String(on))
+    if (on) { paintMore(); moreEl.querySelector<HTMLElement>('.sh-mt.on, .sh-mt')?.focus({ preventScroll: true }) }
+    else if (moreEl.contains(document.activeElement)) moreBtn.focus({ preventScroll: true })
   }
-  function edit(on: boolean) {
-    if (on === editing) return
-    editing = on
-    editEl.hidden = !on
-    host.toggleAttribute('inert', on)
-    host.style.visibility = on ? 'hidden' : ''
-    pen.setAttribute('aria-pressed', String(on))
-    if (on) { paintEdit('[data-e="done"]') } else { editEl.replaceChildren(); buttons.get(active)?.focus({ preventScroll: true }) }
-  }
-  editEl.addEventListener('click', (e) => {
-    const t = e.target as HTMLElement
-    if (t.closest('[data-e="done"]')) return edit(false)
-    if (t.closest('[data-e="reset"]')) return commit(normalisePrefs(null, DEFAULT_ORDER), '[data-e="reset"]')
-    const b = t.closest<HTMLButtonElement>('[data-a]')
-    const id = b?.closest<HTMLElement>('[data-id]')?.dataset.id
-    if (!b || !id) return
-    const a = b.dataset.a
-    commit(a === 'eye' ? toggleHidden(prefs, id) : moveTab(prefs, id, a === 'l' ? -1 : 1), `[data-id="${id}"] [data-a="${a}"]`)
+  document.addEventListener('pointerdown', (e) => { if (moreOpen && !moreEl.contains(e.target as Node) && !moreBtn.contains(e.target as Node)) openMore(false) })
+  moreEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); openMore(false); return }
+    const items = [...moreEl.querySelectorAll<HTMLElement>('.sh-mt')]
+    const i = items.indexOf(document.activeElement as HTMLElement)
+    const cols = 4
+    const to = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : e.key === 'ArrowDown' ? i + cols : e.key === 'ArrowUp' ? i - cols : -1
+    if (to < 0 || to >= items.length) return
+    e.preventDefault(); e.stopPropagation()
+    items[to].focus({ preventScroll: true })
   })
-  editEl.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); edit(false) } })
-  // A long press on the bar does the same as the pencil.
-  let pressT = 0
-  let pressAt = [0, 0]
-  rail.addEventListener('pointerdown', (e) => { pressAt = [e.clientX, e.clientY]; clearTimeout(pressT); pressT = window.setTimeout(() => { if (isOpen) edit(true) }, 550) })
-  const cancelPress = () => clearTimeout(pressT)
-  rail.addEventListener('pointerup', cancelPress); rail.addEventListener('pointerleave', cancelPress); rail.addEventListener('pointercancel', cancelPress)
-  rail.addEventListener('pointermove', (e) => { if (Math.hypot(e.clientX - pressAt[0], e.clientY - pressAt[1]) > 6) cancelPress() })
   // Arrow keys step through the open tabs, unless the keys are being used to type or pick a date.
   document.addEventListener('keydown', (e) => {
-    if ((e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') || e.defaultPrevented || !el.isConnected || !isOpen || editing || e.metaKey || e.ctrlKey || e.altKey) return
+    if ((e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') || e.defaultPrevented || !el.isConnected || !isOpen || moreOpen || e.metaKey || e.ctrlKey || e.altKey) return
     const t = e.target as HTMLElement
     if (t.closest('input, textarea, select, [contenteditable="true"], .sheet')) return
     const ids = shown()
     const i = ids.indexOf(active)
-    const to = ids[(i + (e.key === 'ArrowRight' ? 1 : ids.length - 1)) % ids.length]
+    const to = i < 0 ? (e.key === 'ArrowRight' ? ids[0] : ids[ids.length - 1]) : ids[(i + (e.key === 'ArrowRight' ? 1 : ids.length - 1)) % ids.length]
     e.preventDefault()
     setActive(to, true)
     buttons.get(to)?.focus({ preventScroll: true })
@@ -310,8 +307,8 @@ export function Shell(o: ShellOptions): ShellHandle {
     pill.setAttribute('aria-expanded', String(v))
     inner.toggleAttribute('inert', !v)
     pill.tabIndex = v ? -1 : 0
-    if (!v) edit(false)
-    if (v) requestAnimationFrame(() => { placeSel(); buttons.get(active)?.focus({ preventScroll: true }) })
+    if (!v) openMore(false)
+    if (v) requestAnimationFrame(() => { placeSel(); holder(active).focus({ preventScroll: true }) })
     else if (inner.contains(document.activeElement)) pill.focus({ preventScroll: true })
     o.onToggle?.(v)
   }
@@ -339,19 +336,25 @@ export function Shell(o: ShellOptions): ShellHandle {
     el.addEventListener('keydown', (e) => { if (e.key === 'Escape' && isOpen) { e.preventDefault(); close() } })
   }
 
+  // Card 27: Settings can make the closed island bigger. Every closed size goes through `scale`, so live states, HUD pills and
+  // banners all follow, and the desktop app's click through regions read the same CSS variables.
+  let scale = 1
+  let base = { ...COLLAPSED.resting }
+  const paintSize = () => {
+    el.style.setProperty('--cw', `${Math.round(base.w * scale)}px`)
+    el.style.setProperty('--ch', `${Math.round(base.h * scale)}px`)
+    el.style.setProperty('--cr', `${Math.round(base.r * scale)}px`)
+  }
   const setCollapsed = (s: CollapsedState) => {
     collapsed = s
-    const c = COLLAPSED[s]
-    el.style.setProperty('--cw', `${c.w}px`)
-    el.style.setProperty('--ch', `${c.h}px`)
-    el.style.setProperty('--cr', `${c.r}px`)
+    base = { ...COLLAPSED[s] }
+    paintSize()
     el.dataset.collapsed = s
   }
   setCollapsed('resting')
   const setSize = (s: { w: number; h: number; r: number }, how: 'live' | 'hud' | 'banner' | 'snap' = 'live') => {
-    el.style.setProperty('--cw', `${s.w}px`)
-    el.style.setProperty('--ch', `${s.h}px`)
-    el.style.setProperty('--cr', `${s.r}px`)
+    base = { ...s }
+    paintSize()
     if (isOpen) return
     // Closed to closed: no waiting for a window to shrink first, so drop the close delay.
     el.dataset.size = how
@@ -367,8 +370,9 @@ export function Shell(o: ShellOptions): ShellHandle {
     el, host, get active() { return active }, setActive, refreshMeta, soon,
     get isOpen() { return isOpen }, open, close, pill, setCollapsed, get collapsed() { return collapsed },
     live, setSize,
-    setPrefs: (raw) => { prefs = normalisePrefs(raw, DEFAULT_ORDER); layoutBar(); if (!shown().includes(active)) setActive('home', true); if (editing) paintEdit() },
-    get prefs() { return prefs }, edit, get editing() { return editing },
+    setScale: (n) => { scale = n; delete el.dataset.size; paintSize() },
+    setPrefs: (raw) => { prefs = normalisePrefs(raw, DEFAULT_ORDER); layoutBar(); syncBar(); if (moreOpen) paintMore() },
+    get prefs() { return prefs }, openMore, get moreOpen() { return moreOpen },
     setKey: (hex) => el.style.setProperty('--k', hex),
     setUnread: (n) => {
       el.dataset.unread = n > 0 ? '1' : '0'

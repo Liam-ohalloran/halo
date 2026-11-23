@@ -46,7 +46,7 @@ test('the release workflow builds on a version tag, signs the update, and attach
   assert.match(y, /windows-latest/)
   assert.match(y, /TAURI_SIGNING_PRIVATE_KEY: \$\{\{ secrets\.TAURI_SIGNING_PRIVATE_KEY \}\}/)
   assert.match(y, /TAURI_SIGNING_PRIVATE_KEY_PASSWORD: \$\{\{ secrets\./)
-  assert.match(y, /uploadUpdaterJson: true/)
+  assert.match(y, /includeUpdaterJson: true/)
   assert.match(y, /Halo-Setup\.exe/)
   assert.match(y, /npm run helper:build/, 'the helper sidecar is built before the app')
   assert.match(y, /set-version\.mjs/)

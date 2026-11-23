@@ -2,11 +2,13 @@ import '../styles/tokens.css'
 import '../styles/proto.css'
 import './controls.css'
 import { pvRoot, type PvRoot } from '../ui/charts'
-import { getBattery, getBluetooth, getBrightness, getOutputs, getPowerMode, getVolume, getWifi, helperToken, onHelperEvent, setBluetooth, setBrightness, setMuted, setPowerMode, setVolume, setWifi, type PowerMode } from '../lib/helper'
-import { batteryText, powerIndex, POWER_MODES, tileState, type TileState } from '../lib/controls'
+import { getBattery, getBluetooth, getBrightness, getOutputs, getPowerMode, getVolume, getWifi, helperToken, onHelperEvent, onStreamState, setBluetooth, setBrightness, setMuted, setPowerMode, setVolume, setWifi, streamUp, type Battery, type Bluetooth, type PowerMode, type Volume, type Wifi } from '../lib/helper'
+import { batteryText, controlsPatch, powerIndex, POWER_MODES, tapText, tileState, type TileState } from '../lib/controls'
+import { SETTLE_MS, createActions, createCatchUp, createDragSender, createFallbackPoll, stepLevel } from '../lib/optimistic'
+import { shake } from '../lib/shake'
 
-// Controls tab (card 24), compact grid with colour. Brightness and volume are tall sliders (drag or scroll), then Wi-Fi, Bluetooth,
-// Night light, Focus, Mute, the battery, the power mode and where the sound goes. Everything goes through the helper. With the
+// Controls tab (card 24, card 29), compact grid with colour. Brightness and volume are tall sliders (drag or scroll), then Wi-Fi, Bluetooth,
+// Night light, Focus, Mute, the battery, the power mode and where the sound goes. Everything goes through the helper: a tap or drag is drawn at once and sent in the background (card 29), the helper pushes every change back over /events, and a "no" puts the control back with a small shake. With the
 // helper off every tile is dimmed and says so, with one retry button. Night light is read only (the helper tells Halo, Halo never
 // changes it), Focus has no public Windows API, and Halo never switches the audio output, so those say "Not available yet" or just show.
 
@@ -49,110 +51,189 @@ export function ControlsPanel(): ControlsPanelHandle {
   const text = (k: string, v: string) => { if (shown[k] !== v) { shown[k] = v; $(k).textContent = v } }
   let alive = true
   let up = false
+  let seeded = false
   let night: boolean | null = null
-  const level = { bri: 0, vol: 0 }
-  const busy: Record<string, number> = {}
   let pm: PowerMode | null = null
-  let timer = 0
+
+  // What the helper last said, per control. A tap or drag is drawn at once. If the helper then says no, the control goes back to this.
+  const sure = { bri: 0, vol: 0, mode: null as PowerMode | null, muted: false }
+  const level = { bri: 0, vol: 0 }
+  const touched: Record<string, number> = {}
+  const actions = createActions()
+  const catchUp = createCatchUp()
 
   const onScreen = () => alive && !document.hidden && root.isConnected && root.offsetParent !== null && !root.classList.contains('h-off')
+  const el = (sel: string) => root.querySelector<HTMLElement>(sel)!
 
+  function setUp(v: boolean) {
+    up = v
+    root.classList.toggle('is-off', !v)
+    $('off').hidden = v
+    text('offT', helperToken() ? 'Start Halo helper' : 'Open Halo on your laptop')
+  }
   function setSlider(k: 'bri' | 'vol', v: number) {
     level[k] = v
-    const el = root.querySelector<HTMLElement>(`[data-s="${k}"]`)!
-    el.querySelector<HTMLElement>('.fl')!.style.height = `${v}%`
-    el.setAttribute('aria-valuenow', String(v))
+    const s = el(`[data-s="${k}"]`)
+    s.querySelector<HTMLElement>('.fl')!.style.height = `${v}%`
+    s.setAttribute('aria-valuenow', String(v))
     text(`${k}N`, String(v))
   }
   function setTile(k: string, s: TileState) {
-    const el = root.querySelector<HTMLElement>(`[data-t="${k}"]`)!
-    el.classList.toggle('on', s.on)
-    el.classList.toggle('na', s.disabled)
-    el.setAttribute('aria-pressed', String(s.on))
-    el.toggleAttribute('aria-disabled', s.disabled)
+    const t = el(`[data-t="${k}"]`)
+    t.classList.toggle('on', s.on)
+    t.classList.toggle('na', s.disabled)
+    t.setAttribute('aria-pressed', String(s.on))
+    t.toggleAttribute('aria-disabled', s.disabled)
     text(`${k}S`, s.text)
   }
+  /** A tile the helper has confirmed (a pushed value, a read, or the answer to a tap). */
+  function confirmTile(k: string, s: TileState) { setTile(k, s) }
   function setPower(m: PowerMode | null) {
     pm = m
     const i = powerIndex(m)
-    const k = root.querySelector<HTMLElement>('.ctPM .k')!
+    const k = el('.ctPM .k')
     k.style.transform = `translateX(${Math.max(0, i) * 100}%)`
     k.style.opacity = i < 0 ? '0' : '1'
     k.style.setProperty('--pmc', ['#30D158', '#0A84FF', '#FF9F0A'][Math.max(0, i)])
     root.querySelectorAll<HTMLElement>('[data-p]').forEach((b) => { const on = b.dataset.p === m; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)) })
   }
+  function setBattery(bat: Battery | null) {
+    const b = batteryText(bat)
+    text('batV', b.value); text('batS', b.sub)
+    root.querySelectorAll<HTMLElement>('.cells i').forEach((c, i) => c.classList.toggle('on', i < b.cells))
+    el('.ctBat').classList.toggle('chg', !!bat?.charging)
+  }
+
+  // ---- What the helper tells us: a push (every change, as it happens), or a read (first paint, and the slow fallback). ----
+  const dragging = (k: 'bri' | 'vol') => senders[k].busy || Date.now() - (touched[k] ?? 0) < SETTLE_MS
+  const dragLeft = (k: 'bri' | 'vol') => (senders[k].busy ? SETTLE_MS : Math.max(0, SETTLE_MS - (Date.now() - (touched[k] ?? 0))))
+  // A pushed value that lands while Liam's own change is settling is held back, then confirmed with one read when it is over.
+  const hold = (key: string, left: () => number, read: () => Promise<unknown>) => catchUp.later(key, left, () => { if (alive) void read() })
+  function takeVolume(v: Volume) {
+    if (!dragging('vol')) { sure.vol = v.level; setSlider('vol', v.level) } else hold('vol', () => dragLeft('vol'), async () => { const r = await getVolume(); if (r) takeVolume(r) })
+    if (!actions.settling('mute')) { sure.muted = v.muted; confirmTile('mute', tileState('mute', { on: v.muted })) } else hold('mute', () => actions.settleLeft('mute'), async () => { const r = await getVolume(); if (r) takeVolume(r) })
+  }
+  function takeBrightness(l: number) { if (!dragging('bri')) { sure.bri = l; setSlider('bri', l) } else hold('bri', () => dragLeft('bri'), async () => { const r = await getBrightness(); if (r) takeBrightness(r.level) }) }
+  function takeWifi(w: Wifi | null) { if (!actions.settling('wifi')) confirmTile('wifi', tileState('wifi', w ? { on: w.enabled, detail: w.connected ? w.ssid : null } : null)); else hold('wifi', () => actions.settleLeft('wifi'), async () => takeWifi(await getWifi())) }
+  function takeBluetooth(b: Bluetooth | null) { if (!actions.settling('bt')) confirmTile('bt', tileState('bt', b ? { on: b.enabled, detail: b.connected_device } : null)); else hold('bt', () => actions.settleLeft('bt'), async () => takeBluetooth(await getBluetooth())) }
+  function takePower(m: PowerMode | null) { if (!actions.settling('pm')) { sure.mode = m; setPower(m) } else hold('pm', () => actions.settleLeft('pm'), async () => takePower((await getPowerMode())?.mode ?? null)) }
 
   async function refresh() {
     const [vol, bri, wifi, bt, bat, mode, outs] = await Promise.all([getVolume(), getBrightness(), getWifi(), getBluetooth(), getBattery(), getPowerMode(), getOutputs()])
     if (!alive) return
-    up = !!(vol || bri || wifi || bt || bat || mode || outs)
-    root.classList.toggle('is-off', !up)
-    $('off').hidden = up
-    text('offT', helperToken() ? 'Start Halo helper' : 'Open Halo on your laptop')
-    if (vol && !busy.vol) setSlider('vol', vol.level)
-    if (bri && !busy.bri) setSlider('bri', bri.level)
-    setTile('wifi', tileState('wifi', wifi ? { on: wifi.enabled, detail: wifi.connected ? wifi.ssid : null } : null))
-    setTile('bt', tileState('bt', bt ? { on: bt.enabled, detail: bt.connected_device } : null))
-    setTile('night', tileState('night', night === null ? null : { on: night }))
-    setTile('focus', tileState('focus', null))
-    setTile('mute', tileState('mute', vol ? { on: vol.muted } : null))
-    const b = batteryText(bat)
-    text('batV', b.value); text('batS', b.sub)
-    root.querySelectorAll<HTMLElement>('.cells i').forEach((c, i) => c.classList.toggle('on', i < b.cells))
-    root.querySelector('.ctBat')!.classList.toggle('chg', !!bat?.charging)
-    if (!busy.pm) setPower(mode?.mode ?? null)
+    setUp(!!(vol || bri || wifi || bt || bat || mode || outs))
+    seeded = true
+    if (vol) takeVolume(vol); else confirmTile('mute', tileState('mute', null))
+    if (bri) takeBrightness(bri.level)
+    takeWifi(wifi)
+    takeBluetooth(bt)
+    confirmTile('night', tileState('night', night === null ? null : { on: night }))
+    confirmTile('focus', tileState('focus', null))
+    setBattery(bat)
+    takePower(mode?.mode ?? null)
     text('outN', outs?.current ?? 'No output')
   }
 
-  // Sliders: drag up and down, scroll, or the arrow keys. The page is told at once, the laptop gets at most one change every 80 ms.
-  for (const k of ['bri', 'vol'] as const) {
-    const el = root.querySelector<HTMLElement>(`[data-s="${k}"]`)!
-    let last = 0
-    let pending = 0
-    const send = (v: number) => {
-      busy[k] = Date.now()
-      const go = () => { last = Date.now(); void (k === 'bri' ? setBrightness(v) : setVolume(v)); window.setTimeout(() => { if (Date.now() - busy[k] >= 1200) delete busy[k] }, 1300) }
-      window.clearTimeout(pending)
-      if (Date.now() - last > 80) go(); else pending = window.setTimeout(go, 80)
+  function onPush(name: string, d: unknown) {
+    if (!alive) return
+    const p = controlsPatch(name, d)
+    if (!p) return
+    if (!up) setUp(true) // an event is proof the helper is there
+    switch (p.kind) {
+      case 'volume': takeVolume(p.value); break
+      case 'brightness': takeBrightness(p.level); break
+      case 'wifi': takeWifi(p.value); break
+      case 'bluetooth': takeBluetooth(p.value); break
+      case 'battery': setBattery(p.value); break
+      case 'power': takePower(p.mode); break
+      case 'output': text('outN', p.name); break
+      case 'night': night = p.on; confirmTile('night', tileState('night', { on: p.on })); break
     }
-    const fromY = (clientY: number) => { const r = el.getBoundingClientRect(); return Math.round(Math.max(0, Math.min(1, 1 - (clientY - r.top) / r.height)) * 100) }
-    el.addEventListener('pointerdown', (e) => {
+  }
+
+  // ---- Sliders: drag up and down, scroll, or the arrow keys. The screen follows the finger at once. The helper hears at most one
+  // change every 50 ms (the newest), its answer settles the number, and a "no" puts the slider back and shakes it.
+  const senders = {
+    bri: createDragSender<number, { level: number }>({
+      send: (v) => setBrightness(v),
+      onReply: (r) => { if (!root.querySelector('[data-s="bri"].drag')) { sure.bri = r.level; setSlider('bri', r.level) } else sure.bri = r.level },
+      onFail: () => { setSlider('bri', sure.bri); shake(el('[data-s="bri"]')) },
+    }),
+    vol: createDragSender<number, Volume>({
+      send: (v) => setVolume(v),
+      onReply: (r) => { sure.vol = r.level; if (!root.querySelector('[data-s="vol"].drag')) setSlider('vol', r.level); if (!actions.settling('mute')) confirmTile('mute', tileState('mute', { on: r.muted })) },
+      onFail: () => { setSlider('vol', sure.vol); shake(el('[data-s="vol"]')) },
+    }),
+  }
+  for (const k of ['bri', 'vol'] as const) {
+    const s = el(`[data-s="${k}"]`)
+    const move = (v: number) => { touched[k] = Date.now(); setSlider(k, v); senders[k].push(v) }
+    const fromY = (clientY: number) => { const r = s.getBoundingClientRect(); return Math.round(Math.max(0, Math.min(1, 1 - (clientY - r.top) / r.height)) * 100) }
+    s.addEventListener('pointerdown', (e) => {
       if (!up) return
-      el.setPointerCapture(e.pointerId); el.classList.add('drag')
-      const move = (ev: PointerEvent) => { const v = fromY(ev.clientY); setSlider(k, v); send(v) }
-      move(e)
-      const done = () => { el.classList.remove('drag'); el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', done); el.removeEventListener('pointercancel', done) }
-      el.addEventListener('pointermove', move); el.addEventListener('pointerup', done); el.addEventListener('pointercancel', done)
+      s.setPointerCapture(e.pointerId); s.classList.add('drag')
+      const onMove = (ev: PointerEvent) => move(fromY(ev.clientY))
+      onMove(e)
+      const done = () => { s.classList.remove('drag'); touched[k] = Date.now(); senders[k].flush(); s.removeEventListener('pointermove', onMove); s.removeEventListener('pointerup', done); s.removeEventListener('pointercancel', done) }
+      s.addEventListener('pointermove', onMove); s.addEventListener('pointerup', done); s.addEventListener('pointercancel', done)
     })
-    el.addEventListener('wheel', (e) => { if (!up) return; e.preventDefault(); const v = Math.max(0, Math.min(100, level[k] + (e.deltaY < 0 ? 5 : -5))); setSlider(k, v); send(v) }, { passive: false })
-    el.addEventListener('keydown', (e) => {
+    s.addEventListener('wheel', (e) => { if (!up) return; e.preventDefault(); move(stepLevel(level[k], e.deltaY < 0 ? 5 : -5)) }, { passive: false })
+    s.addEventListener('keydown', (e) => {
       const d = e.key === 'ArrowUp' || e.key === 'ArrowRight' ? 5 : e.key === 'ArrowDown' || e.key === 'ArrowLeft' ? -5 : 0
       if (!d || !up) return
       e.preventDefault(); e.stopPropagation()
-      const v = Math.max(0, Math.min(100, level[k] + d)); setSlider(k, v); send(v)
+      move(stepLevel(level[k], d))
     })
   }
 
-  root.addEventListener('click', async (e) => {
+  // ---- Taps: the tile flips at once, the helper's answer fills in the network or device name, a "no" flips it back and shakes it.
+  type TapKind = 'wifi' | 'bt' | 'mute'
+  const SEND: Record<TapKind, (on: boolean) => Promise<unknown>> = { wifi: (on) => setWifi(on), bt: (on) => setBluetooth(on), mute: (on) => setMuted(on) }
+  function tap(k: TapKind) {
+    const t = el(`[data-t="${k}"]`)
+    const prev: TileState = { on: t.classList.contains('on'), text: shown[`${k}S`] ?? '', disabled: false } // exactly what is on screen now
+    const next: TileState = { on: !prev.on, text: tapText(k, !prev.on), disabled: false }
+    void actions.run(k, {
+      prev, next,
+      apply: (s) => setTile(k, s),
+      send: () => SEND[k](next.on),
+      reconcile: (r) => {
+        if (k === 'wifi') { const w = r as Wifi; confirmTile('wifi', tileState('wifi', { on: w.enabled, detail: w.connected ? w.ssid : null })) }
+        else if (k === 'bt') { const b = r as Bluetooth; confirmTile('bt', tileState('bt', { on: b.enabled, detail: b.connected_device })) }
+        else { const v = r as Volume; sure.muted = v.muted; confirmTile('mute', tileState('mute', { on: v.muted })) }
+      },
+      fail: () => shake(t),
+    })
+  }
+  function pickPower(m: PowerMode) {
+    const prev = pm
+    void actions.run('pm', {
+      prev, next: m,
+      apply: (v) => setPower(v),
+      send: () => setPowerMode(m),
+      reconcile: (r) => { const mode = (r as { mode: PowerMode }).mode; sure.mode = mode; setPower(mode) },
+      fail: () => shake(el('.ctPM')),
+    })
+  }
+
+  root.addEventListener('click', (e) => {
     const t = (e.target as HTMLElement).closest<HTMLElement>('[data-t]')
     if (t && up && !t.classList.contains('na')) {
-      const k = t.dataset.t!
-      const on = !t.classList.contains('on')
-      t.classList.toggle('on', on) // at once, the helper's answer confirms it
-      if (k === 'wifi') void setWifi(on).then(refresh)
-      else if (k === 'bt') void setBluetooth(on).then(refresh)
-      else if (k === 'mute') void setMuted(on).then(refresh)
+      const k = t.dataset.t as string
+      if (k === 'wifi' || k === 'bt' || k === 'mute') tap(k)
     }
     const p = (e.target as HTMLElement).closest<HTMLElement>('[data-p]')
-    if (p && up) { const m = p.dataset.p as PowerMode; setPower(m); busy.pm = Date.now(); void setPowerMode(m).then(() => window.setTimeout(() => { delete busy.pm; void refresh() }, 600)) }
+    if (p && up) pickPower(p.dataset.p as PowerMode)
     if ((e.target as HTMLElement).closest('[data-k="retry"]')) void refresh()
   })
 
-  const offEvents = onHelperEvent((name, d) => { if (name === 'night') { night = !!(d as { on?: boolean }).on; if (up) setTile('night', tileState('night', { on: night })) } })
-  root.onEnter = () => { void refresh() }
-  timer = window.setInterval(() => { if (onScreen()) void refresh() }, 2500)
+  // The stream feeds every control. The panel reads once when it is built (the stream's first look went out before this tab
+  // existed) and when the stream comes back, and polls every 10 s only while the stream is down.
+  const offEvents = onHelperEvent(onPush)
+  const offStream = onStreamState((v) => { if (!v && onScreen()) void refresh() })
+  const poll = createFallbackPoll({ refresh: () => void refresh(), onScreen, streamUp })
+  root.onEnter = () => { if (!seeded || !streamUp()) void refresh() }
   void refresh()
-  root.destroy = () => { alive = false; window.clearInterval(timer); offEvents() }
-  void pm
+  root.destroy = () => { alive = false; catchUp.stop(); poll.stop(); offEvents(); offStream(); senders.bri.cancel(); senders.vol.cancel() }
   return root
 }

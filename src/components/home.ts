@@ -55,6 +55,7 @@ import { hudFromEvent, newHudMemory } from '../lib/hud'
 import { getArtUrl, notificationAccess, requestNotificationAccess, setClipboardOn, subscribeEvents, type Media } from '../lib/helper'
 import { createWinNotes, noteSource } from '../lib/win-notifications'
 import { attachScrollVolume } from '../lib/scroll-volume'
+import { connectivity } from '../lib/connectivity'
 import { shortSubject } from '../lib/study'
 import { subjectHex } from '../panels/studyPill'
 import { view as timerView } from '../panels/studyTimer'
@@ -690,6 +691,8 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   }
   const onVisible = () => { syncHomeActive(); syncBaseLevel(); if (document.hidden) stop(); else { start(); void refresh(); void alertsStore?.load(); void loadPrefs() } }
   const onOnline = () => void refresh()
+  // Card 29: the "Offline" pill. Halo works without the network, this just says so.
+  const stopOffline = connectivity.subscribe((off) => sh?.setOffline(off))
   // Tapping or clicking anywhere outside the open island closes it (phones have no Escape key).
   const onOutside = (e: PointerEvent) => { if (!sh && isl.state === 'expanded' && !(e.target as Element).closest('.h-island')) isl.close() }
   document.addEventListener('pointerdown', onOutside)
@@ -708,7 +711,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   syncCycle(clock())
 
   return () => {
-    stop(); ro.disconnect(); unsub(); unsubTimer(); unsubBase?.(); baseTab?.destroy(); baseStore?.destroy(); stopEvents?.(); live?.destroy(); if (artUrl) URL.revokeObjectURL(artUrl); payPanel?.destroy(); alertsPanel?.destroy(); moneyPanel?.destroy(); marksPanel?.destroy(); claudePanel?.destroy(); nightPanel?.destroy(); unsubNight(); shelfPanel?.destroy(); widgetsPanel?.destroy(); unsubAlerts?.(); banners?.destroy(); detachScroll?.(); detachDesktop?.(); settings?.destroy(); musicPanel?.destroy(); controlsPanel?.destroy(); audioPanel?.destroy(); launchPanel?.destroy(); sixersPanel?.destroy(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
+    stop(); stopOffline(); ro.disconnect(); unsub(); unsubTimer(); unsubBase?.(); baseTab?.destroy(); baseStore?.destroy(); stopEvents?.(); live?.destroy(); if (artUrl) URL.revokeObjectURL(artUrl); payPanel?.destroy(); alertsPanel?.destroy(); moneyPanel?.destroy(); marksPanel?.destroy(); claudePanel?.destroy(); nightPanel?.destroy(); unsubNight(); shelfPanel?.destroy(); widgetsPanel?.destroy(); unsubAlerts?.(); banners?.destroy(); detachScroll?.(); detachDesktop?.(); settings?.destroy(); musicPanel?.destroy(); controlsPanel?.destroy(); audioPanel?.destroy(); launchPanel?.destroy(); sixersPanel?.destroy(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
     document.removeEventListener('pointerdown', onOutside)
     document.removeEventListener('visibilitychange', onVisible)
     removeEventListener('online', onOnline)

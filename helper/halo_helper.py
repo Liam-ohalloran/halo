@@ -19,6 +19,7 @@ import socket
 import subprocess
 import sys
 import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -29,6 +30,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+import halo_fast
+from halo_fast import (
+    AUDIO,
+    DISPLAY,
+    POWER_SCHEMES,
+    mode_for_guid,
+    power_get_active_guid,
+    power_set_active_guid,
+    summarise,
+)
 from halo_extras import (
     ClipboardHistory,
     Notifications,
@@ -294,60 +305,38 @@ class Media:
         return bool(await session.try_change_playback_position_async(int(seconds * 10_000_000)))
 
 
-def _endpoint_volume():
+# Hot paths (card 29). The backends live in halo_fast.py: cached Windows objects, each lane on one thread that owns them.
+_audio = halo_fast.audio
+_brightness = halo_fast.brightness
+_wlan = halo_fast.wlan
+
+
+def _need_windows(what: str) -> None:
     if not IS_WINDOWS:
-        raise Unavailable("Volume only works on Windows.")
-    _com_init()
-    from pycaw.pycaw import AudioUtilities  # type: ignore
-
-    dev = AudioUtilities.GetSpeakers()
-    if hasattr(dev, "EndpointVolume"):  # newer pycaw
-        return dev.EndpointVolume
-    from comtypes import CLSCTX_ALL  # type: ignore
-    from ctypes import POINTER, cast
-    from pycaw.pycaw import IAudioEndpointVolume  # type: ignore
-
-    iface = dev.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-    return cast(iface, POINTER(IAudioEndpointVolume))
+        raise Unavailable(f"{what} only works on Windows.")
 
 
 def get_volume() -> dict:
-    ev = _endpoint_volume()
-    return {"level": round(ev.GetMasterVolumeLevelScalar() * 100), "muted": bool(ev.GetMute())}
+    _need_windows("Volume")
+    return _audio.get_volume()
 
 
 def set_volume(level: int) -> dict:
-    ev = _endpoint_volume()
-    ev.SetMasterVolumeLevelScalar(max(0, min(100, level)) / 100, None)
-    return get_volume()
+    _need_windows("Volume")
+    return _audio.set_volume(level)
 
 
 def set_mute(muted: Optional[bool]) -> dict:
-    ev = _endpoint_volume()
-    ev.SetMute(int(not ev.GetMute()) if muted is None else int(muted), None)
-    return get_volume()
+    _need_windows("Volume")
+    return _audio.set_mute(muted)
 
 
 def get_brightness() -> dict:
-    try:
-        import screen_brightness_control as sbc  # type: ignore
-
-        values = sbc.get_brightness()
-    except Exception:
-        raise Unavailable("This screen doesn't allow brightness changes.")
-    if not values:
-        raise Unavailable("This screen doesn't allow brightness changes.")
-    return {"level": int(values[0])}
+    return _brightness.get()
 
 
 def set_brightness(level: int) -> dict:
-    try:
-        import screen_brightness_control as sbc  # type: ignore
-
-        sbc.set_brightness(max(0, min(100, level)))
-    except Exception:
-        raise Unavailable("This screen doesn't allow brightness changes.")
-    return get_brightness()
+    return _brightness.set(level)
 
 
 def get_battery() -> dict:
@@ -388,23 +377,18 @@ async def _set_radio(kind_name: str, enabled: bool) -> None:
     await radio.set_state_async(RadioState.ON if enabled else RadioState.OFF)
 
 
-def _run(cmd: list[str]) -> str:
-    return subprocess.run(
-        cmd, capture_output=True, text=True, timeout=10, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)
-    ).stdout
-
-
 async def get_wifi() -> dict:
+    """Radio and network straight from Windows' WLAN service (wlanapi), no netsh. A laptop the WLAN service does not know
+    falls back to the Windows radio list, which can say on or off but not the network name."""
+    _need_windows("Radios")
+    found = await run_in_threadpool(_wlan.read)
+    if found is not None:
+        return found
     from winsdk.windows.devices.radios import RadioState  # type: ignore
 
     radio = await _radio("WI_FI")
     enabled = radio.state == RadioState.ON
-    ssid = None
-    if enabled:
-        out = await run_in_threadpool(_run, ["netsh", "wlan", "show", "interfaces"])
-        m = re.search(r"^\s*SSID\s*:\s*(.+)$", out, re.MULTILINE)
-        ssid = m.group(1).strip() if m else None
-    return {"enabled": enabled, "connected": ssid is not None, "ssid": ssid}
+    return {"enabled": enabled, "connected": False, "ssid": None}
 
 
 async def get_bluetooth() -> dict:
@@ -432,35 +416,14 @@ async def get_bluetooth() -> dict:
     return {"enabled": enabled, "connected_device": device}
 
 
-POWER_SCHEMES = {
-    "battery": "a1841308-3541-4fab-bc81-f71556f20b4a",
-    "balanced": "381b4222-f694-41f0-9685-ff5bb260df2e",
-    "performance": "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c",
-}
-
-
 def get_power_mode() -> dict:
-    if not IS_WINDOWS:
-        raise Unavailable("Power modes only work on Windows.")
-    out = _run(["powercfg", "/getactivescheme"]).lower()
-    for mode, guid in POWER_SCHEMES.items():
-        if guid in out:
-            return {"mode": mode}
-    return {"mode": "balanced"}
+    _need_windows("Power modes")
+    return {"mode": mode_for_guid(power_get_active_guid())}
 
 
 def set_power_mode(mode: str) -> dict:
-    if not IS_WINDOWS:
-        raise Unavailable("Power modes only work on Windows.")
-    r = subprocess.run(
-        ["powercfg", "/setactive", POWER_SCHEMES[mode]],
-        capture_output=True,
-        text=True,
-        timeout=10,
-        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-    )
-    if r.returncode != 0:
-        raise Unavailable("Windows doesn't have that power mode on this laptop.")
+    _need_windows("Power modes")
+    power_set_active_guid(POWER_SCHEMES[mode])
     return {"mode": mode}
 
 
@@ -509,15 +472,34 @@ class PowerBody(BaseModel):
     mode: str = Field(pattern="^(battery|balanced|performance)$")
 
 
+# Which thread runs which call. The audio lane owns the cached audio objects, the display lane owns WMI, and the devices lane
+# takes the slow device list, so a slow call never queues in front of a volume tap. Plain calls need no COM at all.
+_DEVICES = halo_fast.ComLane("devices")
+_PLAIN: set = set()
+_LANES: dict = {}
+
+
+def _register_lanes() -> None:
+    _PLAIN.update({get_battery, get_power_mode, set_power_mode})
+    for fn in (get_volume, set_volume, set_mute, mic_state, set_mic_mute, probe_mic, probe_output, list_app_volumes, set_app_volume):
+        _LANES[fn] = AUDIO
+    for fn in (get_brightness, set_brightness):
+        _LANES[fn] = DISPLAY
+    for fn in (list_outputs, set_default_output):
+        _LANES[fn] = _DEVICES
+
+
 def _guard(fn, *args):
     """Run a blocking backend call off the event loop, turning Unavailable into a 503."""
-
-    def call():
-        return _com_call(fn, *args)
+    lane = _LANES.get(fn)
 
     async def go():
         try:
-            return await run_in_threadpool(call)
+            if lane is not None:
+                return await lane.run(fn, *args)
+            if fn in _PLAIN:
+                return await run_in_threadpool(fn, *args)
+            return await run_in_threadpool(_com_call, fn, *args)
         except Unavailable as e:
             raise HTTPException(503, str(e))
 
@@ -537,24 +519,9 @@ async def _guard_async(coro):
 # ---------------------------------------------------------------------------
 
 
-def _capture_volume():
-    if not IS_WINDOWS:
-        raise Unavailable("Mic only works on Windows.")
-    _com_init()
-    from pycaw.pycaw import AudioUtilities  # type: ignore
-
-    dev = AudioUtilities.GetMicrophone()
-    if hasattr(dev, "EndpointVolume"):
-        return dev.EndpointVolume
-    from comtypes import CLSCTX_ALL  # type: ignore
-    from ctypes import POINTER, cast
-    from pycaw.pycaw import IAudioEndpointVolume  # type: ignore
-
-    return cast(dev.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None), POINTER(IAudioEndpointVolume))
-
-
 def probe_mic() -> dict:
-    return {"muted": bool(_capture_volume().GetMute())}
+    _need_windows("Mic")
+    return {"muted": _audio.mic_muted()}
 
 
 def probe_caps() -> dict:
@@ -575,22 +542,9 @@ def output_kind(name: str) -> str:
 
 
 def probe_output() -> dict:
-    if not IS_WINDOWS:
-        raise Unavailable("Audio output only works on Windows.")
-    _com_init()
-    from pycaw.pycaw import AudioUtilities  # type: ignore
-
-    dev = AudioUtilities.GetSpeakers()
-    name = getattr(dev, "FriendlyName", None)
-    if not name:
-        dev_id = dev.GetId()
-        for d in AudioUtilities.GetAllDevices():
-            if d.id == dev_id:
-                name = d.FriendlyName
-    if not name:
-        raise Unavailable("No audio output.")
+    _need_windows("Audio output")
+    name = _audio.output_name()
     return {"name": name, "kind": output_kind(name)}
-
 
 
 # ---------------------------------------------------------------------------
@@ -620,22 +574,8 @@ def pretty_app(process: str) -> str:
 
 def _app_sessions():
     """(display name, SimpleAudioVolume) for every app that has an audio session right now."""
-    if not IS_WINDOWS:
-        raise Unavailable("The app mixer only works on Windows.")
-    _com_init()
-    from pycaw.pycaw import AudioUtilities  # type: ignore
-
-    found = []
-    for sess in AudioUtilities.GetAllSessions():
-        proc = getattr(sess, "Process", None)
-        if proc is None:
-            continue  # the "System sounds" session has no process
-        try:
-            name = pretty_app(proc.name())
-            found.append((name, sess.SimpleAudioVolume))
-        except Exception:
-            continue
-    return found
+    _need_windows("The app mixer")
+    return [(pretty_app(proc), vol) for proc, vol in _audio.sessions()]
 
 
 def list_app_volumes() -> dict:
@@ -654,42 +594,14 @@ def set_app_volume(app_id: str, level: int) -> dict:
     return list_app_volumes()
 
 
-def _mic_endpoint():
-    if not IS_WINDOWS:
-        raise Unavailable("The microphone only works on Windows.")
-    _com_init()
-    from pycaw.pycaw import AudioUtilities  # type: ignore
-
-    try:
-        return AudioUtilities.GetMicrophone()
-    except Exception:
-        raise Unavailable("No microphone found.")
-
-
-def _peak(dev) -> float:
-    """The microphone's live level, 0 to 1, from the endpoint's audio meter."""
-    from comtypes import CLSCTX_ALL  # type: ignore
-    from ctypes import POINTER, cast
-    from pycaw.pycaw import IAudioMeterInformation  # type: ignore
-
-    meter = cast(dev.Activate(IAudioMeterInformation._iid_, CLSCTX_ALL, None), POINTER(IAudioMeterInformation))
-    return float(meter.GetPeakValue())
-
-
 def mic_state() -> dict:
-    ev = _capture_volume()
-    muted = bool(ev.GetMute())
-    try:
-        level = 0.0 if muted else _peak(_mic_endpoint())
-    except Exception:
-        level = 0.0
-    return {"muted": muted, "level": round(max(0.0, min(1.0, level)), 3)}
+    _need_windows("The microphone")
+    return _audio.mic_state()
 
 
 def set_mic_mute(muted: Optional[bool]) -> dict:
-    ev = _capture_volume()
-    ev.SetMute(int(not ev.GetMute()) if muted is None else int(muted), None)
-    return mic_state()
+    _need_windows("The microphone")
+    return _audio.set_mic_mute(muted)
 
 
 def _render_devices() -> list:
@@ -713,18 +625,28 @@ def shape_outputs(devices: list, current_id: str) -> dict:
     return {"current": cur, "outputs": rows, "can_switch": len(rows) > 1}
 
 
+_OUTPUTS_TTL = 5.0
+_outputs_cache: dict = {"at": 0.0, "id": None, "value": None}
+
+
 def list_outputs() -> dict:
+    """Playback devices. Reading their names is slow (Windows' property store), so the list is kept for a few seconds and
+    thrown away when the default device changes or Halo switches it. Runs on its own lane, never in front of a volume tap."""
     if not IS_WINDOWS:
         raise Unavailable("Audio outputs only work on Windows.")
-    _com_init()
     from pycaw.pycaw import AudioUtilities  # type: ignore
 
-    devices = _render_devices()
     spk = AudioUtilities.GetSpeakers()
-    cur_id = getattr(spk, 'id', None) or spk.GetId()
+    cur_id = getattr(spk, "id", None) or spk.GetId()
+    c = _outputs_cache
+    if c["value"] is not None and c["id"] == cur_id and time.monotonic() - c["at"] < _OUTPUTS_TTL:
+        return c["value"]
+    devices = _render_devices()
     if cur_id not in [i for i, _ in devices]:
-        devices.insert(0, (cur_id, probe_output()["name"]))
-    return shape_outputs(devices, cur_id)
+        devices.insert(0, (cur_id, getattr(spk, "FriendlyName", None) or "Speakers"))
+    value = shape_outputs(devices, cur_id)
+    c.update(at=time.monotonic(), id=cur_id, value=value)
+    return value
 
 
 def set_default_output(device_id: str, switch=None, devices=None) -> dict:
@@ -743,6 +665,8 @@ def set_default_output(device_id: str, switch=None, devices=None) -> dict:
             from pycaw.pycaw import AudioUtilities  # type: ignore
 
             AudioUtilities.SetDefaultDevice(device_id, [ERole.eConsole, ERole.eMultimedia])
+            _outputs_cache["value"] = None
+            AUDIO.submit(_audio.invalidate)
         else:
             switch(device_id)
     except Unavailable:
@@ -1088,23 +1012,39 @@ def launch_app(app_id: str) -> dict:
     return {"ok": True}
 
 
-def probe_brightness() -> dict:
-    return get_brightness()
+async def probe_brightness() -> dict:
+    return await DISPLAY.run(get_brightness)
 
 
-def probe_power() -> dict:
-    return get_power_mode()
+async def probe_mic_async() -> dict:
+    return await AUDIO.run(probe_mic)
 
+
+async def probe_output_async() -> dict:
+    return await AUDIO.run(probe_output)
+
+
+async def probe_apps() -> dict:
+    return await AUDIO.run(list_app_volumes)
+
+
+async def probe_power() -> dict:
+    return await run_in_threadpool(get_power_mode)
+
+
+_SKIP = object()
 
 # (event name, run every N polls, probe, needs await)
 EXTRA_PROBES: list[tuple[str, int, Any, bool]] = [
-    ("brightness", 2, probe_brightness, False),
-    ("mic", 1, probe_mic, False),
+    ("brightness", 1, probe_brightness, True),
+    ("mic", 1, probe_mic_async, True),
     ("caps", 1, probe_caps, False),
-    ("output", 1, probe_output, False),
-    ("wifi", 5, get_wifi, True),
+    ("output", 1, probe_output_async, True),
+    ("wifi", 3, get_wifi, True),
     ("bluetooth", 5, get_bluetooth, True),
-    ("power", 5, probe_power, False),
+    ("power", 2, probe_power, True),
+    # The Audio tab's mixer. Apps open and close, so it is pushed too, not polled.
+    ("apps", 2, probe_apps, True),
     # Card 26: pills when airplane mode or night light changes. Read only.
     ("airplane", 3, probe_airplane, True),
     ("night", 3, probe_night, False),
@@ -1112,23 +1052,83 @@ EXTRA_PROBES: list[tuple[str, int, Any, bool]] = [
 
 
 async def collect_extra(last: dict, ticks: int, probes=None) -> dict:
-    """Runs the probes that are due and returns only the ones whose answer changed since `last` (which it updates)."""
-    changed: dict[str, Any] = {}
-    for name, every, probe, is_async in probes if probes is not None else EXTRA_PROBES:
-        if ticks % every:
-            continue
+    """Runs the probes that are due, side by side, and returns only the ones whose answer changed since `last` (which it updates)."""
+    due = [(name, probe, is_async) for name, every, probe, is_async in (probes if probes is not None else EXTRA_PROBES) if not ticks % every]
+
+    async def one(probe, is_async):
         try:
-            if is_async:
-                value = await probe()
-            else:
-                value = await run_in_threadpool(_com_call, probe)
+            return await probe() if is_async else await run_in_threadpool(_com_call, probe)
         except Exception:
-            continue  # not available on this laptop right now: say nothing
-        if value != last.get(name):
+            return _SKIP  # not available on this laptop right now: say nothing
+
+    values = await asyncio.gather(*(one(probe, is_async) for _, probe, is_async in due))
+    changed: dict[str, Any] = {}
+    for (name, _, _), value in zip(due, values):
+        if value is not _SKIP and value != last.get(name):
             last[name] = value
             changed[name] = value
     return changed
 
+
+
+FAST_SECONDS = 0.15
+LATENCY_TARGET_MS = 50
+
+
+async def measure_latency(n: int = 15) -> dict:
+    """Times what a tap costs inside the helper: the same lanes and backends the endpoints use. Sets send the current value, so
+    nothing on the laptop changes. A path this laptop can't do (no brightness panel, no Wi-Fi) says why instead of a time."""
+
+    async def volume_set():
+        v = await AUDIO.run(get_volume)
+        await AUDIO.run(set_volume, v["level"])
+
+    async def mute_set():
+        v = await AUDIO.run(get_volume)
+        await AUDIO.run(set_mute, v["muted"])
+
+    async def mic_set():
+        m = await AUDIO.run(mic_state)
+        await AUDIO.run(set_mic_mute, m["muted"])
+
+    async def brightness_set():
+        b = await DISPLAY.run(get_brightness)
+        await DISPLAY.run(set_brightness, b["level"])
+
+    async def power_set():
+        p = await run_in_threadpool(get_power_mode)
+        await run_in_threadpool(set_power_mode, p["mode"])
+
+    paths = {
+        "volume_get": lambda: AUDIO.run(get_volume),
+        "volume_set": volume_set,
+        "mute_set": mute_set,
+        "mic_get": lambda: AUDIO.run(mic_state),
+        "mic_mute_set": mic_set,
+        "brightness_get": lambda: DISPLAY.run(get_brightness),
+        "brightness_set": brightness_set,
+        "power_get": lambda: run_in_threadpool(get_power_mode),
+        "power_set": power_set,
+        "wifi_get": get_wifi,
+        "apps_get": lambda: AUDIO.run(list_app_volumes),
+    }
+    results: dict[str, Any] = {}
+    for name, fn in paths.items():
+        times: list[float] = []
+        try:
+            await fn()  # the first run may build the cached objects; it is not counted
+            for _ in range(n):
+                t0 = time.perf_counter()
+                await fn()
+                times.append((time.perf_counter() - t0) * 1000)
+            results[name] = summarise(times)
+        except Unavailable as e:
+            results[name] = {"unavailable": str(e)}
+        except Exception as e:  # a backend that is broken must not take the report down
+            results[name] = {"error": type(e).__name__}
+    hot = ("volume_get", "volume_set", "mute_set", "mic_get", "mic_mute_set", "brightness_get", "brightness_set")
+    slow = [k for k in hot if isinstance(results.get(k), dict) and results[k].get("p95_ms", 0) >= LATENCY_TARGET_MS]
+    return {"target_ms": LATENCY_TARGET_MS, "runs": n, "results": results, "slow": slow, "ok": not slow}
 
 
 def create_app(token: str, media: Optional[Media] = None, poll_seconds: float = 1.0, notifications: Optional[Notifications] = None, clipboard: Optional[ClipboardHistory] = None) -> FastAPI:
@@ -1265,7 +1265,9 @@ def create_app(token: str, media: Optional[Media] = None, poll_seconds: float = 
     @app.post("/wifi")
     async def wifi_post(body: EnabledBody):
         await _guard_async(_set_radio("WI_FI", body.enabled))
-        return await _guard_async(get_wifi())
+        now = await _guard_async(get_wifi())
+        # The adapter takes a second to say it has joined or left a network, so the reply says what was asked for.
+        return {"enabled": body.enabled, "connected": now["connected"] and body.enabled, "ssid": now["ssid"] if body.enabled else None}
 
     @app.get("/bluetooth")
     async def bluetooth_get():
@@ -1315,63 +1317,115 @@ def create_app(token: str, media: Optional[Media] = None, poll_seconds: float = 
         await _guard(write_clipboard, clip)
         return {"ok": True}
 
+    @app.get("/latency")
+    async def latency(n: int = 15):
+        """How long the hot paths take inside the helper, over `n` runs each (3 to 60). Nothing changes: a set call sends the
+        value that is already there. The Halo page adds its own few milliseconds of HTTP on top."""
+        return await measure_latency(max(3, min(60, n)))
+
     @app.get("/events")
     async def events():
-        """Server sent events. Emits `media`, `volume`, `battery`, `brightness`, `mic`, `caps`, `output`, `wifi`, `bluetooth`, `power`, `airplane`, `night` and `clipboard` when they change, and `notification` for each new Windows notification.
+        """Server sent events. Emits `media`, `volume` (level and mute), `battery`, `brightness`, `mic` (muted), `mic_level`, `caps`, `output`, `wifi`, `bluetooth`, `power`, `apps` (the mixer), `airplane`, `night` and `clipboard` when they change, and `notification` for each new Windows notification. The first pass sends every state, so a page that just connected needs no other request.
 
         EventSource can't send headers, so Halo reads this with fetch() and a stream reader.
         """
 
         async def stream():
             last: dict[str, Any] = {}
-            expected_pos: Optional[float] = None
-            yield "retry: 2000\n\n"
-            ticks = 0
-            while True:
-                snapshots: dict[str, Any] = {}
-                try:
-                    m = await media.info()
-                    # Position moves every second, so only a jump counts as a change.
-                    jumped = expected_pos is not None and abs(m["position"] - expected_pos) > 2.5
-                    expected_pos = m["position"] + (poll_seconds if m["playing"] else 0)
-                    core = {k: m[k] for k in ("available", "title", "artist", "album", "source", "playing", "duration", "has_art")}
-                    if core != last.get("media_core") or jumped:
-                        last["media_core"] = core
-                        snapshots["media"] = m
-                except Exception:
-                    pass
-                try:
-                    v = await run_in_threadpool(_com_call, get_volume)
-                    if v != last.get("volume"):
-                        last["volume"] = v
-                        snapshots["volume"] = v
-                except Exception:
-                    pass
-                if ticks % 5 == 0:  # battery changes slowly
+            queue: asyncio.Queue = asyncio.Queue()
+
+            def emit(name: str, data: Any) -> None:
+                queue.put_nowait(f"event: {name}\ndata: {json.dumps(data)}\n\n")
+
+            def changed(name: str, value: Any) -> bool:
+                """True once per change. The loops below share `last`, so whichever sees a change first sends it, and only once."""
+                if value == last.get(name):
+                    return False
+                last[name] = value
+                return True
+
+            async def fast():
+                # What Liam changes with a key or a slider elsewhere, seen within about 150 ms: volume, mute, the mic and its level, brightness.
+                n = 0
+                shown: Optional[float] = None
+                while True:
                     try:
-                        b = get_battery()
-                        if b != last.get("battery"):
-                            last["battery"] = b
-                            snapshots["battery"] = b
+                        m = await AUDIO.run(mic_state)
+                        if changed("mic", {"muted": m["muted"]}):
+                            emit("mic", last["mic"])
+                        level = 0.0 if m["muted"] else round(m["level"] * 36) / 36  # steps of 1/36, sent only when it moves
+                        if level != shown:
+                            shown = level
+                            emit("mic_level", {"level": round(level, 3)})
                     except Exception:
                         pass
-                snapshots.update(await collect_extra(last, ticks))
-                if clipboard.revision != last.get("clip_rev"):
-                    last["clip_rev"] = clipboard.revision
-                    snapshots["clipboard"] = {"revision": clipboard.revision}
-                new_notes: list[dict] = []
-                try:
-                    new_notes = await notifications.poll()
-                except Exception:
-                    pass
-                ticks += 1
-                for name, data in snapshots.items():
-                    yield f"event: {name}\ndata: {json.dumps(data)}\n\n"
-                for n in new_notes:
-                    yield f"event: notification\ndata: {json.dumps(n)}\n\n"
-                if not snapshots and not new_notes:
-                    yield ": keep-alive\n\n"
-                await asyncio.sleep(poll_seconds)
+                    try:
+                        v = await AUDIO.run(get_volume)
+                        if changed("volume", v):
+                            emit("volume", v)
+                    except Exception:
+                        pass
+                    if n % 3 == 0:
+                        try:
+                            b = await DISPLAY.run(get_brightness)
+                            if changed("brightness", b):
+                                emit("brightness", b)
+                        except Exception:
+                            pass
+                    n += 1
+                    await asyncio.sleep(max(0.05, min(poll_seconds, FAST_SECONDS)))
+
+            async def slow():
+                expected_pos: Optional[float] = None
+                ticks = 0
+                while True:
+                    try:
+                        m = await media.info()
+                        # Position moves every second, so only a jump counts as a change.
+                        jumped = expected_pos is not None and abs(m["position"] - expected_pos) > 2.5
+                        expected_pos = m["position"] + (poll_seconds if m["playing"] else 0)
+                        core = {k: m[k] for k in ("available", "title", "artist", "album", "source", "playing", "duration", "has_art")}
+                        if core != last.get("media_core") or jumped:
+                            last["media_core"] = core
+                            emit("media", m)
+                    except Exception:
+                        pass
+                    if ticks % 5 == 0:  # battery changes slowly
+                        try:
+                            b = await run_in_threadpool(get_battery)
+                            if changed("battery", b):
+                                emit("battery", b)
+                        except Exception:
+                            pass
+                    for name, data in (await collect_extra(last, ticks)).items():
+                        emit(name, data)
+                    if clipboard.revision != last.get("clip_rev"):
+                        last["clip_rev"] = clipboard.revision
+                        emit("clipboard", {"revision": clipboard.revision})
+                    ticks += 1
+                    await asyncio.sleep(poll_seconds)
+
+            async def notes():
+                # Windows notifications take about a second to read, so they have a loop of their own and never hold up a state change.
+                while True:
+                    try:
+                        for n in await notifications.poll():
+                            emit("notification", n)
+                    except Exception:
+                        pass
+                    await asyncio.sleep(poll_seconds)
+
+            tasks = [asyncio.create_task(fast()), asyncio.create_task(slow()), asyncio.create_task(notes())]
+            try:
+                yield "retry: 2000\n\n"
+                while True:
+                    try:
+                        yield await asyncio.wait_for(queue.get(), timeout=5)
+                    except asyncio.TimeoutError:
+                        yield ": keep-alive\n\n"
+            finally:
+                for t in tasks:
+                    t.cancel()
 
         return StreamingResponse(
             stream(),
@@ -1463,6 +1517,7 @@ def main() -> int:
         return 0  # already running
     import uvicorn
 
+    halo_fast.warm_up()  # build the cached Windows objects now, so the first tap is as quick as the hundredth
     token = cfg["token"] or load_or_create_token()
     clipboard = ClipboardHistory()
     app = create_app(token, clipboard=clipboard)
@@ -1498,6 +1553,9 @@ def main() -> int:
     server.should_exit = True
     thread.join(timeout=5)
     return 0
+
+
+_register_lanes()
 
 
 if __name__ == "__main__":

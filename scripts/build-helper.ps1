@@ -8,7 +8,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $helper = Join-Path $root 'helper'
 $out = Join-Path $root 'desktop/src-tauri/binaries'
 $target = Join-Path $out 'halo-helper-x86_64-pc-windows-msvc.exe'
-$sources = Get-ChildItem $helper -Filter '*.py' | Where-Object { $_.Name -in 'halo_helper.py', 'halo_extras.py' }
+$sources = Get-ChildItem $helper -Filter '*.py' | Where-Object { $_.Name -in 'halo_helper.py', 'halo_extras.py', 'halo_fast.py' }
 if (-not $Force -and (Test-Path $target) -and (-not ($sources | Where-Object { $_.LastWriteTime -gt (Get-Item $target).LastWriteTime }))) {
   Write-Host "helper exe is up to date: $target"; exit 0
 }
@@ -23,7 +23,7 @@ New-Item -ItemType Directory -Force $out | Out-Null
 $work = Join-Path $helper 'build'
 & $py -m PyInstaller --noconfirm --clean --onefile --noconsole --name halo-helper `
   --distpath (Join-Path $helper 'dist') --workpath $work --specpath $work `
-  --paths $helper --collect-submodules uvicorn --collect-submodules pycaw --hidden-import comtypes.stream `
+  --paths $helper --collect-submodules uvicorn --collect-submodules pycaw --hidden-import comtypes.stream --hidden-import win32com.client --hidden-import pythoncom --hidden-import halo_fast `
   --exclude-module tkinter --exclude-module pytest `
   (Join-Path $helper 'halo_helper.py')
 if ($LASTEXITCODE -ne 0) { throw 'PyInstaller failed' }

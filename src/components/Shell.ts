@@ -54,6 +54,8 @@ export interface ShellHandle {
   setActive(id: TabId, emit?: boolean): void
   /** Redraw the grey line next to the title (the clock moved on, for example). */
   refreshMeta(): void
+  /** Show or hide the "Offline" pill next to the clock (card 29). */
+  setOffline(on: boolean): void
   /** The panel shown for a tab that is not built yet. */
   soon(id: TabId): HTMLElement
   readonly isOpen: boolean
@@ -120,6 +122,8 @@ export function Shell(o: ShellOptions): ShellHandle {
   const sel = h('i', { class: 'sh-sel', 'aria-hidden': 'true' })
   const rail = h('nav', { class: 'sh-rail', role: 'tablist', 'aria-label': 'Halo sections', 'aria-orientation': 'horizontal' }, sel)
   const time = h('span', { class: 'sh-time' })
+  // Card 29: shown while the laptop has no network, or Halo's requests to the server are failing. Everything else keeps working.
+  const offlinePill = h('span', { class: 'sh-offline', role: 'status', hidden: true }, h('i', { 'aria-hidden': 'true' }), 'Offline') as HTMLElement
   const buttons = new Map<TabId, HTMLButtonElement>()
   for (const id of DEFAULT_ORDER) {
     if (id === 'more') continue
@@ -157,7 +161,7 @@ export function Shell(o: ShellOptions): ShellHandle {
     setActive(to, true)
     buttons.get(to)!.focus()
   })
-  const header = h('header', { class: 'sh-head' }, h('div', { class: 'sh-seg' }, rail), h('div', { class: 'sh-rt' }, time))
+  const header = h('header', { class: 'sh-head' }, h('div', { class: 'sh-seg' }, rail), h('div', { class: 'sh-rt' }, offlinePill, time))
 
   // ---- Body: switching tabs swaps panels. Nothing fades and nothing is rebuilt (HALO.md: no flash on interaction).
   // A panel is built the first time its tab is shown and then stays mounted. The one that is not showing is only hidden
@@ -371,6 +375,7 @@ export function Shell(o: ShellOptions): ShellHandle {
 
   return {
     el, host, get active() { return active }, setActive, refreshMeta, soon,
+    setOffline: (on) => { offlinePill.hidden = !on },
     get isOpen() { return isOpen }, open, close, pill, setCollapsed, get collapsed() { return collapsed },
     live, setSize,
     setScale: (n) => { scale = n; delete el.dataset.size; paintSize() },

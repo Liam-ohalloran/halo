@@ -489,6 +489,14 @@ class ClipboardEnabledBody(BaseModel):
     on: bool
 
 
+class AppVolumeBody(BaseModel):
+    level: int = Field(ge=0, le=100)
+
+
+class LaunchBody(BaseModel):
+    id: str = Field(min_length=1, max_length=300)
+
+
 class PowerBody(BaseModel):
     mode: str = Field(pattern="^(battery|balanced|performance)$")
 
@@ -576,6 +584,190 @@ def probe_output() -> dict:
     return {"name": name, "kind": output_kind(name)}
 
 
+
+# ---------------------------------------------------------------------------
+# Card 24: per app volume, the microphone, audio outputs and launching things
+# ---------------------------------------------------------------------------
+
+
+def merge_sessions(rows: list) -> list:
+    """One row per app. Chrome has a session per tab, so rows with the same name are folded into one: the loudest level wins
+    and it counts as muted only when every one of them is. `rows` are (name, level 0 to 100, muted)."""
+    out: dict = {}
+    for name, level, muted in rows:
+        key = name.lower()
+        row = out.get(key)
+        if row is None:
+            out[key] = {"id": key, "name": name, "level": level, "muted": bool(muted)}
+        else:
+            row["level"] = max(row["level"], level)
+            row["muted"] = row["muted"] and bool(muted)
+    return sorted(out.values(), key=lambda r: (-r["level"], r["name"].lower()))
+
+
+def pretty_app(process: str) -> str:
+    base = process[:-4] if process.lower().endswith(".exe") else process
+    return base[:1].upper() + base[1:]
+
+
+def _app_sessions():
+    """(display name, SimpleAudioVolume) for every app that has an audio session right now."""
+    if not IS_WINDOWS:
+        raise Unavailable("The app mixer only works on Windows.")
+    _com_init()
+    from pycaw.pycaw import AudioUtilities  # type: ignore
+
+    found = []
+    for sess in AudioUtilities.GetAllSessions():
+        proc = getattr(sess, "Process", None)
+        if proc is None:
+            continue  # the "System sounds" session has no process
+        try:
+            name = pretty_app(proc.name())
+            found.append((name, sess.SimpleAudioVolume))
+        except Exception:
+            continue
+    return found
+
+
+def list_app_volumes() -> dict:
+    rows = [(name, round(v.GetMasterVolume() * 100), bool(v.GetMute())) for name, v in _app_sessions()]
+    return {"apps": merge_sessions(rows)}
+
+
+def set_app_volume(app_id: str, level: int) -> dict:
+    hit = False
+    for name, v in _app_sessions():
+        if name.lower() == app_id.lower():
+            v.SetMasterVolume(max(0, min(100, level)) / 100, None)
+            hit = True
+    if not hit:
+        raise Unavailable("That app isn't playing sound right now.")
+    return list_app_volumes()
+
+
+def _mic_endpoint():
+    if not IS_WINDOWS:
+        raise Unavailable("The microphone only works on Windows.")
+    _com_init()
+    from pycaw.pycaw import AudioUtilities  # type: ignore
+
+    try:
+        return AudioUtilities.GetMicrophone()
+    except Exception:
+        raise Unavailable("No microphone found.")
+
+
+def _peak(dev) -> float:
+    """The microphone's live level, 0 to 1, from the endpoint's audio meter."""
+    from comtypes import CLSCTX_ALL  # type: ignore
+    from ctypes import POINTER, cast
+    from pycaw.pycaw import IAudioMeterInformation  # type: ignore
+
+    meter = cast(dev.Activate(IAudioMeterInformation._iid_, CLSCTX_ALL, None), POINTER(IAudioMeterInformation))
+    return float(meter.GetPeakValue())
+
+
+def mic_state() -> dict:
+    ev = _capture_volume()
+    muted = bool(ev.GetMute())
+    try:
+        level = 0.0 if muted else _peak(_mic_endpoint())
+    except Exception:
+        level = 0.0
+    return {"muted": muted, "level": round(max(0.0, min(1.0, level)), 3)}
+
+
+def set_mic_mute(muted: Optional[bool]) -> dict:
+    ev = _capture_volume()
+    ev.SetMute(int(not ev.GetMute()) if muted is None else int(muted), None)
+    return mic_state()
+
+
+def list_outputs() -> dict:
+    """Every playback device Windows lists, and which one is the default. Read only: Halo never switches it (HALO.md 2b)."""
+    if not IS_WINDOWS:
+        raise Unavailable("Audio outputs only work on Windows.")
+    _com_init()
+    from pycaw.pycaw import AudioUtilities  # type: ignore
+
+    cur = probe_output()["name"]
+    names = []
+    try:
+        from pycaw.constants import DEVICE_STATE  # type: ignore
+
+        devs = AudioUtilities.GetAllDevices()
+        for d in devs:
+            if getattr(d, "state", None) == DEVICE_STATE.ACTIVE and d.FriendlyName and d.FriendlyName not in names:
+                names.append(d.FriendlyName)
+    except Exception:
+        pass
+    if cur not in names:
+        names.insert(0, cur)
+    return {"current": cur, "outputs": [{"name": n, "kind": output_kind(n), "current": n == cur} for n in names]}
+
+
+# -- launching (the Launch tab). Only things that sit in the Start menu, or a web address, can be opened.
+
+START_DIRS = (r"%ProgramData%\Microsoft\Windows\Start Menu\Programs", r"%APPDATA%\Microsoft\Windows\Start Menu\Programs")
+_SKIP_APPS = ("uninstall", "readme", "help", "license", "release notes", "documentation")
+
+
+def scan_start_menu(roots: list) -> list:
+    """Apps in the Start menu: [{id, name}], where id is the shortcut's path under its Start menu folder (so it can be launched
+    again, and only ever from inside those folders). Sorted by name, duplicates folded."""
+    import os
+
+    seen: dict = {}
+    for root in roots:
+        if not root or not os.path.isdir(root):
+            continue
+        for dirpath, _dirs, files in os.walk(root):
+            for f in files:
+                if not f.lower().endswith(".lnk"):
+                    continue
+                name = f[:-4]
+                if any(w in name.lower() for w in _SKIP_APPS):
+                    continue
+                rel = os.path.relpath(os.path.join(dirpath, f), root).replace(os.sep, "/")
+                seen.setdefault(name.lower(), {"id": rel, "name": name})
+    return sorted(seen.values(), key=lambda a: a["name"].lower())
+
+
+def _start_roots() -> list:
+    import os
+
+    return [os.path.expandvars(d) for d in START_DIRS]
+
+
+def list_start_apps() -> dict:
+    if not IS_WINDOWS:
+        raise Unavailable("The Start menu only exists on Windows.")
+    return {"apps": scan_start_menu(_start_roots())}
+
+
+def resolve_start_app(app_id: str, roots: list) -> str:
+    """The full path of a Start menu shortcut, or a plain refusal. A path that climbs out of the folders, or is not a shortcut, is refused."""
+    import os
+
+    if not app_id.lower().endswith(".lnk") or ".." in app_id.replace("\\", "/").split("/") or os.path.isabs(app_id):
+        raise Unavailable("That isn't an app Halo can open.")
+    for root in roots:
+        full = os.path.normpath(os.path.join(root, app_id))
+        if full.startswith(os.path.normpath(root) + os.sep) and os.path.isfile(full):
+            return full
+    raise Unavailable("That app is not in the Start menu any more.")
+
+
+def launch_app(app_id: str) -> dict:
+    if not IS_WINDOWS:
+        raise Unavailable("Opening apps only works on Windows.")
+    import os
+
+    os.startfile(resolve_start_app(app_id, _start_roots()))  # type: ignore[attr-defined]
+    return {"ok": True}
+
+
 def probe_brightness() -> dict:
     return get_brightness()
 
@@ -654,7 +846,7 @@ def create_app(token: str, media: Optional[Media] = None, poll_seconds: float = 
             "ok": True,
             "version": VERSION,
             "time": datetime.now(timezone.utc).isoformat(),
-            "not_supported": ["focus", "keyboard_light"],
+            "not_supported": ["focus", "keyboard_light", "anc", "equaliser", "switch_output"],
         }
 
     @app.get("/media")
@@ -697,6 +889,34 @@ def create_app(token: str, media: Optional[Media] = None, poll_seconds: float = 
     @app.post("/brightness")
     async def brightness_post(body: VolumeBody):
         return await _guard(set_brightness, body.level)
+
+    @app.get("/apps/volume")
+    async def apps_volume_get():
+        return await _guard(list_app_volumes)
+
+    @app.post("/apps/volume/{app_id}")
+    async def apps_volume_post(app_id: str, body: AppVolumeBody):
+        return await _guard(set_app_volume, app_id, body.level)
+
+    @app.get("/mic")
+    async def mic_get():
+        return await _guard(mic_state)
+
+    @app.post("/mic/mute")
+    async def mic_mute_post(body: Optional[MuteBody] = None):
+        return await _guard(set_mic_mute, body.muted if body else None)
+
+    @app.get("/outputs")
+    async def outputs_get():
+        return await _guard(list_outputs)
+
+    @app.get("/launch/apps")
+    async def launch_apps():
+        return await _guard(list_start_apps)
+
+    @app.post("/launch/app")
+    async def launch_app_post(body: LaunchBody):
+        return await _guard(launch_app, body.id)
 
     @app.get("/battery")
     async def battery_get():

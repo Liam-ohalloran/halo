@@ -72,3 +72,7 @@ Covers the token check, CORS and the Private Network Access preflight. The Windo
 - Everything else on the laptop is untouched. The helper never reads files, messages or accounts.
 - The tray menu has **Copy pairing token** and **Quit**.
 - Run `python halo_helper.py --no-tray` to run without the tray icon while debugging.
+
+## Inside the Halo desktop app
+
+The desktop app bundles this helper as a sidecar and starts it itself, so nothing here needs installing. It passes `HALO_TOKEN` (from the Windows Credential Manager), `HALO_PORT` and `HALO_NO_TRAY=1`. The old stand alone install above keeps working and can be removed once the app is installed. New in the helper: `/clipboard`, `/notifications/access`, `/notifications/request`, and the events `notification`, `clipboard`, `airplane` and `night`. See `docs/desktop.md`.

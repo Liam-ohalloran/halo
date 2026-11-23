@@ -7,6 +7,7 @@
 //! sees the mouse leave on its own). It also hides the window over a full screen app.
 
 mod geometry;
+mod helper;
 mod winapi;
 
 use geometry::{inside_any, place, Region};
@@ -437,8 +438,9 @@ pub fn run() {
                 .build(),
         )
         .invoke_handler(tauri::generate_handler![
-            set_island, set_regions, set_focusable, get_state, set_style, set_monitor, set_autostart, pause_for_hour, take_auth_url, quit
+            set_island, set_regions, set_focusable, get_state, set_style, set_monitor, set_autostart, pause_for_hour, take_auth_url, helper::helper_info, quit
         ])
+        .manage(helper::HelperState::default())
         .setup(move |app| {
             let handle = app.handle().clone();
             let cfg = load_config(&handle);
@@ -493,13 +495,20 @@ pub fn run() {
             }
             tray.build(app)?;
 
+            // Card 26: the helper starts with the app and stops with it.
+            helper::start(&handle);
             apply_placement(&handle, true);
             set_visible(&handle, true);
             watch(handle);
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running Halo");
+        .build(tauri::generate_context!())
+        .expect("error while building Halo")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                helper::stop(app);
+            }
+        });
 }
 
 /// Register a shortcut. False when another app already owns it.

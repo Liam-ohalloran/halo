@@ -7,7 +7,7 @@ import { mountPay } from './panels/pay'
 import { mountStudy } from './views/study'
 import { mountAuth } from './views/auth'
 import { isEmbed } from './lib/embed'
-import { isDesktop, sizeForScreen } from './lib/desktop'
+import { connectDesktopHelper, isDesktop, sizeForScreen } from './lib/desktop'
 import { watchAuthLinks } from './lib/desktop-auth'
 
 type Tab = 'now' | 'pay' | 'study'
@@ -138,7 +138,7 @@ function booting() {
 
 async function start() {
   isEmbed() // reads ?embed=1, remembers it, and sets html.embed before anything draws
-  isDesktop() // reads ?desktop=1 (the Halo desktop app), and sets html.desktop
+  if (isDesktop()) await connectDesktopHelper() // reads ?desktop=1 (the Halo desktop app), sets html.desktop, and finds the bundled helper
   // index.html ships with class="home" so the first paint is the Halo black. The old draft screens opt out.
   if (params.has('legacy') || (import.meta.env.DEV && params.has('mock'))) document.documentElement.classList.remove('home')
   // Dev-only preview of the Now panel on fixtures with a fixed clock: /?demo=soon&open=1 (stripped from production builds).

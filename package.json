@@ -26,11 +26,14 @@
     "test:card16": "node scripts/test-card16.mjs",
     "shots:card18": "node scripts/shots-card18.mjs",
     "build:desktop": "tsc --noEmit && vite build --mode desktop",
-    "desktop:dev": "tauri dev --config desktop/src-tauri/tauri.dev.conf.json",
-    "desktop:build": "tauri build",
+    "desktop:dev": "npm run helper:build && tauri dev --config desktop/src-tauri/tauri.dev.conf.json",
+    "desktop:build": "npm run helper:build && tauri build",
     "tauri": "tauri",
     "test:desktop": "cargo test --manifest-path desktop/src-tauri/Cargo.toml",
-    "shots:card25": "node scripts/shots-card25.mjs"
+    "shots:card25": "node scripts/shots-card25.mjs",
+    "helper:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-helper.ps1",
+    "test:helper": "helper\\.build-venv\\Scripts\\python.exe -m pytest helper/tests -q",
+    "shots:card26": "node scripts/shots-card26.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0"

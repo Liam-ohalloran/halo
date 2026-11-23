@@ -2,9 +2,10 @@ import '../styles/tokens.css'
 import '../styles/proto.css'
 import './shelf.css'
 import type { Backend } from '../types'
-import { SHELF_MAX, badge, classifyText, itemColour, itemMeta, pageOf, safeUrl, shelfProblem, tileName, type ShelfItem } from '../lib/shelf'
+import { SHELF_MAX, badge, clipToItem, classifyText, itemColour, itemMeta, pageOf, safeUrl, shelfProblem, tileName, type ShelfItem } from '../lib/shelf'
 import { pvRoot, tip, type PvRoot } from '../ui/charts'
 import { openSheet } from '../ui/sheet'
+import { copyClipboardItem, getClipboard, onHelperEvent } from '../lib/helper'
 
 // Shelf tab (card 22), the glass family. Drop files, links or notes. Files go in the private `shelf` bucket, everything is
 // owner only, so the laptop and the phone see the same Shelf. Tiles: the three around the selection, then Phone (a one hour
@@ -25,7 +26,7 @@ const TEMPLATE = `<div class="glassBg" aria-hidden="true"><i style="left:-40px;t
   <div data-k="tiles" style="display:contents"></div>
   <button type="button" class="lg add pop" style="--i:3;--c:rgba(255,255,255,.4)" data-k="drop" aria-label="Add a file. You can also drop or paste here."><svg viewBox="0 0 24 24" aria-hidden="true">${ICON.up}</svg><span>Drop or pick</span><input type="file" multiple data-k="file" hidden tabindex="-1"></button>
   <div class="acts">
-    <div class="selBox pop" style="--i:4"><div class="sbh"><small data-k="count">SELECTED</small><button type="button" class="chipb note" data-act="note" aria-label="Add a link or note" title="Add a link or note">+</button></div><button type="button" class="sbn" data-k="sel" data-act="next" aria-label="Next item"><b data-k="selName" data-ellipsis>Nothing selected</b></button><div class="mt"><i data-k="meter"></i></div></div>
+    <div class="selBox pop" style="--i:4"><div class="sbh"><small data-k="count">SELECTED</small><button type="button" class="chipb note" data-act="note" aria-label="Add a link or note" title="Add a link or note">+</button><button type="button" class="chipb clipmode" data-act="mode" aria-pressed="false" aria-label="Show clipboard history" title="Clipboard history">Clip</button></div><button type="button" class="sbn" data-k="sel" data-act="next" aria-label="Next item"><b data-k="selName" data-ellipsis>Nothing selected</b></button><div class="mt"><i data-k="meter"></i></div></div>
     ${ACTS.map(([a, l, c, ic], i) => `<button type="button" class="lqb pop" data-a="${a}" style="--i:${i + 5};--c:${c}"><svg viewBox="0 0 24 24" aria-hidden="true">${ic}</svg><span>${l}</span></button>`).join('')}
   </div>
 </div>
@@ -48,28 +49,37 @@ export function ShelfPanel(api: Backend): ShelfPanelHandle {
   let offset = 0
   let working = 0 // uploads in flight
   let armed = 0 // Remove was tapped once
+  // Card 26: with the helper (the desktop app) the Shelf can also show the last 25 things copied. Nothing here is saved.
+  let mode: 'shelf' | 'clip' = 'shelf'
+  let clips: ShelfItem[] = []
+  let clipOk = false
+  const list = () => (mode === 'clip' ? clips : items)
 
   const shown: Record<string, string> = {}
   const put = (k: string, html: string) => { if (shown[k] !== html) { shown[k] = html; $(k).innerHTML = html } }
   const putText = (k: string, text: string) => { if (shown[k] !== text) { shown[k] = text; $(k).textContent = text } }
-  const selected = () => items.find((i) => i.id === sel) ?? null
+  const selected = () => list().find((i) => i.id === sel) ?? null
 
   function paint() {
     if (!loaded) return
     root.classList.remove('is-loading', 'is-err')
-    if (!selected()) { sel = items[0]?.id ?? null; offset = 0 }
-    const page = pageOf(items, offset)
+    root.classList.toggle('has-clip', clipOk)
+    root.classList.toggle('is-clip', mode === 'clip')
+    root.querySelector('[data-act="mode"]')?.setAttribute('aria-pressed', String(mode === 'clip'))
+    const L = list()
+    if (!selected()) { sel = L[0]?.id ?? null; offset = 0 }
+    const page = pageOf(L, offset)
     // Tiles are rebuilt only when what they show changes: the item, its colour, its selection.
     put('tiles', page.map((it, i) => `<button type="button" class="lg file pop${it.id === sel ? ' sel' : ''}" style="--i:${i};--c:${itemColour(it)}" data-id="${esc(it.id)}" aria-label="${esc(it.name)}, ${badge(it)}" aria-pressed="${it.id === sel}"><span class="fx">${esc(badge(it))}</span><span class="doc"></span><span class="nm" data-ellipsis>${esc(tileName(it))}</span><span class="sz">${esc(itemMeta(it))}</span></button>`).join('')
       + Array.from({ length: 3 - page.length }, (_, i) => `<div class="lg pop blank" style="--i:${page.length + i};--c:rgba(255,255,255,.2)" aria-hidden="true"></div>`).join(''))
     const s = selected()
-    putText('count', working ? 'UPLOADING' : `${items.length}/${SHELF_MAX} ON SHELF`)
+    putText('count', mode === 'clip' ? `${L.length}/25 COPIED` : working ? 'UPLOADING' : `${items.length}/${SHELF_MAX} SHELF`)
     putText('selName', s ? s.name : 'Nothing selected')
-    $('meter').style.width = `${Math.min(items.length, SHELF_MAX) / SHELF_MAX * 100}%`
+    $('meter').style.width = mode === 'clip' ? `${L.length / 25 * 100}%` : `${Math.min(items.length, SHELF_MAX) / SHELF_MAX * 100}%`
     $('meter').classList.toggle('busy', working > 0)
-    for (const a of ['phone', 'copy', 'open', 'rm']) actBtn(a).disabled = !s || (a === 'phone' && s.kind !== 'file') || (a === 'open' && s.kind === 'text')
-    $('drop').setAttribute('aria-disabled', String(items.length >= SHELF_MAX))
-    root.classList.toggle('is-empty', items.length === 0)
+    for (const a of ['phone', 'copy', 'open', 'rm']) actBtn(a).disabled = !s || (mode === 'clip' && (a === 'phone' || a === 'rm' || (a === 'open' && s.kind !== 'link'))) || (a === 'phone' && s.kind !== 'file') || (a === 'open' && s.kind === 'text')
+    $('drop').setAttribute('aria-disabled', String(mode === 'clip' || items.length >= SHELF_MAX))
+    root.classList.toggle('is-empty', L.length === 0 && mode === 'shelf')
   }
 
   async function load(first = false) {
@@ -84,6 +94,15 @@ export function ShelfPanel(api: Backend): ShelfPanelHandle {
       if (!alive || my !== seq) return
       if (first || !loaded) { root.classList.remove('is-loading'); root.classList.add('is-err'); $('errMsg').textContent = navigator.onLine ? 'Something went wrong. Try again.' : "You're offline. Reconnect and try again." }
     }
+  }
+
+  async function loadClips() {
+    const r = await getClipboard()
+    if (!alive) return
+    clipOk = r !== null
+    clips = r ? r.items.map(clipToItem) : []
+    if (!clipOk && mode === 'clip') { mode = 'shelf'; sel = null }
+    paint()
   }
 
   // ---- Adding
@@ -120,7 +139,10 @@ export function ShelfPanel(api: Backend): ShelfPanelHandle {
     if (!s) return
     if (a !== 'rm') armed = 0
     try {
-      if (a === 'copy') {
+      if (a === 'copy' && mode === 'clip') {
+        if (!(await copyClipboardItem(s.id))) throw new Error('copy')
+        tip(root, 'Copied again.')
+      } else if (a === 'copy') {
         await navigator.clipboard.writeText(s.kind === 'file' ? s.name : s.content)
         tip(root, s.kind === 'file' ? 'File name copied.' : s.kind === 'link' ? 'Link copied.' : 'Note copied.')
       } else if (a === 'phone') {
@@ -152,9 +174,10 @@ export function ShelfPanel(api: Backend): ShelfPanelHandle {
     const t = e.target as HTMLElement
     const tile = t.closest<HTMLElement>('.lg[data-id]')
     if (tile) { sel = tile.dataset.id!; armed = 0; return paint() }
-    if (t.closest('[data-k="drop"]')) { if (items.length >= SHELF_MAX) tip(root, shelfProblem(items.length)!); else fileIn.click(); return }
+    if (t.closest('[data-k="drop"]')) { if (mode === 'clip') return; if (items.length >= SHELF_MAX) tip(root, shelfProblem(items.length)!); else fileIn.click(); return }
     if (t.closest('[data-act="note"]')) return noteSheet()
-    if (t.closest('[data-act="next"]')) { if (items.length > 3) { const i = items.findIndex((x) => x.id === sel); sel = items[(i + 1) % items.length].id; offset = items.findIndex((x) => x.id === sel); paint() } return }
+    if (t.closest('[data-act="mode"]')) { mode = mode === 'clip' ? 'shelf' : 'clip'; sel = null; offset = 0; armed = 0; if (mode === 'clip') void loadClips(); return paint() }
+    if (t.closest('[data-act="next"]')) { const L = list(); if (L.length > 3) { const i = L.findIndex((x) => x.id === sel); sel = L[(i + 1) % L.length].id; offset = L.findIndex((x) => x.id === sel); paint() } return }
     const a = t.closest<HTMLElement>('[data-a]')
     if (a) void act(a.dataset.a!)
   })
@@ -181,8 +204,9 @@ export function ShelfPanel(api: Backend): ShelfPanelHandle {
   $('retry').addEventListener('click', () => { root.classList.remove('is-err'); root.classList.add('is-loading'); void load(true) })
 
   const off = api.onShelfChange(() => void load())
+  const offClip = onHelperEvent((name) => { if (name === 'clipboard') void loadClips() })
   const baseEnter = root.enter
-  root.enter = () => { baseEnter(); void load(!loaded) }
-  root.destroy = () => { alive = false; off(); document.removeEventListener('paste', onPaste); clearTimeout(armed) }
+  root.enter = () => { baseEnter(); void load(!loaded); void loadClips() }
+  root.destroy = () => { alive = false; off(); offClip(); document.removeEventListener('paste', onPaste); clearTimeout(armed) }
   return root
 }

@@ -52,3 +52,16 @@ The installed app loads the built web app from inside itself (`dist-desktop`), s
 - The light spill outside the island is not drawn in the app, because the window is only as big as the island and the glow would be cut off in a hard rectangle. The key line stays. Drawing the spill needs a second transparent click through overlay window, which the card does not ask for.
 - Not tried on a second monitor, at other display scales than 150%, or through sleep and wake. The logic is there and unit tested.
 - The tray menu clicks and the "paste the link" fallback were not driven by hand. The email link flow was tested once with the real email on the release exe (halo:// pointed at it by hand, as the installer would): it signed in.
+
+## The helper inside the app (card 26)
+
+- **Sidecar.** `npm run helper:build` bundles `helper/halo_helper.py` with PyInstaller into `desktop/src-tauri/binaries/halo-helper-x86_64-pc-windows-msvc.exe` (built in `helper/.build-venv`, so the old helper's venv is untouched). `desktop:dev` and `desktop:build` run it first. The installer carries it (35.6 MB in total).
+- **Started and stopped by the app.** First free port from 47800 (an old stand alone helper on 47800 does not get in the way), restarted if it dies, stopped on quit, and tied to the app with a job object. Its output goes to `%TEMP%\halo-helper.log`.
+- **Token.** Made once, kept in Windows Credential Manager (`helper-pairing-token.Halo`), passed to the helper in an environment variable and to the page through `helper_info`.
+- **Media for any app.** Windows media controls, so Spotify, YouTube in Chrome or anything else shows in Music. Spotify is the default: it wins while it is playing or when nothing else is, and anything else that is playing beats a paused Spotify.
+- **Scroll on the closed island** changes the volume 4 points a notch and fires the volume pill. It does not open the window.
+- **Windows notifications and Phone Link** (Phone Link's phone notifications are Windows toasts) arrive as Halo banners and in the stack. Windows asks Liam once. A message only says "New message" and the app's name, the text is dropped in the helper. A Phone Link call keeps the caller's name. The banner button never does anything.
+- **Clipboard history** (last 25 text and image items) in the Shelf tab: the Clip chip switches the tiles to history, Copy puts the item back. In memory only. Skipped: anything that carries `ExcludeClipboardContentFromMonitorProcessing`, `CanIncludeInClipboardHistory = 0`, or came from a known password manager.
+- **Airplane mode and night light** change pills. Keyboard light: the Lenovo driver does not expose it here, so there is no pill.
+- **CSP** now also allows the helper on `http://127.0.0.1:47800` to `47810`.
+- **Checks:** `npm run test:helper` (pytest), `node scripts/shots-card26.mjs` (web half with a pretend helper), and with `npm run desktop:dev` running, `node scripts/desktop-helper-probe.mjs` (real helper, a real Windows toast, real volume scroll, real clipboard). `scripts/chrome-media-test.ps1` plays a silent track in Chrome for the media check.

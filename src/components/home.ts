@@ -43,7 +43,9 @@ import { Banners, type BannersHandle } from './Banners'
 import { IslandLive, type IslandLiveHandle, type LiveData } from './IslandLive'
 import { fmtToFull, gameStatus, leaveChip, pillTime } from '../lib/island-live'
 import { hudFromEvent, newHudMemory } from '../lib/hud'
-import { getArtUrl, subscribeEvents, type Media } from '../lib/helper'
+import { getArtUrl, notificationAccess, requestNotificationAccess, subscribeEvents, type Media } from '../lib/helper'
+import { createWinNotes } from '../lib/win-notifications'
+import { attachScrollVolume } from '../lib/scroll-volume'
 import { shortSubject } from '../lib/study'
 import { subjectHex } from '../panels/studyPill'
 import { view as timerView } from '../panels/studyTimer'
@@ -339,17 +341,26 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   const unsubAlerts = alertsStore?.subscribe(pushUnread)
   const unsubNight = nightMode.subscribe(() => pushUnread())
   // Card 18: new alerts pop out of the island as banners, then settle into a stack under it. At night only leave reminders do.
+  // Card 26: Windows notifications and Phone Link's phone notifications join the same banners and stack. They are
+  // kept in memory only, and a message's text was already dropped by the helper.
+  const winNotes = createWinNotes()
   const bannerSource = alertsStore ? {
     ...alertsStore,
-    rows: () => (nightMode.get() ? alertsStore.rows().filter((r) => r.type === 'leave_reminder') : alertsStore.rows()),
-    subscribe: (cb: () => void) => { const a = alertsStore.subscribe(cb); const b = nightMode.subscribe(cb); return () => { a(); b() } },
+    rows: () => { const all = [...alertsStore.rows(), ...winNotes.rows()]; return nightMode.get() ? all.filter((r) => r.type === 'leave_reminder') : all },
+    subscribe: (cb: () => void) => { const a = alertsStore.subscribe(cb); const b = nightMode.subscribe(cb); const c = winNotes.subscribe(cb); return () => { a(); b(); c() } },
+    markRead: (ids: string[]) => {
+      const win = ids.filter((i) => i.startsWith('win-'))
+      const db = ids.filter((i) => !i.startsWith('win-'))
+      if (win.length) winNotes.markRead(win)
+      return db.length ? alertsStore.markRead(db) : Promise.resolve()
+    },
   } : null
   // Card 25: inside the Halo desktop app the window follows the island's size and lets clicks through everywhere else.
   const detachDesktop = sh && isDesktop() ? attachDesktop(sh) : null
   const banners: BannersHandle | null = sh && bannerSource && live ? Banners(sh, live, { source: bannerSource, clock, go: () => showShellTab('alerts') }) : null
   let alertsPanel: ReturnType<typeof AlertsPanel> | null = null
   // Dev only (never in a production build): lets scripts/desktop-demo.mjs fire a HUD pill and a banner in the real app.
-  if (import.meta.env.DEV && sh && live) (window as unknown as { __haloDev?: unknown }).__haloDev = { sh, live, banners }
+  if (import.meta.env.DEV && sh && live) (window as unknown as { __haloDev?: unknown }).__haloDev = { sh, live, banners, winNotes }
   let moneyPanel: ReturnType<typeof MoneyPanel> | null = null
   let marksPanel: ReturnType<typeof MarksPanel> | null = null
   let claudePanel: ReturnType<typeof ClaudePanel> | null = null
@@ -552,6 +563,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
         }
         return
       }
+      if (name === 'notification') { winNotes.add(d); return }
       const hud = hudFromEvent(mem, name, d)
       if (!hud) return
       // A plug in is the Charging state for 3 seconds, with its floating bar. Everything else is a HUD pill.
@@ -559,7 +571,11 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
       if (hud.kind === 'charge' && hud.on) live!.charging({ pct: hud.pct, toFull: fmtToFull((d as { minutes_left?: number | null }).minutes_left) })
       else live!.hud(hud)
     }, (up) => { if (!up) live!.update({ music: null, charge: null }) })
+    // Card 26: Windows only tells Halo about notifications once Liam has said yes in Windows (its own question).
+    if (isDesktop()) void notificationAccess().then((a) => { if (a === 'unspecified') void requestNotificationAccess() })
   }
+  // Card 26: scroll on the closed island changes the volume. The pill comes from the helper's volume event.
+  const detachScroll = sh ? attachScrollVolume(sh.el, () => sh.isOpen) : null
 
   // ---- Clock: once a second, only while the page is visible (HALO.md 3.8)
   let tickTimer = 0
@@ -606,7 +622,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   void loadPrefs()
 
   return () => {
-    stop(); ro.disconnect(); unsub(); unsubTimer(); stopEvents?.(); live?.destroy(); if (artUrl) URL.revokeObjectURL(artUrl); payPanel?.destroy(); alertsPanel?.destroy(); moneyPanel?.destroy(); marksPanel?.destroy(); claudePanel?.destroy(); nightPanel?.destroy(); unsubNight(); shelfPanel?.destroy(); widgetsPanel?.destroy(); unsubAlerts?.(); banners?.destroy(); detachDesktop?.(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
+    stop(); ro.disconnect(); unsub(); unsubTimer(); stopEvents?.(); live?.destroy(); if (artUrl) URL.revokeObjectURL(artUrl); payPanel?.destroy(); alertsPanel?.destroy(); moneyPanel?.destroy(); marksPanel?.destroy(); claudePanel?.destroy(); nightPanel?.destroy(); unsubNight(); shelfPanel?.destroy(); widgetsPanel?.destroy(); unsubAlerts?.(); banners?.destroy(); detachScroll?.(); detachDesktop?.(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
     document.removeEventListener('pointerdown', onOutside)
     document.removeEventListener('visibilitychange', onVisible)
     removeEventListener('online', onOnline)

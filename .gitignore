@@ -13,3 +13,5 @@ scripts/_plain-680.png
 dist-desktop
 desktop/src-tauri/target
 desktop/src-tauri/gen
+
+desktop/src-tauri/binaries/

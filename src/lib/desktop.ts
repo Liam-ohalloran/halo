@@ -4,6 +4,7 @@
 // The web code owns the size of the island. It tells the app through `halo.desktop.setSize()`, and the app resizes its
 // window to match, so the window never covers more than the island (plus a little room while it moves).
 
+import { setHelperConnection } from './helper'
 import { CLOSE_SETTLE_MS, growOnly, layoutFor, openWindow, px, regionsIn, SETTLE_MS, shellTarget, stackBox, MOVE_MARGIN, type Box, type DesktopStyle, type IslandShape, type Layout } from './desktop-size'
 
 interface TauriGlobal {
@@ -207,4 +208,18 @@ export function sizeForScreen(w: number, h: number) {
   applied = { w, h }
   void call('set_island', { winW: w, winH: h, regions: [{ x: 0, y: 0, w, h, rt: 0, rb: 26 }] })
   bridge.setFocusable(true)
+}
+
+/**
+ * Card 26: ask the app for the bundled helper's port and pairing token, and keep them current (the app restarts the
+ * helper if it stops, and may pick a new port). Call it before anything talks to the helper.
+ */
+export async function connectDesktopHelper(): Promise<void> {
+  const t = tauri()
+  if (!t) return
+  const apply = (i: { port: number; token: string; running?: boolean } | null) => {
+    if (i && i.token && i.running !== false) setHelperConnection({ url: `http://127.0.0.1:${i.port}`, token: i.token })
+  }
+  apply(await t.core.invoke<{ port: number; token: string; running: boolean } | null>('helper_info').catch(() => null))
+  void t.event.listen<{ port: number; token: string }>('halo-helper', (e) => apply(e.payload))
 }

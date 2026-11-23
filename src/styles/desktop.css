@@ -27,11 +27,6 @@ html.desktop .sh[data-open='true'] { box-shadow: none !important; }
    programmatic focus can leave behind would only look like a stray gold outline. */
 html.desktop .sh-pill:focus-visible { outline: none; }
 
-/* Settings in the app has more rows than the 600 x 290 window has room for, so the switches sit two to a line. */
-.set-panel.desk { display: grid; grid-template-columns: 1fr 1fr; align-content: center; gap: var(--s2); }
-.set-panel.desk .set-row { min-width: 0; min-height: 40px; }
-.set-panel.desk .set-row.wide { grid-column: 1 / -1; }
-
 /* ---- Permanent border glow (desktop app) -------------------------------------------------------------------------
    One element, .sh-halo, laid exactly over the island's edge (it follows every size and radius change because it is
    inset to the island). It draws a 2 px bright ring on the edge, round the ears too in Notch style, and a soft glow

@@ -38,6 +38,8 @@ export interface IslandLiveHandle {
   /** Change some of what the island knows. Anything not named stays as it was. */
   update(part: Partial<LiveData>): void
   setUnread(n: number): void
+  /** Card 27: live states that are switched off. The island skips them and shows the next one in line. */
+  setOff(kinds: readonly LiveKind[]): void
   /** Plug in: the Charging state shows for 3 seconds with its floating bar, then goes. */
   charging(info: { pct: number; toFull: string | null }): void
   /** Show a HUD pill. A pill with the same key as the one on screen updates in place. */
@@ -222,6 +224,8 @@ function patchHud(root: HTMLElement, m: HudModel) {
 
 export function IslandLive(sh: ShellHandle, o: IslandLiveOptions = {}): IslandLiveHandle {
   const data = emptyLive()
+  /** Live states Liam switched off in Settings (card 27). The island skips them. */
+  const off = new Set<LiveKind>()
   let bannerCb: (what: 'action' | 'open') => void = () => {}
   const layer = sh.live
   const ring = h('div', { class: 'il-ring', 'aria-hidden': 'true' })
@@ -270,7 +274,8 @@ export function IslandLive(sh: ShellHandle, o: IslandLiveOptions = {}): IslandLi
 
   function render() {
     if (!alive) return
-    const kind = pickLive({ leave: !!data.leave, game: !!data.game, timer: !!data.timer, shift: !!data.shift, music: !!data.music, charge: !!data.charge, unread: data.unread })
+    const on = (k: LiveKind) => !off.has(k)
+    const kind = pickLive({ leave: !!data.leave && on('leave'), game: !!data.game && on('game'), timer: !!data.timer && on('timer'), shift: !!data.shift && on('shift'), music: !!data.music && on('music'), charge: !!data.charge && on('charge'), unread: data.unread })
     const disp = pickDisplay(kind, !!hud, !!data.banner)
     if (disp === 'banner' && data.banner) (views.banner.patch as (x: unknown) => void)(data.banner)
     else if (disp === 'hud' && hud) showHud(hud)
@@ -313,6 +318,7 @@ export function IslandLive(sh: ShellHandle, o: IslandLiveOptions = {}): IslandLi
   return {
     update(part) { Object.assign(data, part); render() },
     setUnread(n) { data.unread = n; sh.setUnread(n); render() },
+    setOff(kinds) { off.clear(); kinds.forEach((k) => off.add(k)); render() },
     banner(m) { data.banner = m; render() },
     onBanner(cb) { bannerCb = cb },
     charging(info) {

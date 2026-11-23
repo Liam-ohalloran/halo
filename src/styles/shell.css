@@ -6,7 +6,7 @@
 .sh {
   --sh-border: rgba(211, 155, 101, 0.20); --sh-text: #F5F5F7;
   --glow: #D39B65; --cw: 200px; --ch: 34px; --cr: 17px; --k: #C7C7CC;
-  --grow: 520ms; --shrink: 380ms; --out: 120ms; --in: 160ms;
+  --grow: calc(520ms * var(--halo-speed, 1)); --shrink: calc(380ms * var(--halo-speed, 1)); --out: calc(120ms * var(--halo-speed, 1)); --in: calc(160ms * var(--halo-speed, 1));
   --ease-grow: cubic-bezier(0.34, 1.45, 0.5, 1); --ease-shrink: cubic-bezier(0.4, 0, 0.2, 1);
   position: fixed; top: var(--embed-top, 0px); left: 50%; z-index: 5; box-sizing: border-box; flex: none;
   width: var(--cw); height: var(--ch); border-radius: 0 0 var(--cr) var(--cr);
@@ -29,7 +29,7 @@
 }
 /* Open: a soft glow in the tab colour sits just outside the bottom edge. Never remove it (HALO.md 3.1b). */
 .sh[data-open='true'] {
-  box-shadow: 0 6px 20px color-mix(in srgb, var(--glow) 30%, transparent), 0 16px 56px color-mix(in srgb, var(--glow) 20%, transparent), 0 30px 110px color-mix(in srgb, var(--glow) 12%, transparent);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--glow) min(100%, calc(30% * var(--glow-strength, 1))), transparent), 0 16px 56px color-mix(in srgb, var(--glow) min(100%, calc(20% * var(--glow-strength, 1))), transparent), 0 30px 110px color-mix(in srgb, var(--glow) min(100%, calc(12% * var(--glow-strength, 1))), transparent);
 }
 .sh *, .sh *::before, .sh *::after { box-sizing: border-box; }
 
@@ -91,35 +91,22 @@
 .sh-tab.on .lb { display: inline; }
 .sh-rt { display: flex; align-items: center; gap: 6px; flex: none; }
 .sh-time { font-size: var(--fs-13); font-weight: 600; color: rgba(245, 245, 247, 0.7); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.sh-pen { appearance: none; border: 0; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; background: transparent; color: rgba(245, 247, 255, 0.5); transition: background 150ms ease, color 150ms ease, transform 120ms ease; }
-.sh-pen:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
-.sh-pen:active { transform: scale(0.92); }
-.sh-pen[aria-pressed='true'] { background: #F5F7FF; color: #000; }
-.sh-pen:focus-visible { outline: 2px solid #D8C28C; outline-offset: 1px; }
-
-/* Edit mode: a sheet over the body with every tab as a chip. */
-.sh-edit { position: absolute; left: var(--sh-pl); right: var(--sh-pr); top: calc(var(--sh-pt) + 40px); bottom: var(--sh-pb); z-index: 3; display: flex; flex-direction: column; gap: 6px; }
-.sh-edit[hidden] { display: none; }
-.sh-edit .ehd { display: flex; align-items: center; gap: 8px; height: 26px; }
-.sh-edit .ehd > div { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; }
-.sh-edit .ehd b { font-size: 15px; font-weight: 800; white-space: nowrap; }
-.sh-edit .ehd span { font-size: 10px; color: rgba(245, 245, 247, 0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sh-edit .ebtn { height: 24px; padding: 0 12px; border: 0; border-radius: 999px; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; color: #F5F7FF; background: rgba(255, 255, 255, 0.12); transition: transform 300ms cubic-bezier(.34, 1.5, .5, 1), background 150ms ease; }
-.sh-edit .ebtn:hover { background: rgba(255, 255, 255, 0.2); }
-.sh-edit .ebtn:active { transform: scale(0.94); }
-.sh-edit .ebtn.go { background: #F5F7FF; color: #000; }
-.sh-edit .egrid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 6px; }
-.sh-edit .ec { min-width: 0; border-radius: 14px; padding: 6px 8px; display: flex; flex-direction: column; justify-content: space-between; background: #1c1c1e; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); transition: opacity 200ms ease; }
-.sh-edit .ec.off { opacity: 0.5; }
-.sh-edit .et { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.sh-edit .et svg { flex: none; }
-.sh-edit .et b { font-size: 11px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sh-edit .ea { display: flex; gap: 3px; }
-.sh-edit .ea button { flex: 1; height: 20px; border: 0; border-radius: 7px; display: grid; place-items: center; cursor: pointer; color: #F5F7FF; background: rgba(255, 255, 255, 0.1); transition: background 150ms ease, transform 200ms cubic-bezier(.34, 1.5, .5, 1); }
-.sh-edit .ea button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.2); }
-.sh-edit .ea button:active:not(:disabled) { transform: scale(0.9); }
-.sh-edit .ea button:disabled { opacity: 0.3; cursor: default; }
-.sh-edit :focus-visible { outline: 2px solid #D8C28C; outline-offset: 1px; }
+/* The "•••" button is the last tab in the bar. When the open tab is not pinned the white pill sits on it and says which tab it is. */
+.sh-more-btn svg { width: 15px; height: 15px; }
+/* The grid under it (card 27): every tab that is not pinned, then Settings. */
+.sh-more { position: absolute; z-index: 4; right: var(--sh-pr); top: calc(var(--sh-pt) + 36px); width: 336px; padding: 8px; border-radius: 20px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px;
+  background: rgba(28, 28, 30, 0.96); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1), 0 14px 40px rgba(0, 0, 0, 0.6); backdrop-filter: blur(calc(18px * var(--halo-blur, 1))); -webkit-backdrop-filter: blur(calc(18px * var(--halo-blur, 1))); transform-origin: top right; animation: sh-more-in calc(220ms * var(--halo-speed, 1)) cubic-bezier(.34, 1.45, .5, 1); }
+.sh-more[hidden] { display: none; }
+@keyframes sh-more-in { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: none; } }
+.sh-mt { appearance: none; border: 0; font: inherit; cursor: pointer; min-width: 0; height: 52px; border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: rgba(245, 247, 255, 0.75);
+  background: rgba(255, 255, 255, 0.06); transition: background 150ms ease, color 150ms ease, transform 200ms cubic-bezier(.34, 1.5, .5, 1); }
+.sh-mt svg { width: 16px; height: 16px; color: var(--tab, #fff); }
+.sh-mt .mt-l { font-size: 11px; font-weight: 700; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px; }
+.sh-mt:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
+.sh-mt:active { transform: scale(0.94); }
+.sh-mt.on { background: #F5F7FF; color: #000; }
+.sh-mt.on svg { color: #000; }
+.sh-mt:focus-visible { outline: 2px solid #D8C28C; outline-offset: 1px; }
 
 /* Body: panels sit on top of each other and crossfade. */
 .sh-body { position: relative; flex: 1 1 0; min-height: 0; margin-top: 8px; overflow: hidden; container-type: inline-size; }
@@ -134,7 +121,8 @@
 /* Reduced motion: no size animation, just a quick fade between the island and the window. */
 @media (prefers-reduced-motion: reduce) {
   .sh, .sh[data-open='true'] { transition: border-color 1ms, box-shadow 1ms; }
-  .sh-skin, .sh-tab, .sh-sel, .sh-pen, .sh-edit .ebtn, .sh-edit .ea button { transition-duration: 1ms; }
+  .sh-skin, .sh-tab, .sh-sel, .sh-mt { transition-duration: 1ms; }
+  .sh-more { animation: none; }
   .sh-skins, .sh[data-open='true'] .sh-skins { transition: opacity 150ms ease; }
   .sh-inner, .sh[data-open='true'] .sh-inner { transition: opacity 150ms ease 0s, visibility 0s; }
   .sh[data-open='true'] .sh-pill, .sh-pill { transition: opacity 150ms ease; }
@@ -142,17 +130,6 @@
 
 /* The panels were drawn for a pure black island. Until cards 16 and 19 to 23 restyle them, let the tab's tint show through. */
 .sh-body .pay-panel { background: transparent; }
-
-/* Settings on the More tab: signed in as, Add to Home Screen, sign out. */
-.set-panel { height: 100%; display: flex; flex-direction: column; justify-content: center; gap: var(--s3); padding: 0 var(--s2); }
-.set-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s4); min-height: 44px; padding: 0 var(--s4); border-radius: 12px; border: 1px solid rgba(216, 194, 140, 0.18); background: rgba(255, 255, 255, 0.04); }
-.set-row .embed-set { width: 100%; justify-content: space-between; }
-.set-k { font-size: var(--fs-13); font-weight: 600; color: rgba(245, 245, 247, 0.85); white-space: nowrap; }
-.set-v { font-size: var(--fs-13); font-weight: 500; color: rgba(245, 245, 247, 0.5); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.set-link, .set-btn { appearance: none; border: 0; background: transparent; font: inherit; font-size: var(--fs-13); font-weight: 600; color: #D8C28C; cursor: pointer; text-decoration: none; padding: 6px 10px; margin: 0 -10px; border-radius: 8px; white-space: nowrap; }
-.set-link:hover, .set-btn:hover { background: rgba(255, 255, 255, 0.08); }
-.set-link:active, .set-btn:active { transform: scale(0.96); }
-.set-link:focus-visible, .set-btn:focus-visible { outline: 2px solid #D8C28C; outline-offset: 2px; }
 
 /* ---- Fitting the 600 x 290 window (card 15b). Nothing scrolls, so each built tab is tightened to fit and shows its top
    items then "+N more". The tab panels keep their own layouts, these only trim spacing. ---- */

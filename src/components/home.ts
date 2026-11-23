@@ -25,7 +25,8 @@ import { ShelfPanel } from '../panels/shelf'
 import { WidgetsPanel } from '../panels/widgets'
 import { NightPanel } from '../panels/night'
 import { createNightMode, isMuted } from '../lib/night'
-import { normalisePrefs, visibleIds } from '../lib/tabprefs'
+import { normalisePrefs, pinnedIds, samePrefs, type TabPrefs } from '../lib/tabprefs'
+import { SIZE_SCALE, createUiStore, cssVars, hudAllowed, liveOff } from '../lib/ui-settings'
 import { DEFAULT_ORDER } from '../styles/tabs'
 import { buildAlertsView, createAlertsStore } from '../lib/alerts'
 import type { PvRoot } from '../ui/charts'
@@ -43,8 +44,8 @@ import { Banners, type BannersHandle } from './Banners'
 import { IslandLive, type IslandLiveHandle, type LiveData } from './IslandLive'
 import { fmtToFull, gameStatus, leaveChip, pillTime } from '../lib/island-live'
 import { hudFromEvent, newHudMemory } from '../lib/hud'
-import { getArtUrl, notificationAccess, requestNotificationAccess, subscribeEvents, type Media } from '../lib/helper'
-import { createWinNotes } from '../lib/win-notifications'
+import { getArtUrl, notificationAccess, requestNotificationAccess, setClipboardOn, subscribeEvents, type Media } from '../lib/helper'
+import { createWinNotes, noteSource } from '../lib/win-notifications'
 import { attachScrollVolume } from '../lib/scroll-volume'
 import { shortSubject } from '../lib/study'
 import { subjectHex } from '../panels/studyPill'
@@ -154,9 +155,26 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   const PREFS_KEY = 'halo.tabprefs'
   const cachedPrefs = (() => { try { return JSON.parse(localStorage.getItem(PREFS_KEY) ?? 'null') as unknown } catch { return null } })()
   const nightMode = createNightMode()
+  // Card 27: the pinned tabs live in one place. Settings changes them, the settings row loads them, the shell and the phone follow.
+  let tabPrefs: TabPrefs = normalisePrefs(cachedPrefs, DEFAULT_ORDER)
+  const tabSubs = new Set<() => void>()
+  const tabsStore = {
+    get: () => tabPrefs,
+    set(p: TabPrefs) {
+      if (samePrefs(p, tabPrefs)) return
+      tabPrefs = p
+      try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)) } catch { /* private mode */ }
+      void api.saveUiPrefs(p).catch(() => {})
+      sh?.setPrefs(p)
+      applyPhonePrefs(p)
+      tabSubs.forEach((f) => f())
+    },
+    subscribe: (cb: () => void) => { tabSubs.add(cb); return () => tabSubs.delete(cb) },
+  }
+  // The Settings window's switches (card 27), saved in the same row. A copy stays on this device so a reload never flashes the defaults.
+  const uiStore = createUiStore((v) => void api.saveUiSettings(v).catch(() => {}))
   const sh = phone ? null : Shell({
-    active: activeTab, now: clock, open: embed || !!o.open, auto: !embed, prefs: cachedPrefs,
-    onPrefs: (p) => { try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)) } catch { /* private mode */ } void api.saveUiPrefs(p).catch(() => {}) },
+    active: activeTab, now: clock, open: embed || !!o.open, auto: !embed, prefs: tabPrefs,
     onChange: (id) => showShellTab(id, true),
     onToggle: (isOpen) => { applyTint(); syncHomeActive(); if (!isOpen) queueMicrotask(syncBase) },
   })
@@ -206,6 +224,16 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
       onTimer: (a) => { if (a === 'stop') void timer.reset(); else if (timer.state.status === 'running') timer.pause(); else timer.resume() },
     })
   }
+  // Card 27: the look and the switches take effect the moment they change, on every device that has them.
+  const applyUi = () => {
+    const v = uiStore.get()
+    for (const [k, val] of Object.entries(cssVars(v))) document.documentElement.style.setProperty(k, val)
+    sh?.setScale(SIZE_SCALE[v.size])
+    live?.setOff(liveOff(v))
+    setClipboardOn(v.clipboard)
+  }
+  uiStore.subscribe(applyUi)
+  applyUi()
   const studyPill = StudyPill(timer)
   const payListeners = new Set<() => void>()
   let payPanel: ReturnType<typeof PayPanel> | null = null
@@ -274,7 +302,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     if (!phone) return
     const p = normalisePrefs(raw, DEFAULT_ORDER)
     const known = HOME_TABS.map((t) => t.id as TabId)
-    let ids = (visibleIds(p).map((id) => (id === 'home' ? 'now' : id)).filter((id) => known.includes(id as TabId)) as TabId[])
+    let ids = (pinnedIds(p).map((id) => (id === 'home' ? 'now' : id)).filter((id) => known.includes(id as TabId)) as TabId[])
     if (!ids.length) ids = ['now']
     phoneIds = ids
     tabs.setOrder(ids)
@@ -331,7 +359,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     requestAnimationFrame(() => phoneShow(activeId, false))
   }
   // Desktop and embed: the shell shows the panel for the active tab. Tabs without a panel yet show "Coming soon".
-  let settings: HTMLElement | undefined
+  let settings: ReturnType<typeof SettingsPanel> | undefined
   const weekListeners = new Set<() => void>()
   let weekPanel: ReturnType<typeof WeekPanel> | null = null
   // Alerts (card 20). One shared list feeds the tab and the island's gold dot. Desktop and embed only.
@@ -346,7 +374,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   const winNotes = createWinNotes()
   const bannerSource = alertsStore ? {
     ...alertsStore,
-    rows: () => { const all = [...alertsStore.rows(), ...winNotes.rows()]; return nightMode.get() ? all.filter((r) => r.type === 'leave_reminder') : all },
+    rows: () => { const all = [...(uiStore.get().sources.halo ? alertsStore.rows() : []), ...winNotes.rows()]; return nightMode.get() ? all.filter((r) => r.type === 'leave_reminder') : all },
     subscribe: (cb: () => void) => { const a = alertsStore.subscribe(cb); const b = nightMode.subscribe(cb); const c = winNotes.subscribe(cb); return () => { a(); b(); c() } },
     markRead: (ids: string[]) => {
       const win = ids.filter((i) => i.startsWith('win-'))
@@ -380,7 +408,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     if (p) return getPanel(p)
     const soon = sh!.soon(id)
     // Embedded, the top padding and sign out used to sit behind a gear. They live on More until card 23.
-    if (id === 'more') return (settings ??= SettingsPanel({ account: o.account, embed, onSignOut: () => void supabase.auth.signOut() }))
+    if (id === 'more') return (settings ??= SettingsPanel({ account: o.account, embed, onSignOut: () => void supabase.auth.signOut(), ui: uiStore, tabs: tabsStore }))
     return soon
   }
   showShellTab = (id, fromShell = false) => {
@@ -563,9 +591,11 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
         }
         return
       }
-      if (name === 'notification') { winNotes.add(d); return }
+      if (name === 'notification') { if (uiStore.get().sources[noteSource(d)]) winNotes.add(d); return }
       const hud = hudFromEvent(mem, name, d)
       if (!hud) return
+      // Card 27: pills Liam switched off in Settings (the charging pill follows the Charging live state).
+      if (hud.kind === 'charge' ? !uiStore.get().live.charge : !hudAllowed(uiStore.get(), name)) return
       // A plug in is the Charging state for 3 seconds, with its floating bar. Everything else is a HUD pill.
       if (isMuted(hud.kind === 'charge' ? 'charge' : 'hud', nightMode.get())) return
       if (hud.kind === 'charge' && hud.on) live!.charging({ pct: hud.pct, toFull: fmtToFull((d as { minutes_left?: number | null }).minutes_left) })
@@ -598,12 +628,19 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   }
   function stop() { clearInterval(tickTimer); clearInterval(refreshTimer) }
   // The saved tab order and hidden tabs come from the settings row, so the laptop and the phone match (card 23).
-  const loadPrefs = () => api.uiPrefs().then((raw) => {
-    if (raw == null) return
-    try { localStorage.setItem(PREFS_KEY, JSON.stringify(raw)) } catch { /* private mode */ }
-    sh?.setPrefs(raw)
-    applyPhonePrefs(raw)
-  }).catch(() => {})
+  const loadPrefs = () => {
+    void api.uiSettings().then((raw) => { if (raw != null) uiStore.load(raw) }).catch(() => {})
+    return api.uiPrefs().then((raw) => {
+      if (raw == null) return
+      const p = normalisePrefs(raw, DEFAULT_ORDER)
+      if (samePrefs(p, tabPrefs)) return
+      tabPrefs = p
+      try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)) } catch { /* private mode */ }
+      sh?.setPrefs(p)
+      applyPhonePrefs(p)
+      tabSubs.forEach((f) => f())
+    }).catch(() => {})
+  }
   const onVisible = () => { syncHomeActive(); if (document.hidden) stop(); else { start(); void refresh(); void alertsStore?.load(); void loadPrefs() } }
   const onOnline = () => void refresh()
   // Tapping or clicking anywhere outside the open island closes it (phones have no Escape key).
@@ -622,7 +659,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   void loadPrefs()
 
   return () => {
-    stop(); ro.disconnect(); unsub(); unsubTimer(); stopEvents?.(); live?.destroy(); if (artUrl) URL.revokeObjectURL(artUrl); payPanel?.destroy(); alertsPanel?.destroy(); moneyPanel?.destroy(); marksPanel?.destroy(); claudePanel?.destroy(); nightPanel?.destroy(); unsubNight(); shelfPanel?.destroy(); widgetsPanel?.destroy(); unsubAlerts?.(); banners?.destroy(); detachScroll?.(); detachDesktop?.(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
+    stop(); ro.disconnect(); unsub(); unsubTimer(); stopEvents?.(); live?.destroy(); if (artUrl) URL.revokeObjectURL(artUrl); payPanel?.destroy(); alertsPanel?.destroy(); moneyPanel?.destroy(); marksPanel?.destroy(); claudePanel?.destroy(); nightPanel?.destroy(); unsubNight(); shelfPanel?.destroy(); widgetsPanel?.destroy(); unsubAlerts?.(); banners?.destroy(); detachScroll?.(); detachDesktop?.(); settings?.destroy(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
     document.removeEventListener('pointerdown', onOutside)
     document.removeEventListener('visibilitychange', onVisible)
     removeEventListener('online', onOnline)

@@ -140,6 +140,8 @@ Left to right. Phosphor icons, regular when inactive, fill plus a 4 px dot under
 | 10 | Controls | `sliders-horizontal` | Controls panel (3.1d), v2 only |
 | — | Settings | `gear-six` | Opens the Settings window |
 
+**Card 27 (Liam, 23 Nov 2026, wins over the table above).** The bar shows only the **pinned** tabs, by default Home, Week, Pay, Study, Music, Sixers and Alerts. Every other tab sits under a "•••" More button as a small grid, with Settings in it. In Settings, Tabs, Liam picks which tabs are pinned (at most 8, Home is always one) and drags them into order. The list is saved in the `settings` row (`theme.tabs.pinned`) so the phone matches. The rest of the Settings switches (size, glow, blur, speed, live states, pills, notification sources, clipboard) are saved beside it in `theme.ui`.
+
 Opens on the last tab used, or Music while something is playing (setting).
 
 **Tab picks (Liam, 18 Nov 2026).** Built or designed: Home, Music, Study, Pay, Sixers, Controls. Approved next: **Week** (7 day TickTick timeline), **Alerts**, **Claude**, **Shelf**, **Widgets**, **Marks** (results and ATAR target), **Money** (savings goal, earnings history, payday countdown), **Night** (bedtime and tomorrow), **Laptop** (battery, storage, warranty reminder). Declined as tabs: Games, Driving, Chicago, Fishing, Commute, Watchlist, Gifts. With this many tabs, Settings must let Liam hide and reorder them (at most 8 visible).

@@ -192,6 +192,7 @@ class ClipboardHistory:
         self._last_seq: Optional[int] = None
         self._lock = threading.Lock()
         self.revision = 0  # goes up on every change, so a page knows when to refresh
+        self.enabled = True  # Settings (card 27) can switch the history off
         self._stop = threading.Event()
 
     # -- history
@@ -224,6 +225,8 @@ class ClipboardHistory:
             return None
         first = self._last_seq is None
         self._last_seq = seq
+        if not self.enabled:
+            return None  # off: look at nothing, so what was copied while it was off is never kept
         try:
             item = self._read()
         except Exception:
@@ -242,6 +245,12 @@ class ClipboardHistory:
         with self._lock:
             self._items = []
             self.revision += 1
+
+    def set_enabled(self, on: bool) -> None:
+        """Switch the history on or off. Off, it forgets everything it holds and stops keeping copies."""
+        self.enabled = on
+        if not on:
+            self.clear()
 
     def snapshot(self) -> list[dict]:
         with self._lock:

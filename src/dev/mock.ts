@@ -268,6 +268,11 @@ export function mockBackend(mode: string): Backend {
       try { return JSON.parse(localStorage.getItem('halo.mock.tabprefs') ?? 'null') } catch { return null }
     },
     async saveUiPrefs(p) { await sleep(60); try { localStorage.setItem('halo.mock.tabprefs', JSON.stringify(p)) } catch { /* ignore */ } },
+    async uiSettings() {
+      await sleep(60)
+      try { return JSON.parse(localStorage.getItem('halo.mock.ui') ?? 'null') } catch { return null }
+    },
+    async saveUiSettings(s) { await sleep(60); try { localStorage.setItem('halo.mock.ui', JSON.stringify(s)) } catch { /* ignore */ } },
     unreadAlerts: () => gate(alerts.filter((a) => !a.read_at).map((a) => ({ ...a }))),
     async markAlertsRead(ids) {
       for (const a of alerts) if (ids.includes(a.id)) a.read_at = new Date().toISOString()

@@ -485,6 +485,10 @@ class EnabledBody(BaseModel):
     enabled: bool
 
 
+class ClipboardEnabledBody(BaseModel):
+    on: bool
+
+
 class PowerBody(BaseModel):
     mode: str = Field(pattern="^(battery|balanced|performance)$")
 
@@ -734,12 +738,18 @@ def create_app(token: str, media: Optional[Media] = None, poll_seconds: float = 
 
     @app.get("/clipboard")
     async def clipboard_list():
-        return {"revision": clipboard.revision, "items": clipboard.snapshot()}
+        return {"revision": clipboard.revision, "items": clipboard.snapshot(), "enabled": clipboard.enabled}
 
     @app.post("/clipboard/clear")
     async def clipboard_clear():
         clipboard.clear()
         return {"ok": True}
+
+    @app.post("/clipboard/enabled")
+    async def clipboard_enabled(body: ClipboardEnabledBody):
+        """Card 27: Settings switches the clipboard history on or off. Off, it also forgets what it kept."""
+        clipboard.set_enabled(body.on)
+        return {"enabled": clipboard.enabled}
 
     @app.post("/clipboard/{clip_id}/copy")
     async def clipboard_copy(clip_id: str):

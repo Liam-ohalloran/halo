@@ -103,7 +103,7 @@ export const TAB_THEMES: Record<TabId, TabTheme> = {
     glow: 'display:none', layers: [],
   },
   more: {
-    id: 'more', label: 'More', aria: 'More tabs', colour: '#D8C28C', rail: '#B9B9C2',
+    id: 'more', label: 'Settings', aria: 'Settings', colour: '#D8C28C', rail: '#B9B9C2',
     bg: neutral('#1C1B21', '#141418', '#0F0F12'), border: NEUTRAL_BORDER, pad: [10, 16, 12, 16], text: '#F5F5F7',
     glow: corner('216,194,140', 0.16, 'left:-90px;top:-110px'), layers: [],
   },

@@ -33,7 +33,8 @@
     "shots:card25": "node scripts/shots-card25.mjs",
     "helper:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-helper.ps1",
     "test:helper": "helper\\.build-venv\\Scripts\\python.exe -m pytest helper/tests -q",
-    "shots:card26": "node scripts/shots-card26.mjs"
+    "shots:card26": "node scripts/shots-card26.mjs",
+    "shots:card27": "node scripts/shots-card27.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0"

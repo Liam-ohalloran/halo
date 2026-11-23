@@ -31,3 +31,53 @@ html.desktop .sh-pill:focus-visible { outline: none; }
 .set-panel.desk { display: grid; grid-template-columns: 1fr 1fr; align-content: center; gap: var(--s2); }
 .set-panel.desk .set-row { min-width: 0; min-height: 40px; }
 .set-panel.desk .set-row.wide { grid-column: 1 / -1; }
+
+/* ---- Permanent border glow (desktop app) -------------------------------------------------------------------------
+   One element, .sh-halo, laid exactly over the island's edge (it follows every size and radius change because it is
+   inset to the island). It draws a 2 px bright ring on the edge, round the ears too in Notch style, and a soft glow
+   about 24 px wide outside it. The window has 24 px of room all round for it, so nothing is cut off.
+   Colour (--gc): the live state's colour while closed, the open tab's accent while open, Halo gold when idle.
+   A brighter highlight sweeps round the ring once every 6 s. --glow-strength (1 = as designed) scales the glow. */
+@property --sweep { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+@property --gc { syntax: '<color>'; inherits: true; initial-value: #FFB547; }
+:root { --glow-strength: 1; }
+.sh-halo { display: none; }
+html.desktop .sh-halo {
+  display: block; position: absolute; inset: -1px; z-index: 2; pointer-events: none; border-radius: inherit;
+  --gc: var(--accent, #FFB547);
+  --gs: var(--glow-strength);
+  --ring: color-mix(in srgb, var(--gc) min(100%, calc(88% * var(--gs))), transparent);
+  --hi: color-mix(in srgb, var(--gc) 30%, #fff);
+  transition: --gc 320ms ease;
+  box-shadow: 0 0 24px 1px color-mix(in srgb, var(--gc) min(100%, calc(70% * var(--gs))), transparent), 0 0 9px 0 color-mix(in srgb, var(--gc) min(100%, calc(85% * var(--gs))), transparent);
+}
+html.desktop .sh[data-open='true'] .sh-halo { --gc: var(--glow); }
+html.desktop .sh[data-open='false'][data-live='leave'] .sh-halo, html.desktop .sh[data-open='false'][data-live='game'] .sh-halo,
+html.desktop .sh[data-open='false'][data-live='timer'] .sh-halo, html.desktop .sh[data-open='false'][data-live='shift'] .sh-halo,
+html.desktop .sh[data-open='false'][data-live='music'] .sh-halo, html.desktop .sh[data-open='false'][data-live='charge'] .sh-halo,
+html.desktop .sh[data-open='false'][data-live='hud'] .sh-halo, html.desktop .sh[data-open='false'][data-live='banner'] .sh-halo { --gc: var(--lc); }
+
+/* The ring: a conic gradient cut down to its outer 2 px with a mask. Notch style has no top edge (it is the screen's). */
+html.desktop .sh-halo::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 2px;
+  background: conic-gradient(from var(--sweep), var(--hi) 0deg, var(--ring) 75deg, var(--ring) 285deg, var(--hi) 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); mask-composite: exclude;
+  animation: halo-sweep 6s linear infinite;
+}
+@keyframes halo-sweep { to { --sweep: 360deg; } }
+html.desktop[data-desk-style='notch'] .sh-halo { top: 0; }
+html.desktop[data-desk-style='notch'] .sh-halo::before { padding-top: 0; }
+/* Island style: the island floats, so its top has an edge and a ring too, and there are no ears. */
+html.desktop[data-desk-style='island'] .sh-halo { top: -1px; }
+
+/* The ears (Notch style): the ring follows the inverse curve up to the top edge. Same circle as the black ear in
+   shell.css (10 px, centred on the ear's bottom outer corner), the ring drawn just inside the black. */
+html.desktop .sh-ear { position: absolute; top: 0; width: 12px; height: 12px; pointer-events: none; background: radial-gradient(circle at 0 10px, transparent 9.6px, var(--ring) 10px, var(--ring) 12px, transparent 12.4px); }
+html.desktop .sh-ear.l { left: -10px; }
+html.desktop .sh-ear.r { right: -10px; transform: scaleX(-1); }
+html.desktop[data-desk-style='island'] .sh-ear { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  html.desktop .sh-halo::before { animation: none; background: var(--ring); }
+}

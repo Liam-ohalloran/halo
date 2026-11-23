@@ -173,7 +173,9 @@ export function Shell(o: ShellOptions): ShellHandle {
   inner.append(header, host, editEl)
   const dot = h('span', { class: 'sh-dot', 'aria-hidden': 'true' })
   clip.append(skinsEl, pill, live, dot, inner)
-  el.append(clip)
+  // The border glow (desktop app only, see desktop.css): a ring on the island's edge and a soft glow outside it.
+  const halo = h('span', { class: 'sh-halo', 'aria-hidden': 'true' }, h('i', { class: 'sh-ear l' }), h('i', { class: 'sh-ear r' }))
+  el.append(clip, halo)
 
   // ---- Coming soon panels, one per tab, made on demand
   const soonPanels = new Map<TabId, HTMLElement>()

@@ -31,12 +31,34 @@ export interface SixersGame {
 }
 export interface MaxeyLine { points: number; rebounds: number; assists: number }
 export interface NextGame { startsAt: string; opponent: { tri: string; name: string }; home: boolean }
+/** One player's line from the box score (card 24). Shooting is [made, attempted]. */
+export interface PlayerLine {
+  id: string
+  name: string
+  min: number
+  pts: number
+  reb: number
+  ast: number
+  stl: number
+  blk: number
+  to: number
+  fg: [number, number]
+  tp: [number, number]
+  ft: [number, number]
+}
+export interface TeamBox { tri: string; players: PlayerLine[] }
+/** One finished game from the Sixers' schedule, for the Form view. */
+export interface FormGame { startsAt: string; opponent: { tri: string; name: string }; home: boolean; sixers: number; opponentScore: number; won: boolean }
 export interface NbaResponse {
   state: FeedState
   game: SixersGame | null
   maxey: MaxeyLine | null
   next: NextGame | null
   fetchedAt: string
+  /** Both teams' players, for a live or final game (card 24). Absent from an older deploy of this function. */
+  box?: TeamBox[]
+  /** The last five finished games, newest first (card 24). */
+  form?: FormGame[]
 }
 
 // ---- Raw shapes, only the fields we read -------------------------------------------------------
@@ -51,9 +73,10 @@ export interface RawEvent {
 }
 export interface RawScoreboard { events: RawEvent[] }
 export interface RawBoxscore {
-  boxscore?: { players?: { statistics?: { labels?: string[]; athletes?: { athlete: { id: string }; stats?: string[] }[] }[] }[] }
+  boxscore?: { players?: { team?: { abbreviation?: string }; statistics?: { labels?: string[]; athletes?: { athlete: { id: string; displayName?: string; shortName?: string }; stats?: string[] }[] }[] }[] }
 }
-export interface RawSchedule { events: { id: string; date: string; competitions: { competitors: RawCompetitor[] }[] }[] }
+export interface RawScheduleCompetitor extends Omit<RawCompetitor, 'score'> { score?: string | { value?: number; displayValue?: string }; winner?: boolean }
+export interface RawSchedule { events: { id: string; date: string; competitions: { competitors: RawScheduleCompetitor[]; status?: { type?: { completed?: boolean; state?: string } } }[] }[] }
 
 // ---- Helpers -----------------------------------------------------------------------------------
 
@@ -131,6 +154,52 @@ export function maxeyFromBox(box: RawBoxscore | null | undefined): MaxeyLine | n
   return null
 }
 
+const pair = (v: string | undefined): [number, number] => {
+  const m = /^(\d+)-(\d+)$/.exec((v ?? '').trim())
+  return m ? [Number(m[1]), Number(m[2])] : [0, 0]
+}
+const mins = (v: string | undefined): number => Number.parseInt((v ?? '0').split(':')[0], 10) || 0
+
+/** Both teams' players. Anyone with no stats (did not play) is left out. Labels are read by name, so a missing column is just zero. */
+export function boxPlayers(box: RawBoxscore | null | undefined): TeamBox[] {
+  const out: TeamBox[] = []
+  for (const team of box?.boxscore?.players ?? []) {
+    const players: PlayerLine[] = []
+    for (const group of team.statistics ?? []) {
+      const L = group.labels ?? []
+      for (const a of group.athletes ?? []) {
+        if (!a.stats?.length) continue
+        const at = (label: string): string | undefined => a.stats![L.indexOf(label)]
+        const n = (label: string) => Number(at(label) ?? 0) || 0
+        players.push({ id: a.athlete.id, name: a.athlete.displayName ?? a.athlete.shortName ?? 'Player', min: mins(at('MIN')), pts: n('PTS'), reb: n('REB'), ast: n('AST'), stl: n('STL'), blk: n('BLK'), to: n('TO'), fg: pair(at('FG')), tp: pair(at('3PT')), ft: pair(at('FT')) })
+      }
+    }
+    if (players.length) out.push({ tri: nbaTri(team.team?.abbreviation ?? ''), players })
+  }
+  return out
+}
+
+const scoreOf = (c: RawScheduleCompetitor | undefined): number => {
+  const s = c?.score
+  return Number(typeof s === 'object' && s ? (s.value ?? s.displayValue) : s) || 0
+}
+
+/** The last `n` finished Sixers games, newest first. A game counts as finished when the schedule says so. */
+export function formFromSchedule(schedule: RawSchedule | null | undefined, n = 5): FormGame[] {
+  const done: FormGame[] = []
+  for (const ev of schedule?.events ?? []) {
+    const comp = ev.competitions?.[0]
+    const cs = comp?.competitors ?? []
+    const mine = cs.find((c) => nbaTri(c.team.abbreviation) === SIXERS)
+    const other = cs.find((c) => c !== mine)
+    if (!mine || !other || !(comp?.status?.type?.completed || comp?.status?.type?.state === 'post')) continue
+    const a = scoreOf(mine), b = scoreOf(other)
+    const o = line({ ...other, score: String(b) } as RawCompetitor)
+    done.push({ startsAt: iso(ev.date), opponent: { tri: o.tri, name: o.name }, home: mine.homeAway === 'home', sixers: a, opponentScore: b, won: mine.winner ?? a > b })
+  }
+  return done.sort((x, y) => Date.parse(y.startsAt) - Date.parse(x.startsAt)).slice(0, n)
+}
+
 /** The next Sixers game that starts after `now`, from the Sixers team schedule. */
 export function nextGame(schedule: RawSchedule | null | undefined, now: Date): NextGame | null {
   let best: NextGame | null = null
@@ -141,7 +210,7 @@ export function nextGame(schedule: RawSchedule | null | undefined, now: Date): N
     const at = Date.parse(ev.date)
     if (!mine || !other || !(at > now.getTime())) continue
     if (!best || at < Date.parse(best.startsAt)) {
-      const o = line(other)
+      const o = line(other as RawCompetitor)
       best = { startsAt: iso(ev.date), opponent: { tri: o.tri, name: o.name }, home: mine.homeAway === 'home' }
     }
   }
@@ -167,5 +236,7 @@ export function buildResponse(
     maxey: showMaxey ? maxeyFromBox(box) : null,
     next: upcoming,
     fetchedAt: now.toISOString(),
+    box: showMaxey ? boxPlayers(box) : [],
+    form: formFromSchedule(schedule),
   }
 }

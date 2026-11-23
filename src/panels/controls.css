@@ -1,6 +1,7 @@
 /* Controls tab (card 24), compact grid with the colour pass. #1c1c1e tiles, 1 px border, the tile's own colour when on. */
 .controls-pv .ctG { display: grid; grid-template-columns: 62px 62px repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)) 44px; gap: 7px; height: 100%; transition: opacity .3s, filter .3s; }
-.controls-pv.is-off .ctG { opacity: .4; filter: saturate(.4); pointer-events: none; }
+.controls-pv.is-off .ctG > :not(.ctOff) { opacity: .4; filter: saturate(.4); pointer-events: none; }
+.controls-pv.is-off .ctOut { display: none; }
 .controls-pv .ctS { position: relative; grid-row: span 2; border-radius: 18px; background: #1c1c1e; box-shadow: inset 0 0 0 1px rgba(255,255,255,.07); overflow: hidden; cursor: ns-resize; touch-action: none; }
 .controls-pv .ctS .fl { position: absolute; left: 0; right: 0; bottom: 0; height: 0; transition: height calc(700ms * var(--halo-speed, 1)) var(--spring); }
 .controls-pv .ctS.drag .fl { transition: none; }
@@ -36,9 +37,9 @@
 .controls-pv .ctOut > div { min-width: 0; }
 .controls-pv .ctOut b { display: block; font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .controls-pv .ctOut span:not(.ib) { display: block; font-size: 11px; color: #a4a4ac; }
-.controls-pv .ctOff { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 22px; border-radius: 20px; text-align: center; background: rgba(20,20,24,.92); box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), 0 14px 40px rgba(0,0,0,.6); }
+.controls-pv .ctOff { grid-column: span 2; display: flex; align-items: center; gap: 10px; padding: 0 12px; border-radius: 14px; min-width: 0; background: rgba(255,255,255,.08); box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); }
+.controls-pv .ctOff > span { display: none; }
 .controls-pv .ctOff[hidden] { display: none; }
-.controls-pv .ctOff b { font-size: 15px; font-weight: 700; }
-.controls-pv .ctOff span { font-size: 13px; color: #a4a4ac; }
-.controls-pv .ctOff button { margin-top: 6px; appearance: none; border: 0; height: 28px; padding: 0 14px; border-radius: 999px; font-size: 13px; font-weight: 700; cursor: pointer; color: #000; background: #fff; }
+.controls-pv .ctOff b { flex: 1; min-width: 0; font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.controls-pv .ctOff button { flex: none; appearance: none; border: 0; height: 28px; padding: 0 14px; border-radius: 999px; font-size: 13px; font-weight: 700; cursor: pointer; color: #000; background: #fff; }
 @media (prefers-reduced-motion: reduce) { .controls-pv .ctS .fl, .controls-pv .ctT, .controls-pv .ctPM .k { transition: none; } }

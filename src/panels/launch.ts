@@ -48,6 +48,7 @@ export function LaunchPanel(api: Backend): LaunchPanelHandle {
   let picking: 'app' | 'site' = 'app'
   let seq = 0
   let dragging = false
+  let dragEnd = 0
   const shown: Record<string, string> = {}
   const html = (k: string, v: string) => { if (shown[k] !== v) { shown[k] = v; $(k).innerHTML = v } }
 
@@ -115,7 +116,7 @@ export function LaunchPanel(api: Backend): LaunchPanelHandle {
   }
   root.addEventListener('click', (e) => {
     const t = e.target as HTMLElement
-    if (dragging) return
+    if (dragging || Date.now() - dragEnd < 250) return // the click that ends a drag is not a press
     const el = t.closest<HTMLElement>('.app[data-id], .site[data-id]')
     if (el) return pressItem(el.dataset.id!)
     if (t.closest('[data-add-open]')) return openPicker()
@@ -162,8 +163,8 @@ export function LaunchPanel(api: Backend): LaunchPanelHandle {
       if (!moved) return
       tile.classList.remove('drag'); tile.style.transform = ''
       tiles.forEach((t) => t.classList.remove('drop'))
-      // The click that ends a drag must not count as a press.
-      window.setTimeout(() => { dragging = false }, 0)
+      dragging = false
+      dragEnd = Date.now()
       if (to === from) return paint()
       const target = search(items, query).filter((i) => i.kind === 'app')[to]
       const sameKind = items.filter((i) => i.kind === 'app')

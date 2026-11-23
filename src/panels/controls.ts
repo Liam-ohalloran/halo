@@ -35,8 +35,8 @@ const TEMPLATE = `<div class="ctG">
   ${tile(TILES[2], 5)}${tile(TILES[3], 6)}${tile(TILES[4], 7)}
   <div class="ctPM pop" style="--i:8" role="radiogroup" aria-label="Power mode"><i class="k"></i>${POWER_MODES.map((m) => `<button type="button" role="radio" data-p="${m.id}" aria-checked="false">${m.label}</button>`).join('')}</div>
   <div class="ctOut pop" style="--i:9"><span class="ib">${ICONS.head}</span><div><b data-k="outN">Audio output</b><span>Audio output</span></div></div>
-</div>
-<div class="ctOff" data-k="off" role="status" hidden><b data-k="offT">Start Halo helper</b><span>Controls need Halo to see your laptop.</span><button type="button" data-k="retry">Try again</button></div>`
+  <div class="ctOff" data-k="off" role="status" hidden><b data-k="offT">Start Halo helper</b><span>Controls need Halo to see your laptop.</span><button type="button" data-k="retry">Try again</button></div>
+</div>`
 
 export interface ControlsPanelHandle extends PvRoot { destroy(): void }
 

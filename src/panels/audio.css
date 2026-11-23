@@ -1,13 +1,14 @@
 /* Audio tab (card 24), black island family: black cards, glowing lines, rounded pills. Sizes follow the prototype, bumped up to the 11 px floor. */
-.audio-pv .auG { display: grid; grid-template-columns: 150px minmax(0, 1fr) minmax(0, 1fr); gap: 8px; height: 100%; transition: opacity .3s, filter .3s; }
-.audio-pv.is-off .auG { opacity: .4; filter: saturate(.4); pointer-events: none; }
+.audio-pv .auG { display: grid; grid-template-columns: 150px minmax(0, 1fr) minmax(0, 1fr); gap: 8px; height: 100%; grid-template-rows: minmax(0, 1fr); transition: opacity .3s, filter .3s; }
+.audio-pv.is-off .auG .blk:not(.auOff) { opacity: .4; filter: saturate(.4); pointer-events: none; }
+.audio-pv.is-off .auMixB { display: none; }
 .audio-pv .blk { position: relative; border-radius: 20px; padding: 9px 12px; background: #07070b; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); min-width: 0; overflow: hidden; }
 .audio-pv .blk .caps { color: var(--fog); font-size: 9px; }
 .audio-pv .na { color: #8a8a94; }
 .audio-pv small.na { display: block; margin-top: 5px; font-size: 11px; line-height: 1.3; }
 .audio-pv .auCol { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .audio-pv .auCol .blk { flex: none; }
-.audio-pv .auCol .blk:first-child { flex: 1 1 auto; }
+.audio-pv .auCol .blk:first-child { flex: 1 1 0; min-height: 0; }
 .audio-pv .auM { display: flex; flex-direction: column; align-items: center; }
 .audio-pv .auM .caps { align-self: flex-start; }
 .audio-pv .auM::before { content: ''; position: absolute; left: 50%; top: 38%; width: 160px; height: 120px; transform: translate(-50%, -50%); background: radial-gradient(closest-side, rgba(47,134,255,.45), transparent); transition: background .4s; pointer-events: none; }
@@ -30,12 +31,12 @@
 .audio-pv .auSl .fl { background: linear-gradient(90deg, #1450b0, #4c9bff); box-shadow: 0 0 8px #2f86ff; }
 .audio-pv .muted .auSl .fl { background: #555; box-shadow: none; }
 .audio-pv .auSl .kn { position: absolute; top: 2px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: #fff; box-shadow: 0 0 10px rgba(255,255,255,.7); }
-.audio-pv .auO { display: grid; grid-template-columns: 24px minmax(0, 1fr) 12px; align-items: center; gap: 8px; padding: 4px 6px; margin: 3px -4px 0; border-radius: 12px; }
+.audio-pv .auO { display: grid; grid-template-columns: 24px minmax(0, 1fr) 12px; align-items: center; gap: 8px; padding: 2px 6px; margin: 2px -4px 0; border-radius: 12px; }
 .audio-pv .auO.on { background: color-mix(in srgb, var(--c) 18%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, transparent); }
 .audio-pv .auO .ib { width: 24px; height: 24px; border-radius: 8px; display: grid; place-items: center; background: color-mix(in srgb, var(--c) 25%, #111); color: var(--c); }
 .audio-pv .auO .ib svg { width: 13px; height: 13px; }
-.audio-pv .auO b { display: block; font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.audio-pv .auO small { display: block; font-size: 11px; color: var(--fog); white-space: nowrap; }
+.audio-pv .auO b { display: block; line-height: 1.15; font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.audio-pv .auO small { display: block; line-height: 1.1; font-size: 11px; color: var(--fog); white-space: nowrap; }
 .audio-pv .auO .ck { width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.25); }
 .audio-pv .auO.on .ck { background: var(--c); box-shadow: 0 0 8px var(--c); }
 .audio-pv .auMic { display: flex; align-items: center; gap: 9px; }
@@ -61,7 +62,7 @@
 .audio-pv .auEqH { display: flex; justify-content: space-between; align-items: center; }
 .audio-pv .auEq { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 6px; }
 .audio-pv .auEq button { border: 0; font: inherit; font-size: 11px; font-weight: 700; padding: 5px 0; border-radius: 999px; background: rgba(255,255,255,.06); color: #6f6f78; cursor: not-allowed; }
-.audio-pv .auOff { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 22px; border-radius: 20px; text-align: center; background: rgba(20,20,24,.94); box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), 0 14px 40px rgba(0,0,0,.6); }
+.audio-pv .auOff { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; }
 .audio-pv .auOff[hidden] { display: none; }
 .audio-pv .auOff b { font-size: 15px; font-weight: 700; }
 .audio-pv .auOff span { font-size: 13px; color: var(--fog); }

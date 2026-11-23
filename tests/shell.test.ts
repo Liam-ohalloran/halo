@@ -4,7 +4,7 @@ import { RAIL, TAB_IDS, TAB_THEMES, RAIL_ICONS, parseTab } from '../src/styles/t
 import { dayLabel, rangeLabel, tabMeta, weekStart } from '../src/lib/shell-meta.ts'
 
 test('the default tab order is the prototype order (card 23)', () => {
-  assert.deepEqual(RAIL, ['home', 'pay', 'week', 'study', 'music', 'sixers', 'money', 'controls', 'alerts', 'claude', 'night', 'marks', 'shelf', 'widgets', 'more'])
+  assert.deepEqual(RAIL, ['home', 'pay', 'week', 'study', 'music', 'sixers', 'money', 'controls', 'audio', 'launch', 'alerts', 'claude', 'night', 'marks', 'shelf', 'widgets', 'more'])
 })
 
 test('every tab has a full theme and an icon', () => {

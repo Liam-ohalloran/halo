@@ -14,9 +14,10 @@
 import { createServer } from 'vite'
 import { chromium } from 'playwright'
 import { pathToFileURL } from 'node:url'
+import { mockHelper } from './helper-mock.mjs'
 
-export const ALL_TABS = ['home', 'music', 'study', 'pay', 'sixers', 'week', 'alerts', 'money', 'marks', 'claude', 'night', 'shelf', 'widgets', 'more', 'controls']
-export const DEFAULT_TABS = ['home', 'pay', 'study', 'week', 'alerts', 'money', 'marks', 'claude', 'night', 'shelf', 'widgets', 'more']
+export const ALL_TABS = ['home', 'music', 'study', 'pay', 'sixers', 'week', 'alerts', 'money', 'marks', 'claude', 'night', 'shelf', 'widgets', 'more', 'controls', 'audio', 'launch']
+export const DEFAULT_TABS = ['home', 'pay', 'study', 'week', 'alerts', 'money', 'marks', 'claude', 'night', 'shelf', 'widgets', 'more', 'music', 'controls', 'audio', 'launch']
 /** The Week tab has its own fixtures: a normal week, and a busy one with clashes and a crowded EARLY row. */
 export const API_FOR = (tab, state) => (['money', 'marks', 'claude', 'night', 'shelf', 'widgets'].includes(tab) ? (state === 'busy' ? `${tab}many` : state === 'empty' ? `${tab}empty` : tab) : tab === 'week' && state !== 'empty' ? (state === 'busy' ? 'weekbusy' : 'week') : tab === 'alerts' ? (state === 'busy' ? 'alertsmany' : state === 'empty' ? 'alertsempty' : 'alerts') : state)
 
@@ -115,7 +116,9 @@ export async function checkTab(browser, base, tab, state) {
   const page = await ctx.newPage()
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
-  await page.goto(`${base}?demo=soon&tab=${tab}&open=1&home=${state}&api=${API_FOR(tab, state)}&sixers=${state === 'empty' ? 'none' : 'final-win'}`)
+  // Card 24: the helper tabs are checked with a pretend helper on (full) and with it off (empty).
+  await mockHelper(page, { up: state !== 'empty' })
+  await page.goto(`${base}?demo=soon&tab=${tab}&open=1&home=${state}&api=${tab === 'launch' && state === 'empty' ? 'fullempty' : API_FOR(tab, state)}&sixers=${state === 'empty' ? 'none' : state === 'busy' ? 'live' : 'final-win'}`)
   await page.waitForSelector('.sh[data-open="true"] .sh-body > *')
   await page.waitForTimeout(1600)
   const problems = await page.evaluate(auditInPage)
@@ -148,13 +151,14 @@ export async function checkTab(browser, base, tab, state) {
 async function main() {
   const args = process.argv.slice(2)
   const tabs = args.includes('--all') ? ALL_TABS : (args.find((a) => !a.startsWith('--'))?.split(',') ?? DEFAULT_TABS)
-  const server = await createServer({ server: { port: 5251, strictPort: true }, logLevel: 'error' })
+  const PORT = Number(process.env.OVERFLOW_PORT) || 5251
+  const server = await createServer({ server: { port: PORT, strictPort: true }, logLevel: 'error' })
   await server.listen()
   const browser = await chromium.launch()
   let failed = 0
   for (const tab of tabs) {
-    for (const state of tab === 'week' || ['alerts', 'money', 'marks', 'claude', 'night', 'shelf', 'widgets'].includes(tab) ? ['full', 'busy', 'empty'] : ['full', 'empty']) {
-      const problems = await checkTab(browser, 'http://localhost:5251/halo/', tab, state)
+    for (const state of tab === 'sixers' ? ['full', 'busy', 'empty'] : tab === 'week' || ['alerts', 'money', 'marks', 'claude', 'night', 'shelf', 'widgets'].includes(tab) ? ['full', 'busy', 'empty'] : ['full', 'empty']) {
+      const problems = await checkTab(browser, `http://localhost:${PORT}/halo/`, tab, state)
       console.log(`${problems.length ? 'FAIL' : 'ok  '} ${tab} (${state})`)
       for (const p of problems) console.log(`       ${p}`)
       failed += problems.length

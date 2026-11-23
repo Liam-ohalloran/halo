@@ -28,15 +28,15 @@ const TEMPLATE = `<div class="auG">
     <div class="auSl" data-k="sl" role="slider" tabindex="0" aria-label="Master volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="tr"></div><div class="fl"></div><div class="kn"></div></div>
   </div>
   <div class="auCol">
-    <div class="blk pop" style="--i:1"><span class="caps">Output</span><div data-k="outs"></div><small class="na">Windows picks the output. Switch it in Windows.</small></div>
+    <div class="blk pop" style="--i:1"><div class="auEqH"><span class="caps">Output</span><span class="caps na">Switch in Windows</span></div><div data-k="outs"></div></div>
     <div class="blk auMic pop" style="--i:2"><button type="button" class="auB" data-k="micB" aria-label="Mute microphone" aria-pressed="false">${I.mic}</button><div class="auMicT"><span class="caps" data-k="micT">Mic</span><div class="auLv" data-k="lv">${Array.from({ length: 18 }, () => '<i></i>').join('')}</div></div><span class="auPill na" title="Windows has no public way to change noise cancelling">ANC not available yet</span></div>
   </div>
   <div class="auCol">
-    <div class="blk pop" style="--i:3"><span class="caps">Mixer</span><div class="auMx" data-k="mx"></div></div>
+    <div class="blk auOff" data-k="off" role="status" hidden><b data-k="offT">Start Halo helper</b><span>Audio needs Halo to see your laptop.</span><button type="button" data-k="retry">Try again</button></div>
+    <div class="blk auMixB pop" style="--i:3"><span class="caps">Mixer</span><div class="auMx" data-k="mx"></div></div>
     <div class="blk auEqB pop" style="--i:4"><div class="auEqH"><span class="caps">EQ</span><span class="caps na">Not available yet</span></div><div class="auEq">${['Flat', 'Bass', 'Vocal', 'Night'].map((n) => `<button type="button" disabled>${n}</button>`).join('')}</div></div>
   </div>
-</div>
-<div class="auOff" data-k="off" role="status" hidden><b data-k="offT">Start Halo helper</b><span>Audio needs Halo to see your laptop.</span><button type="button" data-k="retry">Try again</button></div>`
+</div>`
 
 export interface AudioPanelHandle extends PvRoot { destroy(): void }
 
@@ -81,7 +81,7 @@ export function AudioPanel(): AudioPanelHandle {
     $('lv').querySelectorAll('i').forEach((b, i) => b.classList.toggle('on', i < lit))
   }
   function paintOutputs(outs: Output[]) {
-    html('outs', outs.map((o) => `<div class="auO${o.current ? ' on' : ''}" style="--c:${OUTPUT_COLOURS[o.kind] ?? '#BF5AF2'}"><span class="ib">${outIcon(o.kind)}</span><div><b>${o.name.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</b><small>${outputSub(o)}</small></div><i class="ck"></i></div>`).join(''))
+    html('outs', outs.slice(0, 3).map((o) => `<div class="auO${o.current ? ' on' : ''}" style="--c:${OUTPUT_COLOURS[o.kind] ?? '#BF5AF2'}"><span class="ib">${outIcon(o.kind)}</span><div><b>${o.name.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</b><small>${outputSub(o)}</small></div><i class="ck"></i></div>`).join(''))
   }
   function paintMixer(apps: AppVolume[]) {
     const { shown: list, more } = mixerApps(apps)

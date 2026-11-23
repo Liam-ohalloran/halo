@@ -39,6 +39,7 @@ import { MusicPanel } from '../panels/music'
 import { ControlsPanel } from '../panels/controls'
 import { AudioPanel } from '../panels/audio'
 import { LaunchPanel } from '../panels/launch'
+import { SixersPanel } from '../panels/sixers'
 import { SettingsPanel, type Account } from './Settings'
 import { parseTab, type TabId as ShellTabId } from '../styles/tabs'
 import type { Backend } from '../types'
@@ -243,6 +244,9 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   let payPanel: ReturnType<typeof PayPanel> | null = null
   const sixersCard = SixersCard({ onRetry: () => void sixers.refresh() })
   sixersCard.loading()
+  // Card 24: the 600 x 290 window gets the black island Sixers tab with its Box, Leaders, Team and Form views. The phone keeps the card.
+  const sixersPanel = phone ? null : SixersPanel({ onRetry: () => void sixers.refresh() })
+  sixersPanel?.loading()
   const homeTab = HomeTab({
     api, sources: o.home ?? liveSources, clock,
     go: (t) => { const id = parseTab(t); if (!id) return; if (sh) showShellTab(id); else if (t === 'pay' || t === 'study' || t === 'sixers') phoneShow(t, true) },
@@ -411,6 +415,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     if (id === 'shelf') return (shelfPanel ??= ShelfPanel(api))
     if (id === 'widgets') return (widgetsPanel ??= WidgetsPanel(api, o.home ?? liveSources, clock))
     if (id === 'alerts' && alertsStore) return (alertsPanel ??= AlertsPanel(alertsStore, clock))
+    if (id === 'sixers' && sixersPanel) return sixersPanel
     if (id === 'music') return (musicPanel ??= MusicPanel())
     if (id === 'controls') return (controlsPanel ??= ControlsPanel())
     if (id === 'audio') return (audioPanel ??= AudioPanel())
@@ -559,6 +564,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
     onData: (r, prev) => {
       game = r
       sixersCard.update(r)
+      sixersPanel?.update(r)
       homeTab.setGame(r)
       relayout()
       const g = r.game
@@ -573,7 +579,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
         confetti({ x: b.left + b.width / 2, y: b.top + 36 })
       }
     },
-    onError: (offline) => { if (!game) { sixersCard.error(offline); homeTab.setGame(null) } },
+    onError: (offline) => { if (!game) { sixersCard.error(offline); sixersPanel?.error(offline); homeTab.setGame(null) } },
   })
 
   // ---- The laptop (card 17): the helper tells the island what is playing, when the charger goes in and every change
@@ -671,7 +677,7 @@ export function mountHome(app: HTMLElement, o: HomeOptions = {}): () => void {
   void loadPrefs()
 
   return () => {
-    stop(); ro.disconnect(); unsub(); unsubTimer(); stopEvents?.(); live?.destroy(); if (artUrl) URL.revokeObjectURL(artUrl); payPanel?.destroy(); alertsPanel?.destroy(); moneyPanel?.destroy(); marksPanel?.destroy(); claudePanel?.destroy(); nightPanel?.destroy(); unsubNight(); shelfPanel?.destroy(); widgetsPanel?.destroy(); unsubAlerts?.(); banners?.destroy(); detachScroll?.(); detachDesktop?.(); settings?.destroy(); musicPanel?.destroy(); controlsPanel?.destroy(); audioPanel?.destroy(); launchPanel?.destroy(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
+    stop(); ro.disconnect(); unsub(); unsubTimer(); stopEvents?.(); live?.destroy(); if (artUrl) URL.revokeObjectURL(artUrl); payPanel?.destroy(); alertsPanel?.destroy(); moneyPanel?.destroy(); marksPanel?.destroy(); claudePanel?.destroy(); nightPanel?.destroy(); unsubNight(); shelfPanel?.destroy(); widgetsPanel?.destroy(); unsubAlerts?.(); banners?.destroy(); detachScroll?.(); detachDesktop?.(); settings?.destroy(); musicPanel?.destroy(); controlsPanel?.destroy(); audioPanel?.destroy(); launchPanel?.destroy(); sixersPanel?.destroy(); alertsStore?.destroy(); homeTab.destroy(); sixers.stop(); sixersCard.destroy(); studyPill.destroy(); timer.destroy()
     document.removeEventListener('pointerdown', onOutside)
     document.removeEventListener('visibilitychange', onVisible)
     removeEventListener('online', onOnline)

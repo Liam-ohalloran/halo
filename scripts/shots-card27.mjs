@@ -42,7 +42,7 @@ await win(page, '1-bar-default')
 // ---------- 2. The ••• grid: every other tab, and Settings
 await page.locator('.sh-more-btn').click()
 await sleep(450)
-assert.deepEqual(await gridTiles(page), ['Money', 'Controls', 'Claude', 'Night', 'Marks', 'Shelf', 'Widgets', 'Settings'])
+assert.deepEqual(await gridTiles(page), ['Money', 'Controls', 'Audio', 'Launch', 'Claude', 'Night', 'Marks', 'Shelf', 'Widgets', 'Settings'])
 await win(page, '2-more-grid')
 // Escape closes it, and so does a click anywhere else.
 await page.keyboard.press('Escape')

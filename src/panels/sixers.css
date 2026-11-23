@@ -1,0 +1,87 @@
+/* Sixers tab (card 24), black island family: black cards, glowing lines, rounded pills. */
+.sixers-pv { --sx: #4C8DFF; }
+.sixers-pv .sxG { display: grid; grid-template-columns: 178px minmax(0, 1fr); gap: 8px; height: 100%; }
+.sixers-pv .sxG[hidden] { display: none; }
+.sixers-pv .blk { position: relative; border-radius: 20px; padding: 10px 13px; background: #07070b; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); min-width: 0; min-height: 0; overflow: hidden; }
+.sixers-pv .blk::before { content: ''; position: absolute; left: -30px; bottom: -40px; width: 160px; height: 90px; border-radius: 50%; background: var(--sx); opacity: .22; filter: blur(24px); pointer-events: none; }
+.sixers-pv .blk > * { position: relative; }
+.sixers-pv .caps { display: flex; align-items: center; gap: 6px; color: var(--fog); font-size: 9px; }
+.sixers-pv .caps.live { color: #ff6b61; }
+.sixers-pv .dot { width: 7px; height: 7px; border-radius: 50%; background: #FF453A; box-shadow: 0 0 8px #FF453A; animation: sxP 1.4s ease-in-out infinite; }
+@keyframes sxP { 50% { opacity: .35; } }
+.sixers-pv .sxPair { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.sixers-pv .sxPair > div { display: flex; align-items: baseline; gap: 10px; }
+.sixers-pv .sxPair b { font-size: 40px; font-weight: 800; letter-spacing: -.03em; line-height: 1; min-width: 62px; text-shadow: 0 0 18px currentColor; }
+.sixers-pv .sxPair small { font-size: 11px; font-weight: 600; opacity: .85; white-space: nowrap; }
+.sixers-pv .sxRes { margin-top: 8px; display: inline-block; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px; background: rgba(255,69,58,.18); color: #ff9a92; box-shadow: inset 0 0 0 1px rgba(255,69,58,.5); }
+.sixers-pv .sxRes.win { background: rgba(92,255,122,.16); color: #8dffa5; box-shadow: inset 0 0 0 1px rgba(92,255,122,.5); }
+.sixers-pv .sxNext, .sixers-pv .sxWhen, .sixers-pv .sxCdl { margin-top: 8px; font-size: 11px; line-height: 1.35; color: var(--fog); }
+.sixers-pv .sxOpp { margin-top: 8px; font-size: 21px; font-weight: 800; letter-spacing: -.02em; line-height: 1.05; }
+.sixers-pv .sxCd { margin-top: 10px; font-size: 24px; font-weight: 800; color: var(--sx); text-shadow: 0 0 16px var(--sx); white-space: nowrap; }
+.sixers-pv .sxCdl { margin-top: 2px; display: block; }
+.sixers-pv .sxViews { display: flex; flex-direction: column; gap: 6px; }
+.sixers-pv .sxTabs { display: flex; gap: 3px; padding: 2px; border-radius: 999px; background: rgba(255,255,255,.07); align-self: flex-start; }
+.sixers-pv .sxTabs button, .sixers-pv .sxTm button { appearance: none; border: 0; font: inherit; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 999px; cursor: pointer; color: rgba(245,247,255,.75); background: transparent; transition: background .2s, color .2s, transform .3s var(--spring); }
+.sixers-pv .sxTabs button:hover, .sixers-pv .sxTm button:hover { color: #fff; }
+.sixers-pv .sxTabs button:active, .sixers-pv .sxTm button:active { transform: scale(.94); }
+.sixers-pv .sxTabs button[aria-selected='true'] { background: var(--pearl); color: #000; }
+.sixers-pv .sxBody { flex: 1; min-height: 0; overflow: hidden; }
+.sixers-pv .sxTm { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
+.sixers-pv .sxTm button { padding: 2px 10px; font-size: 11px; background: rgba(255,255,255,.08); }
+.sixers-pv .sxTm button.on { background: #fff; color: #000; }
+.sixers-pv .sxTm .hint { margin-left: auto; font-size: 11px; color: #8a8a94; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.sixers-pv .sxTbl { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.sixers-pv .sxTbl th { font-family: var(--mono); font-size: 9px; font-weight: 600; letter-spacing: .08em; color: var(--fog); text-align: right; padding: 0 0 3px; }
+.sixers-pv .sxTbl th.nm, .sixers-pv .sxTbl td.nm { text-align: left; width: 34%; }
+.sixers-pv .sxTbl th button { appearance: none; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; padding: 0; letter-spacing: inherit; }
+.sixers-pv .sxTbl th button.on { color: #fff; }
+.sixers-pv .sxTbl td { font-size: 12px; font-weight: 600; text-align: right; padding: 3px 0; white-space: nowrap; border-top: 1px solid rgba(255,255,255,.06); }
+.sixers-pv .sxTbl td.nm { font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
+.sixers-pv .sxTbl tbody tr { cursor: pointer; transition: background .2s; }
+.sixers-pv .sxTbl tbody tr:hover { background: rgba(255,255,255,.06); }
+.sixers-pv .sxMore { margin-top: 2px; font-size: 11px; color: #8a8a94; }
+.sixers-pv .sxNone { margin: 10px 2px; font-size: 13px; color: var(--fog); }
+.sixers-pv .sxPc h3 { margin: 4px 0 0; font-size: 17px; font-weight: 800; letter-spacing: -.01em; }
+.sixers-pv .sxBk { appearance: none; border: 0; font: inherit; font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 999px; cursor: pointer; color: #fff; background: rgba(255,255,255,.12); margin-bottom: 2px; }
+.sixers-pv .trip { display: flex; gap: 18px; margin: 6px 0 4px; }
+.sixers-pv .trip b { display: block; font-size: 22px; font-weight: 800; line-height: 1; }
+.sixers-pv .trip small, .sixers-pv .hb .l span { font-size: 11px; color: var(--fog); }
+.sixers-pv .hb { margin-top: 3px; }
+.sixers-pv .hb .l { display: flex; justify-content: space-between; align-items: baseline; }
+.sixers-pv .hb .l b { font-size: 11px; font-weight: 700; }
+.sixers-pv .tk { position: relative; height: 4px; border-radius: 3px; background: rgba(255,255,255,.1); overflow: hidden; display: flex; }
+.sixers-pv .tk i { display: block; height: 100%; border-radius: 3px; box-shadow: 0 0 8px currentColor; }
+.sixers-pv .sxLeads { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.sixers-pv .sxLc { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.sixers-pv .sxLd { display: grid; grid-template-columns: 34px 34px minmax(0, 1fr); align-items: baseline; gap: 4px; padding: 6px 8px; border-radius: 12px; background: rgba(255,255,255,.05); }
+.sixers-pv .sxLd small { font-family: var(--mono); font-size: 9px; letter-spacing: .08em; color: var(--fog); }
+.sixers-pv .sxLd b { font-size: 21px; font-weight: 800; }
+.sixers-pv .sxLd span { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sixers-pv .sxCmpH { display: flex; justify-content: space-between; font-size: 13px; padding: 0 0 2px 40px; }
+.sixers-pv .sxCmp { display: grid; grid-template-columns: 34px 38px minmax(0, 1fr) 38px; align-items: center; gap: 6px; margin-top: 5px; }
+.sixers-pv .sxCmp span { font-family: var(--mono); font-size: 9px; letter-spacing: .08em; color: var(--fog); }
+.sixers-pv .sxCmp b { font-size: 13px; font-weight: 700; color: rgba(245,247,255,.7); text-align: right; }
+.sixers-pv .sxCmp b:last-child { text-align: left; }
+.sixers-pv .sxCmp b.win { color: #fff; }
+.sixers-pv .sxCmp .tk { height: 6px; }
+.sixers-pv .sxCmp .tk i { box-shadow: none; border-radius: 3px 0 0 3px; }
+.sixers-pv .sxCmp .tk u { flex: 1; height: 100%; border-radius: 0 3px 3px 0; margin-left: 2px; text-decoration: none; }
+.sixers-pv .sxFormH { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.sixers-pv .sxFormH .dots { display: flex; gap: 4px; }
+.sixers-pv .sxFormH b { font-size: 21px; font-weight: 800; }
+.sixers-pv .sxFormH small { font-size: 11px; color: var(--fog); }
+.sixers-pv i.w, .sixers-pv i.l { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-style: normal; font-size: 11px; font-weight: 800; flex: none; }
+.sixers-pv i.w { background: rgba(92,255,122,.2); color: #8dffa5; box-shadow: inset 0 0 0 1px rgba(92,255,122,.6); }
+.sixers-pv i.l { background: rgba(255,69,58,.18); color: #ff9a92; box-shadow: inset 0 0 0 1px rgba(255,69,58,.55); }
+.sixers-pv .sxFg { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto 54px; align-items: center; gap: 8px; padding: 3px 0; border-top: 1px solid rgba(255,255,255,.06); }
+.sixers-pv .sxFg span { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sixers-pv .sxFg b { font-size: 13px; font-weight: 700; }
+.sixers-pv .sxFg small { font-size: 11px; color: var(--fog); text-align: right; }
+.sixers-pv .sxState { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; }
+.sixers-pv .sxState[hidden] { display: none; }
+.sixers-pv .sxState b { font-size: 17px; font-weight: 700; }
+.sixers-pv .sxState span { font-size: 13px; color: var(--fog); }
+.sixers-pv .sxState button { margin-top: 4px; appearance: none; border: 0; height: 30px; padding: 0 16px; border-radius: 999px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; color: #000; background: #fff; }
+.sixers-pv .sxState button[hidden] { display: none; }
+.sixers-pv :focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) { .sixers-pv .dot { animation: none; } }

@@ -4,12 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { isDesktop } from '../lib/desktop'
 import { parseAuthLink } from '../lib/auth-link'
 import { signInWithLink } from '../lib/desktop-auth'
-
-const EMAIL_KEY = 'halo.email'
-
-function savedEmail(): string {
-  try { return localStorage.getItem(EMAIL_KEY) ?? '' } catch { return '' }
-}
+import { rememberEmail, savedEmail, signInError } from '../lib/auth-form'
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text?: string): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag)
@@ -18,15 +13,8 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text?: s
   return e
 }
 
-function plainError(message: string): string {
-  if (/rate|too many|seconds/i.test(message)) return 'Too many tries. Wait a minute, then try again.'
-  if (/fetch|network/i.test(message)) return "Can't reach Halo. Check your connection and try again."
-  if (/expired|invalid/i.test(message)) return 'That link has expired. Send a new one.'
-  return 'Something went wrong. Try again.'
-}
-
 /**
- * Magic link sign-in. The link opens in the default browser, so the second step also takes
+ * Sign-in: email and password first, with the magic link underneath as "Email me a link instead". The link opens in the default browser, so the second step also takes
  * a pasted link, which is how it works inside the NotchPixel web tab and the iPhone app.
  */
 export function mountSignIn(app: HTMLElement, client: SupabaseClient, notice?: string): void {
@@ -43,6 +31,49 @@ export function mountSignIn(app: HTMLElement, client: SupabaseClient, notice?: s
     const t = el('h1', 'signin-title', title)
     t.id = 'signin-title'
     return [el('div', 'signin-label', 'Halo'), t, el('p', 'signin-body', body)]
+  }
+
+  /** Email and password. The password is read from the field when the form is sent and goes straight to Supabase. */
+  function showPassword(msgText = notice ?? '', isErr = Boolean(notice)) {
+    const input = el('input', 'signin-field')
+    input.type = 'email'
+    input.required = true
+    input.value = email
+    input.placeholder = 'you@email.com'
+    input.autocomplete = 'email'
+    input.setAttribute('aria-label', 'Email')
+    const pass = el('input', 'signin-field')
+    pass.type = 'password'
+    pass.required = true
+    pass.placeholder = 'Password'
+    pass.autocomplete = 'current-password'
+    pass.setAttribute('aria-label', 'Password')
+    const btn = el('button', 'signin-btn', 'Sign in')
+    btn.type = 'submit'
+    const msg = el('p', `signin-msg${isErr ? ' err' : ''}`, msgText)
+    msg.setAttribute('role', 'status')
+    const other = el('button', 'signin-link', 'Email me a link instead')
+    other.type = 'button'
+    other.addEventListener('click', () => { email = input.value.trim() || email; showEmail('', false) })
+    const form = el('form', 'signin-form')
+    form.append(input, pass, btn, msg, other)
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault()
+      email = input.value.trim()
+      if (!email || !pass.value) return
+      btn.disabled = true
+      const { error } = await client.auth.signInWithPassword({ email, password: pass.value })
+      pass.value = ''
+      btn.disabled = false
+      if (error) {
+        msg.className = 'signin-msg err'
+        msg.textContent = signInError(error.message)
+        return
+      }
+      rememberEmail(email) // the page switches to the island by itself once the session lands
+    })
+    card.replaceChildren(...head('Sign in', 'Use your email and password.'), form)
+    if (!email) input.focus(); else pass.focus()
   }
 
   function showEmail(msgText = notice ?? '', isErr = Boolean(notice)) {
@@ -65,6 +96,10 @@ export function mountSignIn(app: HTMLElement, client: SupabaseClient, notice?: s
       have.addEventListener('click', () => { email = input.value.trim() || email; showSent() })
       form.append(have)
     }
+    const back = el('button', 'signin-link', 'Use a password instead')
+    back.type = 'button'
+    back.addEventListener('click', () => { email = input.value.trim() || email; showPassword('', false) })
+    form.append(back)
     form.addEventListener('submit', async (e) => {
       e.preventDefault()
       email = input.value.trim()
@@ -78,13 +113,13 @@ export function mountSignIn(app: HTMLElement, client: SupabaseClient, notice?: s
       btn.disabled = false
       if (error) {
         msg.className = 'signin-msg err'
-        msg.textContent = plainError(error.message)
+        msg.textContent = signInError(error.message)
         return
       }
-      try { localStorage.setItem(EMAIL_KEY, email) } catch { /* private mode */ }
+      rememberEmail(email)
       showSent()
     })
-    card.replaceChildren(...head('Sign in', 'We email you a link. No password.'), form)
+    card.replaceChildren(...head('Email me a link', 'We email you a link. No password needed.'), form)
     if (!email) input.focus()
   }
 
@@ -125,7 +160,7 @@ export function mountSignIn(app: HTMLElement, client: SupabaseClient, notice?: s
     input.focus()
   }
 
-  showEmail()
+  showPassword()
 }
 
 /** Small signed-in note under the island so it is obvious the session worked. */

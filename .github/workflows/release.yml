@@ -59,7 +59,7 @@ jobs:
           releaseDraft: false
           prerelease: false
           # latest.json is what the app's update check reads.
-          uploadUpdaterJson: true
+          includeUpdaterJson: true
           updaterJsonPreferNsis: true
       # A stable name for the download link: https://github.com/Liam-ohalloran/halo/releases/latest/download/Halo-Setup.exe
       - name: Attach Halo-Setup.exe

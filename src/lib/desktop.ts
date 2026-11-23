@@ -54,6 +54,10 @@ export interface DesktopBridge {
   setHotkey(label: string): void
   pauseForAnHour(): void
   quit(): void
+  /** Card 28: the app's own version, and updates from GitHub Releases. */
+  version(): Promise<string | null>
+  checkUpdate(): Promise<{ version: string; notes: string | null } | null | 'error'>
+  installUpdate(): Promise<boolean>
 }
 
 const call = (cmd: string, args?: Record<string, unknown>): Promise<unknown> => tauri()?.core.invoke(cmd, args).catch(() => null) ?? Promise.resolve(null)
@@ -92,6 +96,18 @@ export const bridge: DesktopBridge = {
   setHotkey: (label) => void call('set_hotkey', { label }),
   pauseForAnHour: () => void call('pause_for_hour'),
   quit: () => void call('quit'),
+  version: () => call('app_version') as Promise<string | null>,
+  // The app answers with an error sentence when it could not look. The page only needs to know that it could not.
+  checkUpdate: () => (tauri()?.core.invoke('check_update') as Promise<{ version: string; notes: string | null } | null> | undefined)?.catch(() => 'error' as const) ?? Promise.resolve(null),
+  installUpdate: () => (tauri()?.core.invoke('install_update') as Promise<unknown> | undefined)?.then(() => true).catch(() => false) ?? Promise.resolve(false),
+}
+
+/** Listen for one of the app's events (the update found at launch, or by the tray). Returns the function that stops listening. */
+export function onDesktopEvent<T = unknown>(name: string, cb: (payload: T) => void): () => void {
+  const t = tauri()
+  if (!t) return () => {}
+  const p = t.event.listen<T>(name, (e) => cb(e.payload))
+  return () => void p.then((off) => off())
 }
 
 declare global { interface Window { halo?: { desktop?: DesktopBridge } } }

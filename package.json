@@ -36,6 +36,7 @@
     "shots:card26": "node scripts/shots-card26.mjs",
     "shots:card27": "node scripts/shots-card27.mjs",
     "shots:card24": "node scripts/shots-card24.mjs",
+    "shots:card28": "node scripts/shots-card28.mjs",
     "shots:signin": "node scripts/shots-signin.mjs"
   },
   "dependencies": {

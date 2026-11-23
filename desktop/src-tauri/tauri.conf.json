@@ -56,7 +56,8 @@
     },
     "externalBin": [
       "binaries/halo-helper"
-    ]
+    ],
+    "createUpdaterArtifacts": true
   },
   "plugins": {
     "deep-link": {
@@ -64,6 +65,15 @@
         "schemes": [
           "halo"
         ]
+      }
+    },
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEEyRkE5RkQ5NENGN0E3QjcKUldTM3AvZE0yWi82b21UNGdFT3RUb3NXQUJMVGd3UzdVTWI1MExwVjViejRQWmZRU1d1VzZ4TVoK",
+      "endpoints": [
+        "https://github.com/Liam-ohalloran/halo/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
       }
     }
   }

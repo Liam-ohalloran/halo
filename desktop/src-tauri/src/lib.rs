@@ -8,6 +8,7 @@
 
 mod geometry;
 mod helper;
+mod updates;
 mod winapi;
 
 use geometry::{inside_any, place, Region};
@@ -432,6 +433,7 @@ fn build_menu(app: &AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
         .item(&style)
         .item(&CheckMenuItemBuilder::with_id("autostart", "Launch at startup").checked(st.autostart).build(app)?)
         .separator()
+        .item(&MenuItemBuilder::with_id("update", "Check for updates").build(app)?)
         .item(&MenuItemBuilder::with_id("pause", if st.paused { "Resume" } else { "Pause for 1 hour" }).build(app)?)
         .item(&MenuItemBuilder::with_id("quit", "Quit Halo").build(app)?)
         .build()
@@ -460,6 +462,7 @@ fn on_menu(app: &AppHandle, id: &str) {
             housekeeping(app);
             let _ = app.emit("halo-settings", ());
         }
+        "update" => updates::check_from_tray(app),
         "pause" => toggle_pause(app),
         "quit" => app.exit(0),
         "autostart" => {
@@ -555,6 +558,7 @@ pub fn run() {
             let _ = app.emit("halo-open", ());
         }))
         .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec![])))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
@@ -567,7 +571,7 @@ pub fn run() {
                 .build(),
         )
         .invoke_handler(tauri::generate_handler![
-            set_island, set_regions, set_focusable, get_state, set_style, set_monitor, set_autostart, set_hotkey, pause_for_hour, take_auth_url, secret_get, secret_set, secret_delete, helper::helper_info, quit
+            set_island, set_regions, set_focusable, get_state, set_style, set_monitor, set_autostart, set_hotkey, pause_for_hour, take_auth_url, secret_get, secret_set, secret_delete, helper::helper_info, updates::app_version, updates::check_update, updates::install_update, quit
         ])
         .manage(helper::HelperState::default())
         .setup(|app| {
@@ -628,6 +632,7 @@ pub fn run() {
 
             // Card 26: the helper starts with the app and stops with it.
             helper::start(&handle);
+            updates::check_on_launch(&handle);
             apply_placement(&handle, true);
             set_visible(&handle, true);
             watch(handle);

@@ -1,6 +1,9 @@
 import './style.css'
 import type { Backend } from './types'
 import { supabase, supabaseBackend } from './supabase'
+import { SESSION_KEY } from './lib/supabase'
+import { hasStoredSession, recoverSession } from './lib/session-store'
+import { passwordSaveError, passwordProblem } from './lib/auth-form'
 import { h, icon, reducedMotion, SPRING, toast } from './ui'
 import { mountNow } from './views/now'
 import { mountPay } from './panels/pay'
@@ -132,6 +135,14 @@ function renderApp(api: Backend, onSignOut: () => void): () => void {
   }
 }
 
+/** Settings, signed in only: set or change the password. Returns a sentence when it fails, null when it worked. The password is passed straight on. */
+async function setPassword(password: string): Promise<string | null> {
+  const problem = passwordProblem(password)
+  if (problem) return problem
+  const { error } = await supabase.auth.updateUser({ password })
+  return error ? passwordSaveError(error.message) : null
+}
+
 function booting() {
   app.replaceChildren(h('div', { class: 'shell boot' }, sparkles(), h('div', { class: 'boot-pill', 'aria-label': 'Loading Halo' }, h('span', { class: 'halo-mark' }))))
 }
@@ -152,13 +163,18 @@ async function start() {
     const { sample } = await import('./dev/nba-sample')
     const sx = (params.get('sixers') ?? 'none') as Parameters<typeof sample>[0]
     const { homeMock } = await import('./dev/home-mock')
-    mountHome(app, { source: mockSource(mode), api: mockBackend(params.get('api') ?? 'full'), home: homeMock(params.get('home') ?? 'full'), sixers: () => Promise.resolve(sample(sx)), now: () => new Date(start + Date.now() - t0), open: params.has('open'), tab: params.get('tab') ?? undefined })
+    mountHome(app, { source: mockSource(mode), api: mockBackend(params.get('api') ?? 'full'), home: homeMock(params.get('home') ?? 'full'), sixers: () => Promise.resolve(sample(sx)), now: () => new Date(start + Date.now() - t0), open: params.has('open'), tab: params.get('tab') ?? undefined,
+      // ?account=1 shows Settings as a signed in user sees it (fixtures only, no real sign in).
+      account: params.has('account') ? { email: 'liam@example.com', onSetPassword: async (p: string) => (p === 'fail-me-now' ? 'Could not save that. Try again.' : null) } : undefined })
     return
   }
   // Home is the card 01 island. The old draft tabs stay reachable at ?legacy=1 until cards 06 to 08 replace them.
   if (!params.has('legacy') && !params.has('mock')) {
     // Signed out: sign-in screen. Signed in: the island. The session persists across reloads.
-    const { data } = await supabase.auth.getSession()
+    // A stored session that cannot be refreshed yet (Windows started Halo before Wi-Fi was up) is not a sign out: wait for
+    // the network instead of showing the sign-in card. A session the server rejected is removed by Supabase and ends this wait.
+    const session = (await recoverSession(() => supabase.auth.getSession(), () => hasStoredSession(SESSION_KEY))) as Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session']
+    const data = { session }
     const linkError = new URLSearchParams(location.hash.slice(1)).get('error_description')
     const { mountHome } = await import('./components/home')
     const { mountSignIn, mountSignedInNote } = await import('./components/signin')
@@ -168,7 +184,7 @@ async function start() {
       if (signedIn) {
         document.documentElement.classList.remove('signin')
         // Card 15b: on desktop and embedded, "Signed in as" and "Add to Home Screen" live in Settings (the More tab).
-        mountHome(app, { account: { email, onSignOut: () => void supabase.auth.signOut() } })
+        mountHome(app, { account: { email, onSignOut: () => void supabase.auth.signOut(), onSetPassword: setPassword } })
         // The phone keeps its stack for now, so it keeps the footer too.
         if (!isEmbed() && !isDesktop() && matchMedia('(max-width: 480px)').matches) mountSignedInNote(app, supabase, email)
       } else {

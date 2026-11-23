@@ -65,3 +65,9 @@ The installed app loads the built web app from inside itself (`dist-desktop`), s
 - **Airplane mode and night light** change pills. Keyboard light: the Lenovo driver does not expose it here, so there is no pill.
 - **CSP** now also allows the helper on `http://127.0.0.1:47800` to `47810`.
 - **Checks:** `npm run test:helper` (pytest), `node scripts/shots-card26.mjs` (web half with a pretend helper), and with `npm run desktop:dev` running, `node scripts/desktop-helper-probe.mjs` (real helper, a real Windows toast, real volume scroll, real clipboard). `scripts/chrome-media-test.ps1` plays a silent track in Chrome for the media check.
+
+## Staying signed in
+
+Halo signs in with email and password (the magic link is "Email me a link instead"). Set the password in Settings, Account, "Set a sign-in code".
+
+The session lasts until Sign out. In the app Supabase's session is kept in the Windows Credential Manager (`secret_get`, `secret_set`, `secret_delete` in `lib.rs`, entries named `Halo` / `session:sb-...`), not in web storage. Web storage in the app belongs to one origin (the installed app and `desktop:dev` on different ports have different ones), which is why a rebuild or a new dev port used to ask for a sign in again. A session already in web storage moves over the first time it is read. If Windows starts Halo before Wi-Fi is up, the stored session is kept and the app waits for the network instead of showing the sign-in card. The web and the phone keep Supabase's own `persistSession` and `autoRefreshToken`.

@@ -4,13 +4,19 @@ import { EmbedSettings } from './EmbedShell'
 import { bridge, isDesktop, type DesktopState } from '../lib/desktop'
 import { DEFAULT_ORDER, RAIL_ICONS, TAB_THEMES, type TabId } from '../styles/tabs'
 import { MAX_PINNED, canPinMore, moreIds, moveTab, movePinnedTo, togglePin, ALWAYS_PINNED, type TabPrefs } from '../lib/tabprefs'
+import { MIN_PASSWORD, passwordProblem } from '../lib/auth-form'
 import { HUD_KEYS, HUD_LABELS, LIVE_KEYS, LIVE_LABELS, SOURCE_KEYS, SOURCE_LABELS, type IslandSize, type Speed, type UiStore } from '../lib/ui-settings'
 
 // Settings (cards 15b, 23 and 27): the sixth tab in the bar's "•••" grid. A short list of sections on the left, one section
 // at a time on the right, so nothing ever scrolls. Every switch changes the page at once and is saved to the settings row,
 // so the phone follows where it makes sense. A control only repaints itself, the panel is never rebuilt.
 
-export interface Account { email: string; onSignOut?: () => void }
+export interface Account {
+  email: string
+  onSignOut?: () => void
+  /** Save a new password. Resolves to a sentence when it fails, or null when it worked. */
+  onSetPassword?: (password: string) => Promise<string | null>
+}
 
 export interface SettingsOptions {
   account?: Account
@@ -61,6 +67,36 @@ function rangeRow(label: string, min: number, max: number, get: () => number, se
   input.addEventListener('input', () => { set(Number(input.value)); paint() })
   paint()
   return { el: h('div', { class: 'st-row' }, h('span', { class: 'st-k' }, label), h('div', { class: 'st-rg' }, input, val)), sync: paint }
+}
+
+/** "Set a sign-in code": one row that turns into a password field with Show/Hide and Save. The value lives only in the field. */
+function signInCodeRow(save: (password: string) => Promise<string | null>): HTMLElement {
+  const row = h('div', { class: 'st-row' })
+  const open = () => {
+    const input = h('input', { type: 'password', class: 'st-pw', placeholder: `${MIN_PASSWORD}+ characters`, autocomplete: 'new-password', 'aria-label': 'New sign-in code' }) as HTMLInputElement
+    const eye = h('button', { type: 'button', class: 'st-btn', 'aria-pressed': 'false', onclick: () => { const on = input.type === 'password'; input.type = on ? 'text' : 'password'; eye.textContent = on ? 'Hide' : 'Show'; eye.setAttribute('aria-pressed', String(on)) } }, 'Show') as HTMLButtonElement
+    const msg = h('span', { class: 'st-msg', role: 'status' })
+    const go = h('button', { type: 'submit', class: 'st-btn' }, 'Save') as HTMLButtonElement
+    input.addEventListener('input', () => { msg.className = 'st-msg'; msg.textContent = '' })
+    const form = h('form', { class: 'st-pwform', onsubmit: async (e: Event) => {
+      e.preventDefault()
+      const problem = passwordProblem(input.value)
+      if (problem) { msg.className = 'st-msg err'; msg.textContent = problem; return }
+      go.disabled = true
+      const err = await save(input.value)
+      input.value = ''
+      go.disabled = false
+      if (err) { msg.className = 'st-msg err'; msg.textContent = err; return }
+      done('Saved. Use it next time you sign in.')
+    } }, input, eye, go)
+    row.replaceChildren(h('span', { class: 'st-k' }, 'Sign-in code', msg), form)
+    input.focus()
+  }
+  const done = (text: string) => {
+    row.replaceChildren(h('span', { class: 'st-k' }, 'Sign-in code', h('small', { role: 'status' }, text)), h('button', { type: 'button', class: 'st-btn', onclick: open }, 'Change'))
+  }
+  row.append(h('span', { class: 'st-k' }, 'Sign-in code', h('small', {}, 'Sign in with email and password')), h('button', { type: 'button', class: 'st-btn', onclick: open }, 'Set a sign-in code'))
+  return row
 }
 
 export function SettingsPanel(o: SettingsOptions): SettingsHandle {
@@ -211,6 +247,7 @@ export function SettingsPanel(o: SettingsOptions): SettingsHandle {
   // ---- Account
   const account = h('section', { class: 'st-sec', 'data-sec': 'account', 'aria-label': 'Account' },
     o.account?.email ? h('div', { class: 'st-row' }, h('span', { class: 'st-k' }, 'Signed in as'), h('span', { class: 'st-v' }, o.account.email)) : null,
+    o.account?.email && o.account.onSetPassword ? signInCodeRow(o.account.onSetPassword) : null,
     !standalone && !o.embed && !desk ? h('div', { class: 'st-row' }, h('span', { class: 'st-k' }, 'Halo on your iPhone'), h('a', { class: 'st-btn', href: `${import.meta.env.BASE_URL}install/` }, 'Add to Home Screen')) : null,
     o.embed ? h('div', { class: 'st-row' }, EmbedSettings()) : null,
     h('div', { class: 'st-row' }, h('span', { class: 'st-k' }, 'Account'), h('button', { type: 'button', class: 'st-btn', onclick: () => (o.account?.onSignOut ?? o.onSignOut)() }, 'Sign out')))

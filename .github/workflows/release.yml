@@ -1,0 +1,73 @@
+name: Release Halo for Windows
+# Push a tag like v0.2.0 and this builds Halo-Setup.exe, signs the update, and puts both on a GitHub Release.
+#   git tag v0.2.0
+#   git push origin v0.2.0
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build, like v0.2.0 (it must already exist)'
+        required: true
+permissions:
+  contents: write
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+jobs:
+  windows:
+    runs-on: windows-latest
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+      - run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      # The tag decides the version, so the installer, the app and the update check agree. A tag that is not v and three numbers stops here.
+      - run: node scripts/set-version.mjs "$env:TAG"
+        shell: pwsh
+      - run: npm test
+      # The helper is bundled inside the app as a sidecar (card 26).
+      - run: npm run helper:build
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tauriScript: npm run tauri
+          tagName: ${{ env.TAG }}
+          releaseName: Halo ${{ env.TAG }}
+          releaseBody: |
+            Install: download **Halo-Setup.exe** and run it. Windows SmartScreen warns once because Halo is not paid-signed: click **More info**, then **Run anyway**.
+            Already installed: Halo finds this update by itself and installs it with one click in Settings, Laptop.
+          releaseDraft: false
+          prerelease: false
+          # latest.json is what the app's update check reads.
+          uploadUpdaterJson: true
+          updaterJsonPreferNsis: true
+      # A stable name for the download link: https://github.com/Liam-ohalloran/halo/releases/latest/download/Halo-Setup.exe
+      - name: Attach Halo-Setup.exe
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $exe = Get-ChildItem desktop/src-tauri/target/release/bundle/nsis -Filter '*-setup.exe' | Select-Object -First 1
+          if (-not $exe) { throw 'The installer was not built.' }
+          Copy-Item $exe.FullName Halo-Setup.exe
+          gh release upload "$env:TAG" Halo-Setup.exe --clobber --repo "${{ github.repository }}"

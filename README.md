@@ -4,6 +4,21 @@ A personal Dynamic Island layer: one compact web panel for [NotchPixel](https://
 
 **Live:** https://liam-ohalloran.github.io/halo/
 
+## Install Halo on Windows (card 28)
+
+1. Download **Halo-Setup.exe** from [the latest release](https://github.com/Liam-ohalloran/halo/releases/latest) and run it.
+2. Windows SmartScreen warns once, because Halo has no paid code signing. Click **More info**, then **Run anyway**.
+3. Halo finds its own updates and installs them with one click in Settings, Laptop. Moving over from NotchPixel: [docs/switch-from-notchpixel.md](docs/switch-from-notchpixel.md).
+
+Making a release (Liam, once per version):
+
+```powershell
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+The `Release Halo for Windows` workflow builds the installer on a Windows runner, signs the update with the key kept in the repository secrets `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, and attaches `Halo-Setup.exe`, the signed update and `latest.json` to a GitHub Release. The tag decides the version (`vX.Y.Z` only).
+
 ## Tabs
 
 - **Now**: the current or next shift and the next test, with live countdowns.

@@ -1,7 +1,8 @@
 import '../styles/settings.css'
 import { h } from './dom'
 import { EmbedSettings } from './EmbedShell'
-import { bridge, isDesktop, type DesktopState } from '../lib/desktop'
+import { bridge, isDesktop, onDesktopEvent, type DesktopState } from '../lib/desktop'
+import { updateRow, type UpdateState } from '../lib/updates'
 import { DEFAULT_ORDER, RAIL_ICONS, TAB_THEMES, type TabId } from '../styles/tabs'
 import { MAX_PINNED, canPinMore, moreIds, moveTab, movePinnedTo, togglePin, ALWAYS_PINNED, type TabPrefs } from '../lib/tabprefs'
 import { MIN_PASSWORD, passwordProblem } from '../lib/auth-form'
@@ -103,6 +104,7 @@ export function SettingsPanel(o: SettingsOptions): SettingsHandle {
   const standalone = matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true
   const desk = isDesktop()
   const syncs: Array<() => void> = []
+  const offs: Array<() => void> = []
   const reg = (c: { el: HTMLElement; sync(): void }): HTMLElement => { syncs.push(c.sync); return c.el }
   const ui = o.ui
 
@@ -236,10 +238,43 @@ export function SettingsPanel(o: SettingsOptions): SettingsHandle {
     screenBtn.textContent = st?.monitor ?? 'Main screen'
     keyBtn.textContent = st?.hotkey ?? 'Ctrl+Alt+Space'
   }
+  // Updates (card 28): the app looks when it starts and the tray can look too. One button checks, then installs and restarts.
+  let version = ''
+  let upd: UpdateState = { kind: 'idle' }
+  const updBtn = dBtn('Check for updates', () => void updAct())
+  const updSub = h('small', {}, '')
+  const updK = h('span', { class: 'st-k' }, 'Halo', updSub)
+  const setUpd = (s: UpdateState) => {
+    upd = s
+    const r = updateRow(version, s)
+    updK.firstChild!.textContent = r.label
+    updSub.textContent = r.sub
+    updBtn.textContent = r.button ?? 'Working…'
+    updBtn.disabled = r.busy
+    updBtn.hidden = false
+  }
+  async function updAct() {
+    if (upd.kind === 'available') {
+      setUpd({ kind: 'installing', version: upd.version })
+      if (!(await bridge.installUpdate())) setUpd({ kind: 'error', message: "The update didn't install. Halo is untouched. Try again." })
+      return
+    }
+    setUpd({ kind: 'checking' })
+    const r = await bridge.checkUpdate()
+    setUpd(r === 'error' ? { kind: 'error', message: "Halo couldn't check for updates. Try again in a minute." } : r ? { kind: 'available', version: r.version } : { kind: 'latest' })
+  }
+  if (desk) {
+    void bridge.version().then((v) => { version = v ?? ''; setUpd(upd) })
+    offs.push(onDesktopEvent<{ version: string }>('halo-update', (u) => setUpd({ kind: 'available', version: u.version })))
+    offs.push(onDesktopEvent('halo-update-none', () => setUpd({ kind: 'latest' })))
+    offs.push(onDesktopEvent<string>('halo-update-error', (m) => setUpd({ kind: 'error', message: m })))
+  }
+  setUpd(upd)
   laptop.append(styleSeg.el,
     h('div', { class: 'st-row' }, h('span', { class: 'st-k' }, 'Screen'), screenBtn),
-    h('div', { class: 'st-row' }, h('span', { class: 'st-k' }, 'Open and close with', h('small', {}, 'Tap to try the next one')), keyBtn),
+    h('div', { class: 'st-row' }, h('span', { class: 'st-k' }, 'Open and close with'), keyBtn),
     startRow.el,
+    h('div', { class: 'st-row' }, updK, updBtn),
     h('div', { class: 'st-row' }, h('span', { class: 'st-k' }, 'Halo app'), dBtn('Quit', () => bridge.quit())))
   syncs.push(paintLaptop)
   if (desk) void (o.desktop?.state() ?? bridge.state()).then((v) => { if (v) { st = v; paintLaptop() } })
@@ -281,7 +316,7 @@ export function SettingsPanel(o: SettingsOptions): SettingsHandle {
   const root = h('div', { class: `st${desk ? ' desk' : ''}`, 'data-tab': 'more' }, nav, main) as unknown as SettingsHandle
   const unsubs = [o.ui.subscribe(() => syncs.forEach((f) => f())), o.tabs.subscribe(() => { if (cur === 'tabs') paintTabs() })]
   root.section = show
-  root.destroy = () => unsubs.forEach((f) => f())
+  root.destroy = () => { unsubs.forEach((f) => f()); offs.forEach((f) => f()) }
   show('look')
   return root
 }

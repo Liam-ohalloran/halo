@@ -48,6 +48,7 @@ import type { ShelfItem } from './lib/shelf'
 import type { Countdown } from './lib/widgets'
 import type { TabPrefs } from './lib/tabprefs'
 import type { UiSettings } from './lib/ui-settings'
+import type { LaunchItem, NewLaunchItem } from './lib/launch'
 
 /** Everything the UI needs from the database. Real impl talks to Supabase; dev impl is in-memory. */
 export interface Backend {
@@ -104,6 +105,11 @@ export interface Backend {
   saveCountdown(c: { id: string; name: string; target_date: string }): Promise<void>
   /** Puts Doomsday, birthday and Christmas in when the table is empty. */
   seedCountdowns(): Promise<void>
+  /** Launch tab (card 24): the apps and sites Liam keeps one tap away. */
+  launchItems(): Promise<LaunchItem[]>
+  addLaunchItem(i: NewLaunchItem): Promise<LaunchItem>
+  removeLaunchItem(id: string): Promise<void>
+  saveLaunchOrder(items: LaunchItem[]): Promise<void>
   /** Pinned tabs (cards 23 and 27), kept in the settings row so the phone matches. Raw JSON, or null when never saved. */
   uiPrefs(): Promise<unknown>
   saveUiPrefs(p: TabPrefs): Promise<void>

@@ -35,6 +35,7 @@
     "test:helper": "helper\\.build-venv\\Scripts\\python.exe -m pytest helper/tests -q",
     "shots:card26": "node scripts/shots-card26.mjs",
     "shots:card27": "node scripts/shots-card27.mjs",
+    "shots:card24": "node scripts/shots-card24.mjs",
     "shots:signin": "node scripts/shots-signin.mjs"
   },
   "dependencies": {

@@ -4,7 +4,7 @@
 // colour = the tab colour (active rail icon, accents). rail = the icon colour while the tab is not open.
 // bg, border and glow are the frame: a tinted gradient, a 1 px tinted border and a soft corner glow. Never remove the glow.
 
-export type TabId = 'home' | 'music' | 'study' | 'pay' | 'sixers' | 'week' | 'alerts' | 'money' | 'marks' | 'claude' | 'night' | 'shelf' | 'widgets' | 'more' | 'controls'
+export type TabId = 'home' | 'music' | 'study' | 'pay' | 'sixers' | 'week' | 'alerts' | 'money' | 'marks' | 'claude' | 'night' | 'shelf' | 'widgets' | 'more' | 'controls' | 'audio' | 'launch'
 
 export interface TabTheme {
   id: TabId
@@ -102,6 +102,17 @@ export const TAB_THEMES: Record<TabId, TabTheme> = {
     bg: '#000', border: 'rgba(255,255,255,0.08)', pad: [10, 16, 12, 16], text: '#F5F7FF',
     glow: 'display:none', layers: [],
   },
+  audio: {
+    id: 'audio', label: 'Audio', aria: 'Audio', colour: '#4c9bff', shadow: '#2f86ff', rail: '#4c9bff',
+    bg: '#000', border: 'rgba(255,255,255,0.08)', pad: [10, 16, 12, 16], text: '#F5F7FF',
+    glow: 'display:none', layers: [],
+  },
+  launch: {
+    id: 'launch', label: 'Launch', aria: 'Launch', colour: '#7FD0FF', rail: '#7FD0FF',
+    bg: '#06060a', border: 'rgba(127,208,255,0.22)', pad: [10, 16, 12, 16], text: '#F5F5F7',
+    glow: 'position:absolute;inset:-40px;pointer-events:none;background:radial-gradient(50% 70% at 10% 10%, rgba(61,155,255,0.5), rgba(61,155,255,0) 70%), radial-gradient(45% 60% at 60% 70%, rgba(255,47,163,0.3), rgba(255,47,163,0) 70%), radial-gradient(40% 60% at 100% 0%, rgba(92,255,122,0.3), rgba(92,255,122,0) 70%), #06060a;filter:blur(18px)',
+    layers: [],
+  },
   more: {
     id: 'more', label: 'Settings', aria: 'Settings', colour: '#D8C28C', rail: '#B9B9C2',
     bg: neutral('#1C1B21', '#141418', '#0F0F12'), border: NEUTRAL_BORDER, pad: [10, 16, 12, 16], text: '#F5F5F7',
@@ -115,7 +126,7 @@ export const TAB_THEMES: Record<TabId, TabTheme> = {
 }
 
 /** The prototype's tab order (card 23). Liam can hide and reorder them, and the saved order lives in the settings row. */
-export const DEFAULT_ORDER: TabId[] = ['home', 'pay', 'week', 'study', 'music', 'sixers', 'money', 'controls', 'alerts', 'claude', 'night', 'marks', 'shelf', 'widgets', 'more']
+export const DEFAULT_ORDER: TabId[] = ['home', 'pay', 'week', 'study', 'music', 'sixers', 'money', 'controls', 'audio', 'launch', 'alerts', 'claude', 'night', 'marks', 'shelf', 'widgets', 'more']
 export const RAIL: TabId[] = DEFAULT_ORDER
 export const TAB_IDS: TabId[] = DEFAULT_ORDER
 
@@ -143,4 +154,6 @@ export const RAIL_ICONS: Record<TabId, string> = {
   widgets: '<rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><circle cx="7" cy="17" r="3.5"></circle><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect>',
   more: '<circle cx="5" cy="12" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="19" cy="12" r="1.6"></circle>',
   controls: '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle>',
+  audio: '<path d="M4 9h4l5-4v14l-5-4H4z"></path><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12"></path>',
+  launch: '<rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><path d="M17 13.5v7M13.5 17h7"></path>',
 }

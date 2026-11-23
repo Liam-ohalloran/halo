@@ -4,6 +4,7 @@ import type { Goal, MoneyItem } from '../lib/money'
 import type { Mark } from '../lib/marks'
 import type { TaskRun } from '../lib/claude'
 import { badge, type ShelfItem } from '../lib/shelf'
+import type { LaunchItem } from '../lib/launch'
 import { DEFAULT_COUNTDOWNS, type Countdown } from '../lib/widgets'
 import { DEFAULT_SETTINGS } from '../types'
 import { weekStart, addDays } from '../time'
@@ -186,6 +187,14 @@ export function mockBackend(mode: string): Backend {
   const shelf = shelfFixture(mode)
   const shelfListeners = new Set<() => void>()
   const cds = countdownFixture(mode)
+  const launch: LaunchItem[] = mode.endsWith('empty') ? [] : [
+    ...['Spotify', 'Chrome', 'Claude', 'Terminal', 'Obsidian', 'TickTick', 'Teams', 'OneNote', 'Outlook', 'Canva', 'Figma', 'halo'].map((name, i) => ({ id: `la${i}`, kind: 'app' as const, name, target: `${name}.lnk`, grp: '', sort: i })),
+    { id: 'ls0', kind: 'site', name: 'SEQTA', target: 'https://example.test/seqta', grp: 'School', sort: 20 },
+    { id: 'ls1', kind: 'site', name: 'WACE Vault', target: 'https://wacevault.com', grp: 'School', sort: 21 },
+    { id: 'ls2', kind: 'site', name: 'myJob', target: 'https://example.test/myjob', grp: 'Work', sort: 22 },
+    { id: 'ls3', kind: 'site', name: 'Blink', target: 'https://example.test/blink', grp: 'Work', sort: 23 },
+    { id: 'ls4', kind: 'site', name: 'GitHub', target: 'https://github.com', grp: 'Build', sort: 24 },
+  ]
   // Dev only: lets a test play the part of a scheduled task or the phone adding to the Shelf.
   ;(globalThis as unknown as { __mockClaude?: unknown }).__mockClaude = {
     insertRun: (r: Partial<TaskRun> & { id: string; title: string }) => { runs.unshift({ status: 'done', detail: '', created_at: new Date().toISOString(), finished_at: null, ...r }); runListeners.forEach((f) => f()) },
@@ -268,6 +277,10 @@ export function mockBackend(mode: string): Backend {
       try { return JSON.parse(localStorage.getItem('halo.mock.tabprefs') ?? 'null') } catch { return null }
     },
     async saveUiPrefs(p) { await sleep(60); try { localStorage.setItem('halo.mock.tabprefs', JSON.stringify(p)) } catch { /* ignore */ } },
+    launchItems: () => gate(launch.map((l) => ({ ...l }))),
+    async addLaunchItem(i) { await sleep(80); const it = { ...i, id: nextId(), sort: launch.length }; launch.push(it); return { ...it } },
+    async removeLaunchItem(id) { await sleep(60); const k = launch.findIndex((l) => l.id === id); if (k >= 0) launch.splice(k, 1) },
+    async saveLaunchOrder(items) { await sleep(60); for (const it of items) { const l = launch.find((x) => x.id === it.id); if (l) l.sort = it.sort } },
     async uiSettings() {
       await sleep(60)
       try { return JSON.parse(localStorage.getItem('halo.mock.ui') ?? 'null') } catch { return null }

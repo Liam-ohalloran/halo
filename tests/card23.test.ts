@@ -24,7 +24,7 @@ test('tab prefs: unknown ids and duplicates are dropped, Home is always there, M
 
 test('tab prefs: pin, unpin and the limit of 8', () => {
   let p = normalisePrefs(null, DEFAULT_ORDER)
-  assert.deepEqual(moreIds(p, DEFAULT_ORDER), ['money', 'controls', 'claude', 'night', 'marks', 'shelf', 'widgets'], 'everything else, in the default order, and More is the button so it is left out')
+  assert.deepEqual(moreIds(p, DEFAULT_ORDER), ['money', 'controls', 'audio', 'launch', 'claude', 'night', 'marks', 'shelf', 'widgets'], 'everything else, in the default order, and More is the button so it is left out')
   p = togglePin(p, 'money')
   assert.equal(p.pinned.length, 8)
   assert.ok(!canPinMore(p))

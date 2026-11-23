@@ -3,6 +3,7 @@ import { DEFAULT_SETTINGS } from './types'
 import { DEFAULT_COUNTDOWNS } from './lib/widgets'
 import { mergeTheme, themeTabs } from './lib/tabprefs'
 import { mergeUi, themeUi } from './lib/ui-settings'
+import { normaliseItems } from './lib/launch'
 import { safeFileName } from './lib/shelf'
 import type { ShelfItem } from './lib/shelf'
 import type { TaskRun } from './lib/claude'
@@ -214,6 +215,24 @@ export const supabaseBackend: Backend = {
     const cur = must(await supabase.from('settings').select('theme').maybeSingle()) as { theme?: unknown } | null
     const res = await supabase.from('settings').upsert({ owner_id: uid, theme: mergeTheme(cur?.theme, p), updated_at: new Date().toISOString() })
     if (res.error) throw new Error(res.error.message)
+  },
+
+  async launchItems() {
+    return normaliseItems(must(await supabase.from('launch_items').select('id,kind,name,target,grp,sort').order('sort').order('created_at')))
+  },
+  async addLaunchItem(i) {
+    const { data: last } = await supabase.from('launch_items').select('sort').order('sort', { ascending: false }).limit(1).maybeSingle()
+    const row = must(await supabase.from('launch_items').insert({ kind: i.kind, name: i.name, target: i.target, grp: i.grp, sort: ((last as { sort?: number } | null)?.sort ?? -1) + 1 }).select('id,kind,name,target,grp,sort').single())
+    return normaliseItems([row])[0]
+  },
+  async removeLaunchItem(id) {
+    const res = await supabase.from('launch_items').delete().eq('id', id)
+    if (res.error) throw new Error(res.error.message)
+  },
+  async saveLaunchOrder(items) {
+    const res = await Promise.all(items.map((i) => supabase.from('launch_items').update({ sort: i.sort }).eq('id', i.id)))
+    const bad = res.find((r) => r.error)
+    if (bad?.error) throw new Error(bad.error.message)
   },
 
   async uiSettings() {

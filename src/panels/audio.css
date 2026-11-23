@@ -1,0 +1,72 @@
+/* Audio tab (card 24), black island family: black cards, glowing lines, rounded pills. Sizes follow the prototype, bumped up to the 11 px floor. */
+.audio-pv .auG { display: grid; grid-template-columns: 150px minmax(0, 1fr) minmax(0, 1fr); gap: 8px; height: 100%; grid-template-rows: minmax(0, 1fr); transition: opacity .3s, filter .3s; }
+.audio-pv.is-off .auG .blk:not(.auOff) { opacity: .4; filter: saturate(.4); pointer-events: none; }
+.audio-pv.is-off .auMixB { display: none; }
+.audio-pv .blk { position: relative; border-radius: 20px; padding: 9px 12px; background: #07070b; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); min-width: 0; overflow: hidden; }
+.audio-pv .blk .caps { color: var(--fog); font-size: 9px; }
+.audio-pv .na { color: #8a8a94; }
+.audio-pv small.na { display: block; margin-top: 5px; font-size: 11px; line-height: 1.3; }
+.audio-pv .auCol { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.audio-pv .auCol .blk { flex: none; }
+.audio-pv .auCol .blk:first-child { flex: 1 1 0; min-height: 0; }
+.audio-pv .auM { display: flex; flex-direction: column; align-items: center; }
+.audio-pv .auM .caps { align-self: flex-start; }
+.audio-pv .auM::before { content: ''; position: absolute; left: 50%; top: 38%; width: 160px; height: 120px; transform: translate(-50%, -50%); background: radial-gradient(closest-side, rgba(47,134,255,.45), transparent); transition: background .4s; pointer-events: none; }
+.audio-pv .muted .auM::before { background: radial-gradient(closest-side, rgba(255,69,58,.45), transparent); }
+.audio-pv .auM > * { position: relative; }
+.audio-pv .auMute { position: relative; width: 78px; height: 78px; border-radius: 50%; border: 0; margin-top: 8px; cursor: pointer; color: #fff; display: grid; place-items: center; background: radial-gradient(circle at 35% 30%, #4c9bff, #1450b0 70%); box-shadow: 0 0 0 4px rgba(47,134,255,.18), 0 12px 30px -8px rgba(47,134,255,.9), inset 0 1px 0 rgba(255,255,255,.4); transition: transform .35s var(--spring), background .35s, box-shadow .35s; }
+.audio-pv .auMute i { display: grid; place-items: center; }
+.audio-pv .auMute svg { width: 30px; height: 30px; }
+.audio-pv .auMute:active { transform: scale(.9); }
+.audio-pv .muted .auMute { background: radial-gradient(circle at 35% 30%, #ff6a5f, #a8150c 70%); box-shadow: 0 0 0 4px rgba(255,69,58,.2), 0 12px 30px -8px rgba(255,69,58,.9), inset 0 1px 0 rgba(255,255,255,.4); }
+.audio-pv .auMute .ring2 { position: absolute; inset: -9px; border-radius: 50%; border: 1.5px solid rgba(47,134,255,.35); animation: auP 2.4s ease-out infinite; }
+.audio-pv .muted .auMute .ring2 { border-color: rgba(255,69,58,.4); }
+@keyframes auP { 0% { transform: scale(.9); opacity: 1; } 100% { transform: scale(1.18); opacity: 0; } }
+.audio-pv .auV { text-align: center; margin-top: 12px; max-width: 100%; }
+.audio-pv .auV b { display: block; font-size: 21px; font-weight: 800; letter-spacing: -.02em; }
+.audio-pv .auV span { display: block; font-size: 11px; color: var(--fog); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 126px; }
+.audio-pv .auSl { position: relative; width: 118px; height: 18px; margin-top: 6px; cursor: ew-resize; touch-action: none; }
+.audio-pv .auSl .tr, .audio-pv .auSl .fl { position: absolute; left: 0; top: 7px; height: 4px; border-radius: 3px; }
+.audio-pv .auSl .tr { right: 0; background: rgba(255,255,255,.12); }
+.audio-pv .auSl .fl { background: linear-gradient(90deg, #1450b0, #4c9bff); box-shadow: 0 0 8px #2f86ff; }
+.audio-pv .muted .auSl .fl { background: #555; box-shadow: none; }
+.audio-pv .auSl .kn { position: absolute; top: 2px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: #fff; box-shadow: 0 0 10px rgba(255,255,255,.7); }
+.audio-pv .auO { display: grid; grid-template-columns: 24px minmax(0, 1fr) 12px; align-items: center; gap: 8px; padding: 2px 6px; margin: 2px -4px 0; border-radius: 12px; }
+.audio-pv .auO[role='button'] { cursor: pointer; transition: background .2s; }
+.audio-pv .auO.go:hover { background: rgba(255,255,255,.07); }
+.audio-pv .auO.on { background: color-mix(in srgb, var(--c) 18%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, transparent); }
+.audio-pv .auO .ib { width: 24px; height: 24px; border-radius: 8px; display: grid; place-items: center; background: color-mix(in srgb, var(--c) 25%, #111); color: var(--c); }
+.audio-pv .auO .ib svg { width: 13px; height: 13px; }
+.audio-pv .auO b { display: block; line-height: 1.15; font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.audio-pv .auO small { display: block; line-height: 1.1; font-size: 11px; color: var(--fog); white-space: nowrap; }
+.audio-pv .auO .ck { width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.25); }
+.audio-pv .auO.on .ck { background: var(--c); box-shadow: 0 0 8px var(--c); }
+.audio-pv .auMic { display: flex; align-items: center; gap: 9px; }
+.audio-pv .auMicT { flex: 1; min-width: 0; }
+.audio-pv .auB { width: 32px; height: 32px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer; color: #000; background: #30D158; box-shadow: 0 0 14px -2px #30D158; flex: none; transition: transform .3s var(--spring); }
+.audio-pv .auB:active { transform: scale(.9); }
+.audio-pv .auB.off { background: #FF453A; color: #fff; box-shadow: 0 0 14px -2px #FF453A; }
+.audio-pv .auB svg { width: 15px; height: 15px; }
+.audio-pv .auLv { display: flex; gap: 2px; margin-top: 5px; }
+.audio-pv .auLv i { flex: 1; height: 8px; border-radius: 2px; background: rgba(255,255,255,.1); transition: background .1s; }
+.audio-pv .auLv i.on { background: #30D158; box-shadow: 0 0 4px #30D158; }
+.audio-pv .auLv i.on:nth-child(n+13) { background: #FFC23D; box-shadow: 0 0 4px #FFC23D; }
+.audio-pv .auLv i.on:nth-child(n+16) { background: #FF453A; }
+.audio-pv .auPill { font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 999px; background: rgba(255,255,255,.06); white-space: nowrap; flex: none; max-width: 70px; line-height: 1.15; text-align: center; white-space: normal; }
+.audio-pv .auMx { display: flex; gap: 8px; margin-top: 6px; justify-content: space-around; }
+.audio-pv .auA { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; cursor: ns-resize; border-radius: 10px; }
+.audio-pv .auA .vt { position: relative; width: 24px; height: 62px; border-radius: 9px; background: rgba(255,255,255,.07); overflow: hidden; touch-action: none; }
+.audio-pv .auA .vt i { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: linear-gradient(0deg, color-mix(in srgb, var(--c) 60%, #000), var(--c)); box-shadow: 0 0 10px var(--c); transition: height .2s; }
+.audio-pv .auA .vt em { position: absolute; top: 3px; left: 0; right: 0; text-align: center; font-style: normal; font-size: 11px; font-weight: 700; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.7); }
+.audio-pv .auA > span { font-size: 11px; font-weight: 700; color: rgba(245,247,255,.85); white-space: nowrap; }
+.audio-pv .auMore { align-self: center; font-size: 11px; color: var(--fog); }
+.audio-pv .auNone { margin: 14px 0 0; font-size: 13px; color: var(--fog); text-align: center; }
+.audio-pv .auEqH { display: flex; justify-content: space-between; align-items: center; }
+.audio-pv .auEq { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 6px; }
+.audio-pv .auEq button { border: 0; font: inherit; font-size: 11px; font-weight: 700; padding: 5px 0; border-radius: 999px; background: rgba(255,255,255,.06); color: #6f6f78; cursor: not-allowed; }
+.audio-pv .auOff { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; }
+.audio-pv .auOff[hidden] { display: none; }
+.audio-pv .auOff b { font-size: 15px; font-weight: 700; }
+.audio-pv .auOff span { font-size: 13px; color: var(--fog); }
+.audio-pv .auOff button { margin-top: 6px; appearance: none; border: 0; height: 28px; padding: 0 14px; border-radius: 999px; font-size: 13px; font-weight: 700; cursor: pointer; color: #000; background: #fff; }
+@media (prefers-reduced-motion: reduce) { .audio-pv .auMute .ring2 { animation: none; } .audio-pv .auMute, .audio-pv .auB, .audio-pv .auA .vt i { transition: none; } }
